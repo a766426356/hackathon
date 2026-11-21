@@ -3,6 +3,8 @@
 
 import * as rules from '../src/rules.js';
 import { BUILDING_FLOORS, roomsText } from '../src/interiors.js';
+import { PERSONA_TYPES, buildPersona } from '../src/persona.js';
+import { createState } from '../src/state.js';
 
 let bad = 0;
 const fail = (msg) => { console.log('✗ ' + msg); bad++; };
@@ -103,5 +105,21 @@ console.log(bad
   ? ''
   : '校园 ' + WALKABLE.length + ' 块区域连成一片、' + INTERACTABLES.length +
     ' 个交互点够得着；' + Object.keys(BUILDING_FLOORS).length + ' 栋楼 / ' + roomCount + ' 个房间数据自洽 ✓');
+
+// ---------------------------------------------------------------- HKUTI 报告
+// 16 种组合必须一个不少，拼写也要对得上四个轴，否则结局页会 fallback 成 ISMD
+const codes = Object.keys(PERSONA_TYPES);
+if (codes.length !== 16) fail('HKUTI 类型表应该有 16 种，实际 ' + codes.length);
+for (const c of codes) {
+  if (!/^[EI][AS][BM][PD]$/.test(c)) fail('HKUTI 类型代码不合法：' + c);
+  const t = PERSONA_TYPES[c];
+  if (!t || !t[0] || !t[1]) fail('HKUTI 类型 ' + c + ' 缺称号或一句话');
+}
+// 什么都不做的人必须稳定落在 ISMD，否则「摆烂」会被算成好类型
+const probe = createState(1);
+probe.phase = 'day';
+const idle = buildPersona(probe);
+if (idle.code !== 'ISMD') fail('什么都没做的人应该是 ISMD，实际 ' + idle.code);
+
 console.log(bad ? '\n检查失败：' + bad + ' 处' : '全部检查通过 ✓');
 process.exit(bad ? 1 : 0);

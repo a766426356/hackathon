@@ -35,7 +35,7 @@ function gainCard(s) {
     return '「' + topic.name + '」威力 +2。';
   }
   if (s.deck.length >= CONFIG.deckCap) return '笔记已经写满了，这张卡没地方放。';
-  s.deck.push({ id: topic.id + '-' + s.deck.length, topic: topic.id, name: topic.name, power: topic.power });
+  s.deck.push({ id: topic.id + '-' + s.deck.length, topic: topic.id, name: topic.name, en: topic.en, power: topic.power });
   return '「' + topic.name + '」进了牌组。';
 }
 
@@ -352,7 +352,7 @@ export function rollLoot(s) {
     if (r <= 0) { picked = pool[i]; break; }
   }
   const item = {
-    id: picked.id, name: picked.name, kind: picked.kind,
+    id: picked.id, name: picked.name, en: picked.en, kind: picked.kind,
     value: picked.value, rarity: picked.rarity,
   };
   s.loot.push(item);

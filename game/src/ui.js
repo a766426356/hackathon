@@ -299,7 +299,8 @@ export function battlePanel(s, b, prev) {
   return openModal(html, { cls: 'battle-panel' });
 }
 
-// 结局页 = 成绩 + 人格报告。人格报告全部由真实行为算出来（persona.js），不是随机抽的。
+// 结局页 = 成绩 + HKUTI 报告。报告整段是英文（评审和最终交付都用英文），
+// 上面的成绩卡仍然中文 —— 需要的话整页可以一次性翻成英文。
 export function endingPanel(s) {
   const e = TEXTS.endings[s.ending];
   const total = s.deck.reduce((n, c) => n + c.power, 0);
@@ -316,22 +317,22 @@ export function endingPanel(s) {
         '<i class="r" style="width:' + negShare + '%"></i>' +
       '</span>' +
       '<span class="pal neg' + (a.letter === a.neg || neutral ? ' on' : '') + '">' + esc(a.negLabel) + '</span>' +
-      '<span class="pnote">' + (neutral ? '没干过' : esc(a.question)) + '</span>' +
+      '<span class="pnote">' + (neutral ? 'no data' : esc(a.question)) + '</span>' +
       '</div>';
   }).join('');
 
   const c = p.counts;
   const bits = [];
-  if (c.studies) bits.push('上课 ' + c.studies + ' 节');
-  if (c.indoor) bits.push('自习 ' + c.indoor + ' 次');
-  if (c.talk) bits.push('聊天 ' + c.talk + ' 次');
-  if (c.play) bits.push('娱乐 ' + c.play + ' 次');
-  if (c.events) bits.push('活动 ' + c.events + ' 场');
-  if (c.field) bits.push('跑步 ' + c.field + ' 次');
-  if (c.fights) bits.push('夜战 ' + c.fights + ' 场（赢 ' + c.wins + '）');
-  if (c.nightStudy) bits.push('夜读 ' + c.nightStudy + ' 晚');
-  if (c.rest) bits.push('躺平 ' + c.rest + ' 次');
-  if (p.eventsMissed) bits.push('错过活动 ' + p.eventsMissed + ' 场');
+  if (c.lectures) bits.push('Lectures ' + c.lectures);
+  if (c.soloStudy) bits.push('Solo study ' + c.soloStudy);
+  if (c.chats) bits.push('Chats ' + c.chats);
+  if (c.play) bits.push('Play ' + c.play);
+  if (c.events) bits.push('Events ' + c.events);
+  if (c.runs) bits.push('Runs ' + c.runs);
+  if (c.fights) bits.push('Night fights ' + c.fights + ' (' + c.wins + 'W)');
+  if (c.lateNights) bits.push('Late nights ' + c.lateNights);
+  if (c.earlyNights) bits.push('Early nights ' + c.earlyNights);
+  if (p.eventsMissed) bits.push('Missed ' + p.eventsMissed + ' event' + (p.eventsMissed > 1 ? 's' : ''));
 
   const html = `
     <div class="ending ${s.ending}">
@@ -346,7 +347,9 @@ export function endingPanel(s) {
       </table>
 
       <div class="psec">
-        <div class="phead">七天人格报告</div>
+        <div class="phead">
+          <b>HKUTI</b><span>HKU Type Indicator · seven days, four axes, one thoroughly unofficial verdict</span>
+        </div>
         <div class="pcard">
           <div class="pcode">${esc(p.code)}</div>
           <div class="ptitle">
@@ -358,11 +361,11 @@ export function endingPanel(s) {
         <p class="pverdict">${esc(p.verdict)}</p>
         <ul class="plist">${bits.map((b) => '<li>' + esc(b) + '</li>').join('')}</ul>
         <div class="pmeta">
-          ${p.topFriend ? '<span>最亲的人 <b>' + esc(p.topFriend.name) + '</b>（' + p.topFriend.value + '）</span>' : ''}
-          ${p.bestCard ? '<span>最强的一张牌 <b>' + esc(p.bestCard.name) + '</b>（' + p.bestCard.power + '）</span>' : ''}
-          ${p.lootCount ? '<span>战利品 <b>' + p.lootCount + '</b> 件' +
-            (p.bestLoot ? '，最好是「' + esc(p.bestLoot.name) + '」' : '') + '</span>' : ''}
-          ${p.collapsed ? '<span class="warn">中途崩过一次</span>' : ''}
+          ${p.topFriend ? '<span>Closest to <b>' + esc(p.topFriend.name) + '</b> ' + p.topFriend.value + '</span>' : ''}
+          ${p.bestCard ? '<span>Best card <b>' + esc(p.bestCard.label) + '</b> ' + p.bestCard.power + '</span>' : ''}
+          ${p.lootCount ? '<span>Loot <b>' + p.lootCount + '</b>' +
+            (p.bestLoot ? ', best &ldquo;' + esc(p.bestLoot.label) + '&rdquo;' : '') + '</span>' : ''}
+          ${p.collapsed ? '<span class="warn">Collapsed once</span>' : ''}
         </div>
       </div>
 

@@ -183,26 +183,27 @@ export const EVENTS = [
 
 // ---------------------------------------------------------------- 战利品
 // 只放大出口：damage 让牌打得更疼、hp 让血量更厚、day 让白天收益更高。
+// en 只给结局的英文人格报告用，游戏内界面仍显示中文名。
 export const LOOT = [
-  { id: 'loot.tail',  name: '拖延兽的尾巴',   rarity: 'common',    kind: 'damage', value: 0.08,
+  { id: 'loot.tail',  name: '拖延兽的尾巴',   en: "Procrastination Beast's Tail", rarity: 'common',    kind: 'damage', value: 0.08,
     desc: '你把它拽下来的时候，它还在说「明天再说」。' },
-  { id: 'loot.shoe',  name: '旧运动鞋',       rarity: 'common',    kind: 'hp',     value: 0.10,
+  { id: 'loot.shoe',  name: '旧运动鞋',       en: 'Worn-Out Running Shoes', rarity: 'common',    kind: 'hp',     value: 0.10,
     desc: '鞋底磨平了，但还合脚。' },
-  { id: 'loot.lamp',  name: '宿舍台灯',       rarity: 'common',    kind: 'day',    value: 0.08,
+  { id: 'loot.lamp',  name: '宿舍台灯',       en: 'Dorm Desk Lamp', rarity: 'common',    kind: 'day',    value: 0.08,
     desc: '灯罩有点歪，光刚好落在书页上。' },
 
-  { id: 'loot.page',  name: '撕掉的第一页',   rarity: 'rare',      kind: 'damage', value: 0.18,
+  { id: 'loot.page',  name: '撕掉的第一页',   en: 'The Torn-Out First Page', rarity: 'rare',      kind: 'damage', value: 0.18,
     desc: '那页纸上写着「算了」，你把它撕了。' },
-  { id: 'loot.mask',  name: '冒名的面具',     rarity: 'rare',      kind: 'hp',     value: 0.20,
+  { id: 'loot.mask',  name: '冒名的面具',     en: "Impostor's Mask", rarity: 'rare',      kind: 'hp',     value: 0.20,
     desc: '戴上它，那个声音小了一点。' },
-  { id: 'loot.plan',  name: '内卷王的计划表', rarity: 'rare',      kind: 'day',    value: 0.15,
+  { id: 'loot.plan',  name: '内卷王的计划表', en: "Grind King's Timetable", rarity: 'rare',      kind: 'day',    value: 0.15,
     desc: '别人的时间表。你抄了一半就撕了。' },
 
-  { id: 'loot.hunt',  name: '猎人的直觉',     rarity: 'legendary', kind: 'damage', value: 0.25,
+  { id: 'loot.hunt',  name: '猎人的直觉',     en: "Hunter's Instinct", rarity: 'legendary', kind: 'damage', value: 0.25,
     desc: '你开始能听见它们出手前的呼吸。' },
-  { id: 'loot.jersey', name: '校队队服',      rarity: 'legendary', kind: 'hp',     value: 0.25,
+  { id: 'loot.jersey', name: '校队队服',      en: 'Varsity Jersey', rarity: 'legendary', kind: 'hp',     value: 0.25,
     desc: '号码是别人挑剩的，但你穿得刚好。' },
-  { id: 'loot.clock', name: '别人的闹钟',     rarity: 'legendary', kind: 'day',    value: 0.20,
+  { id: 'loot.clock', name: '别人的闹钟',     en: "Someone Else's Alarm", rarity: 'legendary', kind: 'day',    value: 0.20,
     desc: '它每天响得比你早一个小时，你也就跟着起来了。' },
 ];
 
@@ -211,30 +212,31 @@ export const LOOT_KIND = { damage: '夜战伤害', hp: '血量上限', day: '白
 
 // ---------------------------------------------------------------- NPC / 卡 / 敌人
 export const NPCS = {
-  lin:  { id: 'lin',  name: '林', place: '文娱楼', color: '#d98b8b', taunt: '「输的人请奶茶。」', lines: [
+  lin:  { id: 'lin',  name: '林', en: 'Lin', place: '文娱楼', color: '#d98b8b', taunt: '「输的人请奶茶。」', lines: [
     '这周的读书会你来吗？我带了手冲。',
     '别把绩点当成全部啊……虽然我也做不到。',
     '累了就来坐坐，我请你喝一杯。',
   ] },
-  chen: { id: 'chen', name: '陈', place: '社团楼', color: '#7fa8d9', taunt: '「我高中可是校队的。」', lines: [
+  chen: { id: 'chen', name: '陈', en: 'Chen', place: '社团楼', color: '#7fa8d9', taunt: '「我高中可是校队的。」', lines: [
     '社团招新还差一个人，就你了。',
     '排练到十点，反正也睡不着。',
     '你上次那个点子，其实挺有意思的。',
   ] },
-  zhou: { id: 'zhou', name: '周', place: '社团楼', color: '#9ad98b', taunt: '「让我先热个身。」', lines: [
+  zhou: { id: 'zhou', name: '周', en: 'Zhou', place: '社团楼', color: '#9ad98b', taunt: '「让我先热个身。」', lines: [
     '听说 CDS-1 三楼的自习位，晚上特别安静。',
     '我把重点整理成卡片了，要不要？',
     '熬夜是会写在脸上的。',
   ] },
 };
 
+// en 只给结局的英文人格报告用（游戏内仍显示中文名）
 export const TOPICS = [
-  { id: 'linalg', name: '线性代数·特征值', power: 9 },
-  { id: 'bayes',  name: '概率论·贝叶斯',   power: 10 },
-  { id: 'rbtree', name: '数据结构·红黑树', power: 11 },
-  { id: 'deadlock', name: '操作系统·死锁', power: 9 },
-  { id: 'dfa',    name: '编译原理·DFA',    power: 8 },
-  { id: 'writing', name: '学术写作·论证',  power: 10 },
+  { id: 'linalg', name: '线性代数·特征值', en: 'Linear Algebra · Eigenvalues', power: 9 },
+  { id: 'bayes',  name: '概率论·贝叶斯',   en: 'Probability · Bayes', power: 10 },
+  { id: 'rbtree', name: '数据结构·红黑树', en: 'Data Structures · Red-Black Trees', power: 11 },
+  { id: 'deadlock', name: '操作系统·死锁', en: 'Operating Systems · Deadlock', power: 9 },
+  { id: 'dfa',    name: '编译原理·DFA',    en: 'Compilers · DFA', power: 8 },
+  { id: 'writing', name: '学术写作·论证',  en: 'Academic Writing · Argument', power: 10 },
 ];
 
 export const ENEMIES = [
