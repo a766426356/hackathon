@@ -488,6 +488,88 @@ html, body {
 /* 抖动由 JS 的 element.animate 驱动，这里只保证战斗内容能独立位移 */
 .battle { will-change: transform; }
 
+/* ---------------------------------------------------------------- 敌人等级 / 掉落 */
+.ename .elv {
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #9fb4d6;
+  background: #232b3b;
+  border: 1px solid #41506e;
+  border-radius: 8px;
+  vertical-align: 2px;
+}
+
+.drop {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: #1b2230;
+  border-left: 3px solid #41506e;
+  border-radius: 4px;
+  animation: dropIn .3s ease-out;
+}
+.drop.rare { border-left-color: #5f8fd0; }
+.drop.legendary { border-left-color: var(--gold); background: rgba(224, 182, 74, .09); }
+.drop .dname { font-size: 14px; font-weight: 700; color: #dfe5f2; }
+.drop.legendary .dname { color: var(--gold-2); }
+.drop .deff { font-size: 12px; color: #9fb4d6; }
+.drop .dnote { margin-left: auto; font-size: 10.5px; color: #6f7b90; }
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------------------------------------------------------------- 行囊 */
+.bagsum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 8px;
+  font-size: 11.5px;
+  color: #a9b4c9;
+}
+.bagsum span {
+  padding: 1px 8px;
+  border: 1px solid #41506e;
+  border-radius: 9px;
+  background: #253048;
+}
+.bagsum b { color: var(--gold-2); font-variant-numeric: tabular-nums; }
+.bagsum .cap { color: #6f7b90; background: none; border-style: dashed; }
+
+.baglist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+.baglist li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #cfd8e8;
+  background: #1e2534;
+  border-left: 2px solid #41506e;
+  border-radius: 3px;
+}
+.baglist li.rare { border-left-color: #5f8fd0; }
+.baglist li.legendary { border-left-color: var(--gold); }
+.baglist li.legendary b { color: var(--gold-2); }
+.baglist li span { font-size: 11px; color: #9fb4d6; }
+.char .empty { margin: 4px 0 0; font-size: 12px; color: #6f7b90; }
+
 /* ---------------------------------------------------------------- 结局 */
 .ending .tag {
   display: inline-block;

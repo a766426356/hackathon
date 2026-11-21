@@ -1,9 +1,10 @@
 // ui.js — HUD / 标签 / 日志 / 各种弹窗。只负责 DOM，不碰游戏逻辑。
 
 import { CONFIG, INTERACTABLES, NPCS, TEXTS, EVENT_PLACES } from '../data.js';
-import { cardDamage } from './battle.js';
+import { cardDamage, enemyFor } from './battle.js';
 import { moodMult, examParts, examGpa, playerMaxHp } from './state.js';
 import { entriesOf, placeOf, effectLine } from './calendar.js';
+import { lootTotals, lootStack, lootEffectText, pct as pctText } from './loot.js';
 
 export const els = {};
 
@@ -175,20 +176,23 @@ export function introPanel(hasSave) {
 function esc(x) { return escapeHtml(x); }
 
 export function nightPanel(s) {
+  const foe = enemyFor(s);
+  const hits = Math.ceil(foe.maxHp / Math.max(1, cardDamage(s, { kind: 'attack', power: 10 })));
   const html = `
     <div class="night">
       <h2>第 ${s.day} 天 · 夜晚</h2>
-      <p class="sub">今天还有 ${s.deck.length} 张笔记、心情 ${s.mood}。晚上只能做一件事。</p>
+      <p class="sub">今天还有 ${s.deck.length} 张笔记、心境 ${s.mood}。晚上只能做一件事。</p>
       <div class="choices">
         <button class="choice" data-act="study">
           <span class="ct">${TEXTS.nightStudy}</span>
           <span class="cd">${TEXTS.nightStudyDesc}</span>
-          <span class="cnum">知识 +${Math.ceil(CONFIG.nightStudyGain * moodMult(s))} · 心情 −${CONFIG.nightStudyMoodCost}</span>
+          <span class="cnum">知识 +${Math.ceil(CONFIG.nightStudyGain * moodMult(s))} · 心境 −${CONFIG.nightStudyMoodCost}</span>
         </button>
         <button class="choice" data-act="fight">
           <span class="ct">${TEXTS.nightFight}</span>
           <span class="cd">${TEXTS.nightFightDesc}</span>
-          <span class="cnum">赢：心情 +${CONFIG.winMood} / 输：心情 −${CONFIG.loseMood}</span>
+          <span class="cnum">今晚的对手：<b>${esc(foe.name)}</b> Lv.${foe.lv} · HP ${foe.maxHp} · ATK ${foe.atk}</span>
+          <span class="cnum dim">你的血量 ${playerMaxHp(s)}，按现在的牌大约要 ${hits} 张牌解决；赢了掉一件永久战利品</span>
         </button>
       </div>
     </div>`;
@@ -217,15 +221,21 @@ export function battlePanel(s, b, prev) {
     <div class="battle">
       <div class="btop">
         <div class="enemy">
-          <div class="ename">${esc(b.enemy.name)}</div>
+          <div class="ename">${esc(b.enemy.name)}<span class="elv">Lv.${b.enemy.lv}</span></div>
           <div class="ebar"><i style="width:${pct}%;--from:${epFrom}%"></i></div>
-          <div class="ehp">${b.enemy.hp} / ${b.enemy.maxHp}</div>
+          <div class="ehp">${b.enemy.hp} / ${b.enemy.maxHp} · ATK ${b.enemy.atk}</div>
         </div>
         <div class="round">第 ${b.round} / ${b.rounds} 回合</div>
       </div>
       <div class="notes"><ul>${notes}</ul></div>
       ${b.over ? `
         <div class="result ${b.result}">${b.result === 'win' ? '你赢了这场夜战。' : '你输掉了这场夜战。'}</div>
+        ${b.reward && b.reward.loot ? `
+          <div class="drop ${b.reward.loot.rarity}">
+            <span class="dname">${esc(b.reward.loot.name)}</span>
+            <span class="deff">${esc(lootEffectText(b.reward.loot))}</span>
+            <span class="dnote">永久生效</span>
+          </div>` : ''}
         <button class="btn primary" data-act="done">收工，回去睡觉</button>
       ` : `
         <div class="hand">${hand}</div>
@@ -279,6 +289,8 @@ export function characterPanel(s) {
   const g = examParts(s);
   const gpa = examGpa(s);
   const hits = Math.floor(hp / 6); // 一般怪 atk 5–7，按 6 算能扛几下
+  const lt = lootTotals(s);
+  const bag = lootStack(s);
 
   const tip = (lines) => '<div class="ctip">' + lines.map((l) => '<p>' + l + '</p>').join('') + '</div>';
 
@@ -335,6 +347,20 @@ export function characterPanel(s) {
           ])}
         </div>
       </div>
+
+      <h3 class="csec">行囊 · 战利品只放大出口，不动属性</h3>
+      ${bag.length ? `
+        <div class="bagsum">
+          <span>夜战伤害 <b>${pctText(lt.damage)}</b></span>
+          <span>血量上限 <b>${pctText(lt.hp)}</b></span>
+          <span>白天收益 <b>${pctText(lt.day)}</b></span>
+          <span class="cap">每类封顶 ${pctText(CONFIG.lootCap)}</span>
+        </div>
+        <ul class="baglist">${bag.map((l) =>
+          '<li class="' + l.rarity + '"><b>' + esc(l.name) + '</b>' +
+          (l.n > 1 ? ' ×' + l.n : '') +
+          '<span>' + esc(lootEffectText(l)) + '</span></li>').join('')}</ul>
+      ` : '<p class="empty">还没有战利品。夜战赢一场就掉一件，越早赢越早变强。</p>'}
 
       <h3 class="csec">第 7 天结算</h3>
       <table class="stats">

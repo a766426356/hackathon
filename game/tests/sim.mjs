@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { CONFIG } from '../data.js';
 import { createState, examGpa, endingOf } from '../src/state.js';
+import { lootMult } from '../src/loot.js';
 import * as rules from '../src/rules.js';
 import * as battle from '../src/battle.js';
 
@@ -18,6 +19,16 @@ function checkInvariants(s, tag) {
   assert.ok(s.day >= 1 && s.day <= s.maxDay, tag + ': day 越界 ' + s.day);
   for (const id of Object.keys(s.friend)) {
     assert.ok(s.friend[id] >= 0 && s.friend[id] <= 100, tag + ': 友谊越界 ' + id);
+  }
+  // 战利品：只放大出口，所以任何一类都不许超过封顶
+  assert.equal(s.loot.length, s.battleWins, tag + ': 每次胜利应该恰好掉一件，' +
+    s.loot.length + ' 件 vs ' + s.battleWins + ' 胜');
+  for (const kind of ['damage', 'hp', 'day']) {
+    assert.ok(lootMult(s, kind) <= CONFIG.lootCap + 1e-9,
+      tag + ': ' + kind + ' 加成超过封顶 ' + lootMult(s, kind));
+  }
+  if (s.lootCount >= 3) {
+    assert.ok(s.lootHasRare, tag + ': 前三次掉落没有出现稀有以上，保底没生效');
   }
 }
 
@@ -58,18 +69,22 @@ function dayActions(s, strategy) {
 }
 
 function night(s, strategy) {
+  // 打一场：出牌到结束再结算。fights 是「这一局打了几场」，用来测成长曲线。
+  const fight = () => {
+    const b = battle.startBattle(s);
+    let guard = 0;
+    while (!b.over && guard++ < 20) battle.playCard(s, b, 0);
+    assert.ok(b.over, '战斗没有结束');
+    rules.settleBattle(s, b);
+  };
+
   if (strategy === 'smart' && s.day >= 3) {
-    const b = battle.startBattle(s);
-    let guard = 0;
-    while (!b.over && guard++ < 20) battle.playCard(s, b, 0);
-    assert.ok(b.over, '战斗没有结束');
-    rules.settleBattle(s, b);
+    fight();
   } else if (strategy === 'mixed' && s.day % 2 === 1) {
-    const b = battle.startBattle(s);
-    let guard = 0;
-    while (!b.over && guard++ < 20) battle.playCard(s, b, 0);
-    assert.ok(b.over, '战斗没有结束');
-    rules.settleBattle(s, b);
+    fight();
+  } else if (strategy === 'fighter') {
+    // 边学边打：白天全上课攒牌，晚上每场都打（专门用来测敌人成长 + 战利品滚雪球）
+    fight();
   } else {
     rules.nightStudy(s);
   }
@@ -104,7 +119,7 @@ export function playOne(seed, strategy) {
 }
 
 // ---------------------------------------------------------------- 跑
-const strategies = ['study', 'mixed', 'social', 'lazy', 'smart', 'indoor', 'chill'];
+const strategies = ['study', 'mixed', 'social', 'lazy', 'smart', 'indoor', 'chill', 'fighter'];
 const counts = { great: 0, pass: 0, warn: 0 };
 const seeds = 100;
 let runs = 0;

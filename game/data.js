@@ -61,12 +61,18 @@ export const CONFIG = {
     rounds: 4,
     handSize: 3,
     enemyHp: 38,
+    enemyHpPerNight: 12,   // 第 N 夜 = enemyHp + (N-1) × 这个数
+    enemyAtkPerNight: 1,
     playerBaseHp: 30,
     ddlRound: 3,
     ddlMult: 2,
     fillerPower: 7,
     supportHeal: 8,
   },
+
+  // 战利品只放大「出口」，不改属性本身，所以不会顶穿 GPA。
+  // 同一类加成各自封顶，避免 6 场下来滚成天文数字。
+  lootCap: 0.6,
 
   // 房间数值：一处定义，interiors.js 的说明文案和 rules.js 的结算都读这里
   room: {
@@ -225,6 +231,37 @@ export const ENEMIES = [
   { id: 'ghost', name: '冒名顶替幽灵', atk: 5, moodCost: 3, desc: '它一直在你耳边说：你只是运气好。' },
   { id: 'juan',  name: '内卷王',   atk: 7, moodCost: 2, desc: '别人都在跑，你凭什么停。' },
 ];
+
+// ---------------------------------------------------------------- 战利品
+// 只放大出口：damage 让牌打得更疼、hp 让血量更厚、day 让白天收益更高。
+// 属性本身（知识 / 心境 / 体质）一点都不动，所以 examGpa 不受影响（day 类除外，它靠收益增速间接影响）。
+export const LOOT = [
+  { id: 'loot.tail',  name: '拖延兽的尾巴',   rarity: 'common',    kind: 'damage', value: 0.08,
+    desc: '你把它拽下来的时候，它还在说「明天再说」。' },
+  { id: 'loot.shoe',  name: '旧运动鞋',       rarity: 'common',    kind: 'hp',     value: 0.10,
+    desc: '鞋底磨平了，但还合脚。' },
+  { id: 'loot.lamp',  name: '宿舍台灯',       rarity: 'common',    kind: 'day',    value: 0.08,
+    desc: '灯罩有点歪，光刚好落在书页上。' },
+
+  { id: 'loot.page',  name: '撕掉的第一页',   rarity: 'rare',      kind: 'damage', value: 0.18,
+    desc: '那页纸上写着「算了」，你把它撕了。' },
+  { id: 'loot.mask',  name: '冒名的面具',     rarity: 'rare',      kind: 'hp',     value: 0.20,
+    desc: '戴上它，那个声音小了一点。' },
+  { id: 'loot.plan',  name: '内卷王的计划表', rarity: 'rare',      kind: 'day',    value: 0.15,
+    desc: '别人的时间表。你抄了一半就撕了。' },
+
+  { id: 'loot.hunt',  name: '猎人的直觉',     rarity: 'legendary', kind: 'damage', value: 0.25,
+    desc: '你开始能听见它们出手前的呼吸。' },
+  { id: 'loot.jersey', name: '校队队服',      rarity: 'legendary', kind: 'hp',     value: 0.25,
+    desc: '号码是别人挑剩的，但你穿得刚好。' },
+  { id: 'loot.clock', name: '别人的闹钟',     rarity: 'legendary', kind: 'day',    value: 0.20,
+    desc: '它每天响得比你早一个小时，你也就跟着起来了。' },
+];
+
+// 掉落权重：普通 60 / 稀有 30 / 传说 10
+export const LOOT_WEIGHT = { common: 60, rare: 30, legendary: 10 };
+
+export const LOOT_KIND = { damage: '夜战伤害', hp: '血量上限', day: '白天收益' };
 
 // ---------------------------------------------------------------- 文案
 export const TEXTS = {

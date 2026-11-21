@@ -2,6 +2,7 @@
 
 import { CONFIG } from '../data.js';
 import { freshCalendar } from './calendar.js';
+import { lootMult } from './loot.js';
 
 export const SAVE_KEY = 'zjxy.save.v4';
 export const SAVE_VERSION = 4;
@@ -60,6 +61,9 @@ export function createState(seed) {
     supportUnlocked: false,
     focus: false,
     battleWins: 0,
+    loot: [],
+    lootCount: 0,
+    lootHasRare: false,
     today: freshToday(),
     calendar: freshCalendar(),
     scene: 'campus',
@@ -72,17 +76,19 @@ export function createState(seed) {
   };
 }
 
+// 心境只管白天收益；战利品里的 day 类在这里放大，所以它也会间接收紧/放松知识积累
 export function moodMult(s) {
-  return 0.5 + s.mood * 0.01;
+  return (0.5 + s.mood * 0.01) * (1 + lootMult(s, 'day'));
 }
 
 export function maxFriend(s) {
   return Math.max(0, ...Object.values(s.friend));
 }
 
-// 血量只由体质决定：知识管伤害、心境管白天收益，三件事互不重叠
+// 血量由体质决定，战利品的 hp 类在出口上放大
 export function playerMaxHp(s) {
-  return CONFIG.battle.playerBaseHp + Math.floor(s.physique * CONFIG.hpPerPhysique);
+  const base = CONFIG.battle.playerBaseHp + Math.floor(s.physique * CONFIG.hpPerPhysique);
+  return Math.floor(base * (1 + lootMult(s, 'hp')));
 }
 
 // 面板用的分项：GPA 里知识贡献多少、心境贡献多少
@@ -126,6 +132,9 @@ export function loadGame() {
     if (s.physique === undefined) s.physique = CONFIG.startPhysique;
     // 旧档没有日历：补一份，过去的天会在下次翻页时被判成 missed（不扣分）
     if (!Array.isArray(s.calendar)) s.calendar = freshCalendar();
+    if (!Array.isArray(s.loot)) s.loot = [];
+    if (typeof s.lootCount !== 'number') s.lootCount = s.loot.length;
+    if (s.lootHasRare === undefined) s.lootHasRare = s.loot.some((l) => l.rarity !== 'common');
     if (!s.scene) s.scene = 'campus';
     return s;
   } catch (e) {

@@ -1,10 +1,11 @@
 // rules.js — 行动结算 / 夜晚推进 / 考试。纯函数，可在 node 里直接跑（tests/sim.mjs 依赖）。
 
-import { CONFIG, TOPICS, NPCS, ROOMMATE, EVENT_PLACES } from '../data.js';
+import { CONFIG, TOPICS, NPCS, ROOMMATE, EVENT_PLACES, LOOT, LOOT_WEIGHT } from '../data.js';
 import {
   clamp, clampMood, moodMult, maxFriend, examGpa, endingOf, nextRandom, hhLog, freshToday, playerMaxHp,
 } from './state.js';
 import { activeEntry, expirePast, effectLine, placeOf } from './calendar.js';
+import { lootEffectText, lootCapped } from './loot.js';
 
 const KNOWN_CAP = 150;
 
@@ -317,19 +318,45 @@ export function nightStudy(s) {
   return ok(msg);
 }
 
+// 打赢就随机掉一件。前三次掉落里必有一件稀有以上 ——
+// 一局只有 6 次机会，方差必须压住，否则运气差的人整局都在捡普通货。
+export function rollLoot(s) {
+  const needRare = s.lootCount === 2 && !s.lootHasRare;
+  const pool = needRare ? LOOT.filter((l) => l.rarity !== 'common') : LOOT;
+  const weights = pool.map((l) => LOOT_WEIGHT[l.rarity] || 1);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = nextRandom(s) * total;
+  let picked = pool[pool.length - 1];
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i];
+    if (r <= 0) { picked = pool[i]; break; }
+  }
+  const item = {
+    id: picked.id, name: picked.name, kind: picked.kind,
+    value: picked.value, rarity: picked.rarity,
+  };
+  s.loot.push(item);
+  s.lootCount += 1;
+  if (picked.rarity !== 'common') s.lootHasRare = true;
+  return item;
+}
+
 export function settleBattle(s, battle) {
   s.stats.fights += 1;
   if (battle.result === 'win') {
     s.battleWins += 1;
     s.mood = clampMood(s.mood + CONFIG.winMood);
     addKnowledge(s, CONFIG.winKnowledge);
-    const msg = '赢了。心情 +' + CONFIG.winMood + '，实战总结让知识 +' + CONFIG.winKnowledge + '。';
+    const item = rollLoot(s);
+    const capped = lootCapped(s, item.kind) ? '（这一类已经到顶了）' : '';
+    const msg = '赢了。心境 +' + CONFIG.winMood + '，实战总结让知识 +' + CONFIG.winKnowledge +
+      '。掉了一件「' + item.name + '」：' + lootEffectText(item) + capped + '。';
     hhLog(s, msg, 'win');
-    return ok(msg);
+    return { ok: true, msg, loot: item };
   }
   s.mood = clampMood(s.mood - CONFIG.loseMood);
   addKnowledge(s, -CONFIG.loseKnowledge);
-  const msg = '输了。心情 −' + CONFIG.loseMood + '，知识 −' + CONFIG.loseKnowledge + '。';
+  const msg = '输了。心境 −' + CONFIG.loseMood + '，知识 −' + CONFIG.loseKnowledge + '。';
   hhLog(s, msg, 'lose');
   return ok(msg);
 }

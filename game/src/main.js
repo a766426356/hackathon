@@ -427,6 +427,11 @@ function renderBattle() {
 function onPlayCard(idx) {
   if (!battleState || battleState.over) return;
   const fx = battle.playCard(state, battleState, idx);
+  // 战斗一结束就立刻结算，这样结算画面就能把掉落摆出来，不用等玩家点「收工」
+  if (battleState.over && !battleState.settled) {
+    battleState.settled = true;
+    battleState.reward = rules.settleBattle(state, battleState);
+  }
   renderBattle(); // 先重建面板，抖动才作用在新节点上
   ui.hitFx(fx.dealt, fx.taken);
   if (battleState.over) {
@@ -437,7 +442,11 @@ function onPlayCard(idx) {
 
 function onBattleDone() {
   if (!battleState) return;
-  const res = rules.settleBattle(state, battleState);
+  if (!battleState.settled) {
+    battleState.settled = true;
+    battleState.reward = rules.settleBattle(state, battleState);
+  }
+  const res = battleState.reward;
   ui.toast(res.msg, battleState.result === 'win' ? 'win' : 'warn');
   battleState = null;
   battlePct = null;
