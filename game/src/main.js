@@ -61,6 +61,12 @@ function boot() {
   window.addEventListener('blur', () => world.keys.clear());
 
   const hasSave = !!loadGame();
+  // 演示捷径：?demo=ending 直接看结局 + 人格报告，不用点六个晚上
+  if (new URLSearchParams(location.search).get('demo') === 'ending') {
+    demoEnding();
+    requestAnimationFrame(frame);
+    return;
+  }
   ui.introPanel(hasSave);
   ui.bindModal({
     start: () => startNew(),
@@ -68,6 +74,53 @@ function boot() {
   });
 
   requestAnimationFrame(frame);
+}
+
+// 只给演示 / 验收用：按一张固定的日程表跑完六天，然后停在结局页。
+// 这张表刻意排得"像一个正常玩家"——上课、玩、参加活动、跑两圈、打两场，
+// 这样人格报告的四个轴都有数据，不会全落在默认值上。
+function demoEnding() {
+  state = createState(2049);
+  state.phase = 'day';
+  rules.requiredCourses(state);
+
+  const act = (fn) => { if (state.ap > 0) fn(); };
+  const event = (id) => {
+    const e = state.calendar.find((x) => x.id === id && !x.done && !x.missed);
+    if (e && e.day === state.day) rules.doEvent(state, e);
+  };
+
+  while (state.day <= 6) {
+    const d = state.day;
+    if (d === 1) { act(() => rules.study(state)); act(() => rules.study(state)); act(() => rules.study(state)); }
+    if (d === 2) { act(() => rules.study(state)); act(() => rules.study(state)); act(() => event('ev.club')); }
+    if (d === 3) { act(() => rules.study(state)); act(() => rules.study(state)); act(() => event('ev.run')); }
+    if (d === 4) { act(() => rules.study(state)); act(() => event('ev.read')); act(() => rules.field(state)); }
+    if (d === 5) { act(() => rules.study(state)); act(() => rules.study(state)); act(() => rules.social(state, 'lin')); }
+    if (d === 6) {
+      act(() => rules.study(state)); act(() => rules.study(state));
+      act(() => { state.today.piano = false; rules.piano(state, 4); });
+    }
+    state.ap = 0;
+    state.phase = 'night';
+    if (d === 4 || d === 6) {
+      const b = battle.startBattle(state);
+      let guard = 0;
+      while (!b.over && guard++ < 20) battle.playCard(state, b, 0);
+      rules.settleBattle(state, b);
+    } else {
+      rules.nightStudy(state);
+    }
+    rules.endDay(state);
+  }
+
+  rules.runExam(state);
+  started = true;
+  ui.setSpots(INTERACTABLES, CAMPUS_FRAME);
+  world.setSpots(INTERACTABLES);
+  ui.renderAll(state);
+  showEnding();
+  save();
 }
 
 function seedFromUrl() {

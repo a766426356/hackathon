@@ -72,7 +72,11 @@ export function createState(seed) {
     ending: null,
     collapsedOnce: false,
     log: [],
-    stats: { studies: 0, socials: 0, fights: 0, nights: 0 },
+    // 结局的人格报告靠这几个计数分轴：上课 / 交友 / 娱乐 / 自习 / 跑步 / 活动 / 夜战 / 夜读 / 躺平
+    stats: {
+      studies: 0, socials: 0, fights: 0, nights: 0,
+      course: 0, talk: 0, play: 0, indoor: 0, field: 0, events: 0, nightStudy: 0, rest: 0,
+    },
   };
 }
 
@@ -135,6 +139,12 @@ export function loadGame() {
     if (!Array.isArray(s.loot)) s.loot = [];
     if (typeof s.lootCount !== 'number') s.lootCount = s.loot.length;
     if (s.lootHasRare === undefined) s.lootHasRare = s.loot.some((l) => l.rarity !== 'common');
+    // 旧档缺的新计数补 0，人格报告才不会算出 NaN
+    if (s.stats) {
+      for (const k of ['studies', 'socials', 'fights', 'nights', 'course', 'talk', 'play', 'indoor', 'field', 'events', 'nightStudy', 'rest']) {
+        if (typeof s.stats[k] !== 'number') s.stats[k] = 0;
+      }
+    }
     if (!s.scene) s.scene = 'campus';
     return s;
   } catch (e) {

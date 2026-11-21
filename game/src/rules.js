@@ -65,6 +65,7 @@ export function study(s) {
   addKnowledge(s, gain);
   s.mood = clampMood(s.mood - CONFIG.studyMoodCost);
   s.stats.studies += 1;
+  s.stats.course += 1;
   const cardMsg = gainCard(s);
   const msg = '在大课教室坐了一小时：知识 +' + gain + (focus ? '（专注加成）' : '') +
     '，心情 −' + CONFIG.studyMoodCost + '。' + cardMsg;
@@ -102,8 +103,9 @@ export function social(s, npcId) {
   const moodUp = Math.max(2, Math.round(CONFIG.socialMood * (1 - s.mood / 120)));
   s.mood = clampMood(s.mood + moodUp);
   s.stats.socials += 1;
+  s.stats.talk += 1;
   const unlocked = refreshSupport(s);
-  const msg = '和' + npc.name + '聊了一会儿：友谊 +' + gain + '（' + s.friend[npcId] + '），心情 +' +
+  const msg = '和' + npc.name + '聊了一会儿：友谊 +' + gain + '（' + s.friend[npcId] + '），心境 +' +
     moodUp + '。' + (unlocked ? ' · 解锁支援卡：TA 会在夜战里帮你。' : '');
   hhLog(s, msg, 'social');
   return ok(msg);
@@ -115,6 +117,7 @@ export function field(s) {
   s.mood = clampMood(s.mood + CONFIG.fieldMood);
   s.physique = clamp(s.physique + CONFIG.fieldPhysique, 0, CONFIG.physiqueCap);
   s.focus = true;
+  s.stats.field += 1;
   const msg = '在体育场跑了两圈：心境 +' + CONFIG.fieldMood + '，体质 +' + CONFIG.fieldPhysique +
     '（血量上限 ' + playerMaxHp(s) + '），获得「专注」（下次自习 ×' + CONFIG.studyFocusMult + '）。';
   hhLog(s, msg, 'field');
@@ -125,6 +128,7 @@ export function rest(s) {
   if (!hasAp(s)) return no('今天没有行动点了。');
   s.ap = 0;
   s.mood = clampMood(s.mood + CONFIG.restMood);
+  s.stats.rest += 1;
   const msg = '躺到床上：心境 +' + CONFIG.restMood + '，今天到此为止。';
   hhLog(s, msg, 'rest');
   return ok(msg);
@@ -194,7 +198,8 @@ export function studyroom(s) {
   addKnowledge(s, R.studyroom.know);
   s.mood = clampMood(s.mood + R.studyroom.mood);
   s.stats.studies += 1;
-  const msg = '在自习室坐了一节：知识 +' + R.studyroom.know + '，心情 ' + num(R.studyroom.mood) +
+  s.stats.indoor += 1;
+  const msg = '在自习室坐了一节：知识 +' + R.studyroom.know + '，心境 ' + num(R.studyroom.mood) +
     '。这里只能记，写不成卡片。';
   hhLog(s, msg, 'study');
   return ok(msg);
@@ -209,6 +214,7 @@ export function doubt(s) {
   s.today.doubt = true;
   addKnowledge(s, R.doubt.know);
   s.mood = clampMood(s.mood + R.doubt.mood);
+  s.stats.indoor += 1;
   const ids = Object.keys(s.friend);
   const who = ids[Math.floor(nextRandom(s) * ids.length) % ids.length];
   const unlocked = bumpFriend(s, who, R.doubt.friend);
@@ -235,8 +241,9 @@ export function pingpong(s, npcId, outcome = 'win') {
   s.mood = clampMood(s.mood + mood);
   const unlocked = bumpFriend(s, npcId, friend);
   s.stats.socials += 1;
+  s.stats.play += 1;
   const label = win ? '你赢了' : draw ? '打平了' : '你输了';
-  const msg = '和' + npc.name + '打了一局乒乓球（' + label + '）：心情 +' + mood +
+  const msg = '和' + npc.name + '打了一局乒乓球（' + label + '）：心境 +' + mood +
     '，友谊 +' + friend + '（' + s.friend[npcId] + '）。' + (unlocked ? ' · 解锁支援卡。' : '');
   hhLog(s, msg, 'social');
   return ok(msg);
@@ -258,8 +265,9 @@ export function snooker(s, npcId, outcome = 'win') {
   s.mood = clampMood(s.mood + mood);
   const unlocked = bumpFriend(s, npcId, friend);
   s.stats.socials += 1;
+  s.stats.play += 1;
   const label = win ? '你赢了' : draw ? '打平了' : '你输了';
-  const msg = '和' + npc.name + '打了一局斯诺克（' + label + '）：心情 +' + mood +
+  const msg = '和' + npc.name + '打了一局斯诺克（' + label + '）：心境 +' + mood +
     '，友谊 +' + friend + '（' + s.friend[npcId] + '）。' + (unlocked ? ' · 解锁支援卡。' : '');
   hhLog(s, msg, 'social');
   return ok(msg);
@@ -273,8 +281,9 @@ export function piano(s, notes) {
   spendAp(s);
   s.today.piano = true;
   s.mood = clampMood(s.mood + R.piano.mood);
+  s.stats.play += 1;
   const played = notes || R.piano.notes;
-  const msg = '你在钢琴前弹了 ' + played + ' 个音：心情 +' + R.piano.mood + '。';
+  const msg = '你在钢琴前弹了 ' + played + ' 个音：心境 +' + R.piano.mood + '。';
   hhLog(s, msg, 'social');
   return ok(msg);
 }
@@ -309,7 +318,7 @@ export function doEvent(s, entry) {
   addKnowledge(s, entry.know);
   if (entry.mood) s.mood = clampMood(s.mood + entry.mood);
   if (entry.physique) s.physique = clamp(s.physique + entry.physique, 0, CONFIG.physiqueCap);
-  s.stats.socials += 1;
+  s.stats.events += 1;
 
   const msg = '「' + entry.title + '」：' + effectLine(entry) + '。';
   hhLog(s, msg, 'event');
@@ -323,6 +332,7 @@ export function nightStudy(s) {
   addKnowledge(s, gain);
   s.mood = clampMood(s.mood - CONFIG.nightStudyMoodCost);
   s.stats.nights += 1;
+  s.stats.nightStudy += 1;
   const msg = '在宿舍台灯下继续啃书：知识 +' + gain + '，心境 −' + CONFIG.nightStudyMoodCost + '。';
   hhLog(s, msg, 'night');
   return ok(msg);

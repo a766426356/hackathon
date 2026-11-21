@@ -6,6 +6,7 @@ import { moodMult, examParts, examGpa, playerMaxHp } from './state.js';
 import { roomsText } from './interiors.js';
 import { entriesOf, placeOf, effectLine } from './calendar.js';
 import { lootTotals, lootStack, lootEffectText, pct as pctText } from './loot.js';
+import { buildPersona } from './persona.js';
 import { sfx } from './audio.js';
 
 export const els = {};
@@ -298,9 +299,40 @@ export function battlePanel(s, b, prev) {
   return openModal(html, { cls: 'battle-panel' });
 }
 
+// 结局页 = 成绩 + 人格报告。人格报告全部由真实行为算出来（persona.js），不是随机抽的。
 export function endingPanel(s) {
   const e = TEXTS.endings[s.ending];
   const total = s.deck.reduce((n, c) => n + c.power, 0);
+  const p = buildPersona(s);
+
+  const axisRows = p.axes.map((a) => {
+    const share = a.share === null ? 50 : a.share;
+    const negShare = 100 - share;
+    const neutral = a.share === null;
+    return '<div class="paxis">' +
+      '<span class="pal pos' + (a.letter === a.pos && !neutral ? ' on' : '') + '">' + esc(a.posLabel) + '</span>' +
+      '<span class="pbar' + (neutral ? ' neutral' : '') + '">' +
+        '<i class="l" style="width:' + share + '%"></i>' +
+        '<i class="r" style="width:' + negShare + '%"></i>' +
+      '</span>' +
+      '<span class="pal neg' + (a.letter === a.neg || neutral ? ' on' : '') + '">' + esc(a.negLabel) + '</span>' +
+      '<span class="pnote">' + (neutral ? '没干过' : esc(a.question)) + '</span>' +
+      '</div>';
+  }).join('');
+
+  const c = p.counts;
+  const bits = [];
+  if (c.studies) bits.push('上课 ' + c.studies + ' 节');
+  if (c.indoor) bits.push('自习 ' + c.indoor + ' 次');
+  if (c.talk) bits.push('聊天 ' + c.talk + ' 次');
+  if (c.play) bits.push('娱乐 ' + c.play + ' 次');
+  if (c.events) bits.push('活动 ' + c.events + ' 场');
+  if (c.field) bits.push('跑步 ' + c.field + ' 次');
+  if (c.fights) bits.push('夜战 ' + c.fights + ' 场（赢 ' + c.wins + '）');
+  if (c.nightStudy) bits.push('夜读 ' + c.nightStudy + ' 晚');
+  if (c.rest) bits.push('躺平 ' + c.rest + ' 次');
+  if (p.eventsMissed) bits.push('错过活动 ' + p.eventsMissed + ' 场');
+
   const html = `
     <div class="ending ${s.ending}">
       <div class="tag">结局</div>
@@ -308,13 +340,32 @@ export function endingPanel(s) {
       <p class="body">${esc(e.text)}</p>
       <table class="stats">
         <tr><th>GPA</th><td class="big">${s.gpa.toFixed(2)}</td></tr>
-        <tr><th>期末知识</th><td>${s.knowledge}</td></tr>
-        <tr><th>心境 / 体质</th><td>${s.mood} / ${s.physique}</td></tr>
-        <tr><th>牌组</th><td>${s.deck.length} 张 / 总威力 ${total}</td></tr>
-        <tr><th>夜战胜场</th><td>${s.battleWins}</td></tr>
-        <tr><th>战利品</th><td>${s.loot.length} 件</td></tr>
+        <tr><th>知识 / 心境 / 体质</th><td>${s.knowledge} / ${s.mood} / ${s.physique}</td></tr>
+        <tr><th>牌组</th><td>${s.deck.length} 张 · 总威力 ${total}</td></tr>
         <tr><th>友谊</th><td>${Object.keys(NPCS).map((id) => NPCS[id].name + ' ' + s.friend[id]).join(' · ')}</td></tr>
       </table>
+
+      <div class="psec">
+        <div class="phead">七天人格报告</div>
+        <div class="pcard">
+          <div class="pcode">${esc(p.code)}</div>
+          <div class="ptitle">
+            <b>${esc(p.name)}</b>
+            <span>${esc(p.line)}</span>
+          </div>
+        </div>
+        <div class="paxes">${axisRows}</div>
+        <p class="pverdict">${esc(p.verdict)}</p>
+        <ul class="plist">${bits.map((b) => '<li>' + esc(b) + '</li>').join('')}</ul>
+        <div class="pmeta">
+          ${p.topFriend ? '<span>最亲的人 <b>' + esc(p.topFriend.name) + '</b>（' + p.topFriend.value + '）</span>' : ''}
+          ${p.bestCard ? '<span>最强的一张牌 <b>' + esc(p.bestCard.name) + '</b>（' + p.bestCard.power + '）</span>' : ''}
+          ${p.lootCount ? '<span>战利品 <b>' + p.lootCount + '</b> 件' +
+            (p.bestLoot ? '，最好是「' + esc(p.bestLoot.name) + '」' : '') + '</span>' : ''}
+          ${p.collapsed ? '<span class="warn">中途崩过一次</span>' : ''}
+        </div>
+      </div>
+
       <div class="row">
         <button class="btn primary" data-act="restart">再来一局</button>
       </div>

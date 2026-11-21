@@ -1223,3 +1223,114 @@ table.stats td.muted { font-size: 12px; color: var(--muted); font-variant-numeri
   .ctimeline li { grid-template-columns: 70px 40px 1fr; padding: 6px 9px; }
   .ctimeline .cnote { justify-content: flex-start; }
 }
+
+/* ---------------------------------------------------------------- 结局的人格报告 */
+.psec {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed #3a4358;
+}
+
+.phead {
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: var(--muted);
+}
+
+.pcard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #232c3f, #1b2230);
+  border: 1px solid #4a5876;
+  border-radius: 7px;
+}
+.pcard .pcode {
+  flex: 0 0 auto;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--gold-2);
+  font-variant-numeric: tabular-nums;
+}
+.pcard .ptitle { display: flex; flex-direction: column; gap: 3px; }
+.pcard .ptitle b { font-size: 15px; color: var(--text); }
+.pcard .ptitle span { font-size: 12px; line-height: 1.5; color: #a9b4c9; }
+
+.paxes {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 14px 0 0;
+}
+.paxis {
+  display: grid;
+  grid-template-columns: 52px 1fr 52px;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+}
+.paxis .pal { color: #6f7b90; }
+.paxis .pal.on { color: var(--gold-2); font-weight: 700; }
+.paxis .pal.pos { text-align: right; }
+.pbar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  background: #0f131a;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+}
+.pbar i { display: block; height: 100%; }
+.pbar i.l { background: linear-gradient(90deg, #e0b64a, #8a7434); }
+.pbar i.r { background: linear-gradient(90deg, #3a4a68, #5b6f96); }
+.pbar.neutral i.l, .pbar.neutral i.r { background: #2a3446; }
+.paxis .pnote {
+  grid-column: 1 / -1;
+  margin-top: -2px;
+  font-size: 10.5px;
+  color: #5d6880;
+  text-align: center;
+}
+
+.pverdict {
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #f0e2bb;
+  background: rgba(224, 182, 74, .07);
+  border-left: 2px solid var(--gold);
+  border-radius: 3px;
+}
+
+.plist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.plist li {
+  padding: 2px 9px;
+  font-size: 11.5px;
+  color: #c9d2e2;
+  background: #253048;
+  border: 1px solid #41506e;
+  border-radius: 10px;
+}
+
+.pmeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: #8b96a9;
+}
+.pmeta b { color: #cfd8e8; }
+.pmeta .warn { color: #c9a97a; }
