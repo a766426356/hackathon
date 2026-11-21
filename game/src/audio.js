@@ -1,8 +1,8 @@
-// audio.js — 一个很小的 Web Audio 层。
-// 钢琴用 Salamander Grand Piano 的本地采样（CC-BY 3.0，Alexander Holm），
-// 每个八度取 C / D# / F# / A 四个采样，其余音按 playbackRate 变速；
-// 采样没加载完时用谐波合成的钢琴音兜底，所以打开就能弹。
-// 乒乓 / 台球的音效全部是现场合成，不额外下载资源。
+// audio.js — a very small Web Audio layer.
+// The piano uses local Salamander Grand Piano samples (CC-BY 3.0, Alexander Holm):
+// four per octave — C / D# / F# / A — and everything else is pitch-shifted via playbackRate.
+// Until the samples land, additive synthesis stands in, so it plays from the first frame.
+// Ping-pong and snooker sounds are all synthesised on the spot; nothing else is downloaded.
 
 const SAMPLE_ROOT = 'assets/audio/piano/';
 const SAMPLE_MIDI = {
@@ -20,7 +20,7 @@ const samples = new Map(); // midi → AudioBuffer
 let loadPromise = null;
 let loadedCount = 0;
 let voiceId = 0;
-const voices = []; // 正在响的琴音
+const voices = []; // notes currently ringing
 const sustained = new Set();
 
 function makeContext() {
@@ -51,7 +51,7 @@ function makeContext() {
   return ctx;
 }
 
-// 用噪声 + 指数衰减造一个短混响，够给琴声一点房间感
+// Noise plus exponential decay as a short reverb — just enough room around the piano.
 function makeImpulse(seconds, decay) {
   const rate = ctx.sampleRate;
   const len = Math.floor(rate * seconds);
@@ -75,7 +75,7 @@ export function initAudio() {
 export function unlockAudio() {
   const c = initAudio();
   if (!c) return;
-  // iOS 需要在用户手势里真正播一个静音节点
+  // iOS only unlocks audio if something actually plays inside a user gesture
   const o = c.createOscillator();
   const g = c.createGain();
   g.gain.value = 0.00001;
@@ -120,8 +120,8 @@ function nearestSample(midi) {
   return best;
 }
 
-// ---------------------------------------------------------------- 钢琴
-// midi：48 = C3，60 = C4，72 = C5，84 = C6
+// ---------------------------------------------------------------- piano
+// midi: 48 = C3, 60 = C4, 72 = C5, 84 = C6
 export function playPianoNote(midi, velocity = 0.78) {
   const c = initAudio();
   if (!c) return null;
@@ -150,7 +150,7 @@ export function playPianoNote(midi, velocity = 0.78) {
     voice.stopAt = t0 + Math.min(8, near.buf.duration / src.playbackRate.value);
     src.stop(voice.stopAt);
   } else {
-    // 采样没到位：加几个谐波的合成音，先能弹
+    // No sample nearby: a few harmonics will do for now.
     const base = 440 * Math.pow(2, (midi - 69) / 12);
     const g = c.createGain();
     g.gain.setValueAtTime(0.0001, t0);
@@ -180,7 +180,7 @@ export function playPianoNote(midi, velocity = 0.78) {
   voices.push(voice);
   if (voices.length > 90) {
     const old = voices.shift();
-    try { old.source.stop(); } catch (e) { /* 已经停了 */ }
+    try { old.source.stop(); } catch (e) { /* already stopped */ }
   }
   return voice;
 }
@@ -196,7 +196,7 @@ function fadeVoice(voice, fast) {
     voice.env.gain.setValueAtTime(Math.max(0.0001, voice.env.gain.value), t);
     voice.env.gain.exponentialRampToValueAtTime(0.0001, t + (fast ? 0.08 : 0.22));
     voice.source.stop(t + (fast ? 0.12 : 0.3));
-  } catch (e) { /* 节点已结束 */ }
+  } catch (e) { /* node already finished */ }
 }
 
 export function releasePianoNote(midi) {
@@ -231,7 +231,7 @@ export function pianoSamplesReady() {
   return samples.size > 0;
 }
 
-// ---------------------------------------------------------------- 音效
+// ---------------------------------------------------------------- sound effects
 function sfxOsc(type, freq, dur, gain, slideTo) {
   const c = initAudio();
   if (!c) return;
@@ -278,7 +278,7 @@ export function sfx(kind, value) {
     case 'foul':
       sfxOsc('sawtooth', 190, 0.24, 0.09, 110);
       break;
-    // 夜战：命中一下，挨打再补一声闷响
+    // night fight: one hit, plus a duller thud when you take one
     case 'hit':
       sfxOsc('square', 240, 0.11, 0.15, 70);
       sfxOsc('triangle', 120, 0.16, 0.10, 60);
@@ -287,13 +287,13 @@ export function sfx(kind, value) {
     case 'hurt':
       sfxOsc('sawtooth', 100, 0.3, 0.14, 42);
       break;
-    // 发令：一声短促的爆响
+    // starting gun: one short crack
     case 'gun':
       sfxOsc('square', 900, 0.05, 0.16, 180);
       sfxOsc('sawtooth', 240, 0.12, 0.12, 60);
       setTimeout(() => sfxOsc('triangle', 1400, 0.18, 0.05, 600), 30);
       break;
-    // 倒计时的一下
+    // a single countdown tick
     case 'tick':
       sfxOsc('triangle', 620, 0.07, 0.09, 620);
       break;

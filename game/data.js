@@ -1,10 +1,10 @@
-// data.js — 全部数值 / 地图 / 文案。改平衡性只需要动这个文件。
+// data.js — every number, map and string. Balance changes only touch this file.
 
 export const CONFIG = {
-  schoolName: '香港大学张江校区',
-  maxDay: 7, // 第 7 天考试
+  schoolName: 'HKU Zhangjiang Campus',
+  maxDay: 7, // exam on day 7
 
-  // 每天 5 个行动点 = 2 节必修大课（每天开头自动结算，不占自由点）+ 3 点自由支配
+  // 5 AP a day = 2 required lectures (settled at day start, no free AP) + 3 you control
   requiredCourses: 2,
   freeAp: 3,
   totalAp: 5,
@@ -13,7 +13,7 @@ export const CONFIG = {
   moodMin: 0,
   moodMax: 100,
 
-  // 三属性各只管一件事：知识 → 战斗伤害；心境 → 白天收益倍率；体质 → 血量
+  // One job per stat: Knowledge → battle damage; Mood → daytime gain multiplier; Physique → HP
   startPhysique: 6,
   hpPerPhysique: 1.2,
   physiqueCap: 60,
@@ -21,7 +21,7 @@ export const CONFIG = {
   studyGain: 7,
   studyMoodCost: 4,
   studyFocusMult: 1.5,
-  // 必修课给固定的一小份（不受心境影响）：必修不是选择，不该拿它奖励高心情
+  // Required lectures pay a small flat amount (Mood-proof): not a choice, so no mood bonus
   requiredCourseGain: 3,
   requiredCourseMoodCost: 2,
   deckCap: 8,
@@ -61,7 +61,7 @@ export const CONFIG = {
     rounds: 4,
     handSize: 3,
     enemyHp: 38,
-    enemyHpPerNight: 12,   // 第 N 夜 = enemyHp + (N-1) × 这个数
+    enemyHpPerNight: 12,   // night N = enemyHp + (N-1) × this
     enemyAtkPerNight: 1,
     playerBaseHp: 30,
     ddlRound: 3,
@@ -70,11 +70,11 @@ export const CONFIG = {
     supportHeal: 8,
   },
 
-  // 战利品只放大「出口」，不改属性本身，所以不会顶穿 GPA。
-  // 同一类加成各自封顶，避免 6 场下来滚成天文数字。
+  // Loot only scales the exits, never the stats, so it cannot blow past GPA.
+  // Each bonus type is capped, so six nights do not roll into absurd numbers.
   lootCap: 0.6,
 
-  // 房间数值：一处定义，interiors.js 的说明文案和 rules.js 的结算都读这里
+  // Room values: defined once — interiors.js reads them for copy, rules.js for settlement
   room: {
     doubt:     { know: 2, mood: -1, friend: 5 },
     pingpong:  { mood: 9, friend: 6, loseMood: 3, loseFriend: 2, drawMood: 6, drawFriend: 4 },
@@ -86,197 +86,200 @@ export const CONFIG = {
     roomie:    { any: 0 },
     desk:      { any: 0 },
     wall:      { any: 0 },
-    // 小游戏类：win / lose 两种结果给不同收益，具体在 rules.field / rules.gym 里
+    // minigames: win / lose pay differently — see rules.field / rules.gym
     gym:       { mood: 6, physique: 6, loseMood: 2, losePhysique: 2, need: 6 },
   },
 };
 
-// ---------------------------------------------------------------- 校园（一张画好的大图）
-// 图片是 1024×1024，画布按 768×768 等比显示（S = 768/1024 = 0.75）。
-// 碰撞不再是格子，而是一组「可以走的矩形」：道路、广场、走廊、场馆前的台阶。
-// 这样只要改这几个矩形就能改可行走范围，不用跟着图重新描一遍地砖。
+// ---------------------------------------------------------------- campus (one pre-drawn big image)
+// Image is 1024×1024, canvas shows it at 768×768 (S = 768/1024 = 0.75).
+// Collision is no longer tiles but a set of walkable rectangles: roads, plazas, corridors, venue steps.
+// Edit those rectangles to change where you can walk; no need to re-trace the floor tiles.
 export const CAMPUS = {
-  src: 'assets/campus.jpg',
-  w: 1024,
-  h: 1024,
-  label: '香港大学张江校区',
-  zoom: 1.7,        // 镜头放大倍数：越大越贴近人物，越小看得越远
-  playerScale: 0.8, // 小人在图上的大小（1 = 原始像素尺寸）
-  speed: 240,       // 走动速度（画布像素/秒）
+  src: 'assets/campus-bg.jpg',
+  w: 1536,
+  h: 1536,
+  label: 'HKU Zhangjiang Campus',
+  zoom: 1.7,        // camera zoom: larger sits closer to the character, smaller sees farther
+  playerScale: 0.8, // character size on the image (1 = raw pixels)
+  speed: 240,       // walking speed (canvas px/sec)
 };
 
 export const MAP_W = 768;
 export const MAP_H = 768;
 
-// 图片坐标系下的可行走矩形（x, y, w, h）
+// Walkable rectangles in image coordinates (x, y, w, h) — 1536x1536 pixel map
 export const WALKABLE = [
-  { id: 'top', x: 0, y: 30, w: 1024, h: 75 },          // 北侧主路
-  { id: 'west', x: 0, y: 30, w: 75, h: 520 },          // 集创路
-  { id: 'mid', x: 40, y: 405, w: 905, h: 75 },         // 中间那条横路
-  { id: 'east', x: 920, y: 285, w: 95, h: 640 },       // 芳春路
-  { id: 'bottom', x: 0, y: 845, w: 1024, h: 90 },      // 集电路
-  { id: 'curve', x: 0, y: 440, w: 130, h: 440 },       // 西南那条弯道
-  { id: 'eaststrip', x: 855, y: 395, w: 90, h: 470 },  // CDS 楼东侧的铺装
-  { id: 'corrW', x: 405, y: 70, w: 60, h: 465 },       // 6# 西侧走廊
-  { id: 'corrE', x: 575, y: 70, w: 50, h: 465 },       // 6# 东侧走廊（体育场边）
-  { id: 'plaza', x: 410, y: 505, w: 225, h: 365 },     // 中央圆形广场
-  { id: 'cdsgap', x: 555, y: 650, w: 325, h: 55 },     // CDS-1 / CDS-2 之间
-  { id: 'courtApron', x: 85, y: 70, w: 330, h: 75 },   // 球场前的步道
+  { id: 'top', x: 0, y: 40, w: 1536, h: 75 },          // north main road
+  { id: 'west', x: 20, y: 100, w: 105, h: 920 },        // Jichuang Road
+  { id: 'curve', x: 20, y: 990, w: 250, h: 275 },       // the southwest bend into Jidian Road
+  { id: 'bottom', x: 0, y: 1240, w: 1536, h: 105 },     // Jidian Road
+  { id: 'east', x: 1425, y: 100, w: 105, h: 1140 },     // Fangchun Road
+  { id: 'axis', x: 600, y: 690, w: 305, h: 560 },       // the central paved axis + round plaza
+  { id: 'corrW', x: 596, y: 110, w: 55, h: 590 },       // walkway west of the HKU building
+  { id: 'corrE', x: 895, y: 110, w: 50, h: 590 },       // walkway east of it, along the pitch
+  { id: 'apron7', x: 235, y: 595, w: 320, h: 70 },      // paving in front of 7#
+  { id: 'apron5', x: 940, y: 595, w: 365, h: 75 },      // paving in front of 5#, joins the east walkway
+  { id: 'courts', x: 140, y: 365, w: 435, h: 55 },      // path below the courts
+  { id: 'cdsW', x: 888, y: 690, w: 58, h: 555 },        // paving west of CDS-1 / CDS-2
+  { id: 'cdsgap', x: 890, y: 955, w: 520, h: 60 },      // between CDS-1 and CDS-2
+  { id: 'xWalkW', x: 105, y: 595, w: 140, h: 90 },      // crossing from Jichuang Road to 7#
+  { id: 'xWalkS', x: 575, y: 600, w: 40, h: 110 },      // crossing from the courts down to the axis
 ];
 
 
-export const SPAWN = { x: 520, y: 520 };
+export const SPAWN = { x: 748, y: 1120 };
 
-// ---------------------------------------------------------------- 交互点
-// 坐标同样是图片坐标；只做三处「能进去/能用」：体育场、文娱楼（5#）、CDS-1。
+// ---------------------------------------------------------------- interactables
+// Image coordinates too; only three things are enterable/usable: Stadium, Wenyu Building (5#), CDS-1.
 export const INTERACTABLES = [
   {
-    id: 'field', name: '体育场', icon: '🏃', kind: 'field', x: 612, y: 250,
+    id: 'field', name: 'Stadium', icon: '🏃', kind: 'field', x: 917, y: 300,
     bg: 'assets/bg/field.jpg',
-    desc: '傍晚的操场，跑道上没什么人，风把球网吹得轻轻晃。',
-    effect: '跑两圈：心情 +' + CONFIG.fieldMood + '，体质 +' + CONFIG.fieldPhysique +
-      '（换血量上限），获得「专注」（下次自习 ×' + CONFIG.studyFocusMult + '）',
+    desc: 'Evening field, track all but empty, wind nudging the goal nets.',
+    effect: 'Two laps: Mood +' + CONFIG.fieldMood + ', Physique +' + CONFIG.fieldPhysique +
+      ' (into max HP), gain Focus (next study ×' + CONFIG.studyFocusMult + ')',
     ap: 1,
-    hint: '跑两圈：心情 +，获得「专注」',
+    hint: 'Two laps: Mood +, gain Focus',
   },
-  { id: 'wenyu', name: '文娱楼', icon: '🎱', kind: 'enter', building: 'wenyu', x: 745, y: 405, labelBelow: true, hint: '5#：乒乓球 / 斯诺克 / 钢琴 / 自习室 / 祷告室' },
-  { id: 'cds1', name: 'CDS-1', icon: '🏫', kind: 'enter', building: 'cds1', x: 745, y: 668, labelBelow: true, hint: '教学楼层 3F：大课教室 / 答疑角' },
-  { id: 'board', name: '公告板', icon: '📋', kind: 'board', x: 520, y: 640, hint: '当日日程：小量知识 + 一段友谊' },
-  { id: 'lin', name: '林', icon: '☕', kind: 'social', npc: 'lin', x: 592, y: 548, hint: '聊天：友谊 +、心情 +' },
-  { id: 'chen', name: '陈', icon: '🎭', kind: 'social', npc: 'chen', x: 445, y: 700, hint: '聊天：友谊 +、心情 +' },
-  { id: 'zhou', name: '周', icon: '🎧', kind: 'social', npc: 'zhou', x: 505, y: 790, hint: '聊天：友谊 +、心情 +' },
-  { id: 'dorm', name: '宿舍', icon: '🛏️', kind: 'enter', building: 'dorm', x: 300, y: 840, labelBelow: true, hint: '2#：进寝室（床 / 书桌 / 日历墙 / 室友）' },
+  { id: 'wenyu', name: 'Wenyu Building', icon: '🎱', kind: 'enter', building: 'wenyu', x: 1130, y: 632, labelBelow: true, hint: '5#: Table Tennis / Snooker / Piano / Study Room / Prayer Room' },
+  { id: 'cds1', name: 'CDS-1', icon: '🏫', kind: 'enter', building: 'cds1', x: 1140, y: 985, labelBelow: true, hint: 'Teaching Floor 3F: Lecture Hall / Help Desk' },
+  { id: 'board', name: 'Notice Board', icon: '📋', kind: 'board', x: 700, y: 940, hint: "Today's agenda: a little Knowledge + some friendship" },
+  { id: 'lin', name: 'Lin', icon: '☕', kind: 'social', npc: 'lin', x: 635, y: 810, hint: 'Chat: friendship +, Mood +' },
+  { id: 'chen', name: 'Chen', icon: '🎭', kind: 'social', npc: 'chen', x: 870, y: 1120, hint: 'Chat: friendship +, Mood +' },
+  { id: 'zhou', name: 'Zhou', icon: '🎧', kind: 'social', npc: 'zhou', x: 640, y: 1200, hint: 'Chat: friendship +, Mood +' },
+  { id: 'dorm', name: 'Dormitory', icon: '🛏️', kind: 'enter', building: 'dorm', x: 620, y: 1080, labelBelow: true, hint: '2#: your room (Bed / Desk / Calendar Wall / roommate)' },
 ];
 
-// 室友：常驻寝室，不挂友谊条，只给「今天该干什么」的判断。
-export const ROOMMATE = { id: 'zhe', name: '哲', place: '寝室', color: '#b8a0d9' };
+// Roommate: always in your room, no friendship bar, just a read on what today needs.
+export const ROOMMATE = { id: 'zhe', name: 'Zhe', place: 'your room', color: '#b8a0d9' };
 
-// ---------------------------------------------------------------- 日历活动
-// 活动不在房间里，而在校园的一个「出发点」上：当天走到那里按 E 才能出发。
-// 坐标沿用校园图的图片坐标系（1024×1024），并且刻意离固定交互点远一点。
+// ---------------------------------------------------------------- calendar events
+// Events are not in rooms but at a campus start point: walk there that day and press E.
+// Same image coordinates (1536x1536), deliberately far from the fixed interactables.
 export const EVENT_PLACES = {
-  club:  { x: 420, y: 780, name: '广场西侧' },
-  field: { x: 590, y: 150, name: '体育场' },
-  wenyu: { x: 820, y: 440, name: '文娱楼门口' },
-  cds1:  { x: 820, y: 680, name: 'CDS-1 门口' },
-  gate:  { x: 975, y: 700, name: '芳春路南口' },
+  club:  { x: 300, y: 630, name: 'West Plaza' },
+  field: { x: 917, y: 180, name: 'Stadium' },
+  wenyu: { x: 1000, y: 632, name: 'Wenyu Building entrance' },
+  cds1:  { x: 1150, y: 985, name: 'CDS-1 entrance' },
+  gate:  { x: 1475, y: 1150, name: 'Fangchun Road South' },
 };
 
-// 7 天里排 5 场，第 1 天留空当教学日。错过只记一笔，不扣分（罚分留给 ddl）。
+// 5 events over 7 days; day 1 stays empty as a teaching day. Skipping is just a note, no penalty (ddl handles that).
 export const EVENTS = [
   {
-    id: 'ev.club', day: 2, kind: 'event', title: '社团招新', place: 'club', host: 'chen', ap: 1,
+    id: 'ev.club', day: 2, kind: 'event', title: 'Club Fair', place: 'club', host: 'chen', ap: 1,
     know: 0, mood: 8, physique: 6,
-    desc: '陈在楼下支了张桌子，海报还是手写的。「就填个名字，」他说，「不来也行。」',
+    desc: 'Chen has a table downstairs, poster still hand-drawn. "Just a name," he says. "No need to come."',
   },
   {
-    id: 'ev.run', day: 3, kind: 'event', title: '夜跑团', place: 'field', host: 'zhou', ap: 1,
+    id: 'ev.run', day: 3, kind: 'event', title: 'Night Run Club', place: 'field', host: 'zhou', ap: 1,
     know: 0, mood: 4, physique: 10,
-    desc: '周拉你绕体育场跑圈，跑到第三圈他就不说话了。',
+    desc: 'Zhou drags you around the stadium. By lap three he stops talking.',
   },
   {
-    id: 'ev.read', day: 4, kind: 'event', title: '读书会', place: 'wenyu', host: 'lin', ap: 1,
+    id: 'ev.read', day: 4, kind: 'event', title: 'Book Club', place: 'wenyu', host: 'lin', ap: 1,
     know: 6, mood: 6, physique: 0,
-    desc: '林带了手冲和两本旧书，一共只来了三个人。',
+    desc: 'Lin brings pour-over and two old books. Three people show up.',
   },
   {
-    id: 'ev.team', day: 5, kind: 'event', title: '校队集训', place: 'field', host: 'chen', ap: 2,
+    id: 'ev.team', day: 5, kind: 'event', title: 'Team Training', place: 'field', host: 'chen', ap: 2,
     know: 0, mood: -5, physique: 18,
-    desc: '陈把训练表拍在桌上：今天两小时，跑完再谈别的。',
+    desc: 'Chen slaps the training sheet on the table: two hours today, we talk after.',
   },
   {
-    id: 'ev.visit', day: 6, kind: 'event', title: '公司走访', place: 'gate', host: null, ap: 2,
+    id: 'ev.visit', day: 6, kind: 'event', title: 'Company Visit', place: 'gate', host: null, ap: 2,
     know: 10, mood: -6, physique: 0,
-    desc: '跟着名单出去一趟，回来时天已经黑了，手里多了一沓没人要的资料。',
+    desc: 'You tag along on the list, come back after dark with an armful of handouts nobody wanted.',
   },
 ];
 
-// ---------------------------------------------------------------- 战利品
-// 只放大出口：damage 让牌打得更疼、hp 让血量更厚、day 让白天收益更高。
-// en 只给结局的英文人格报告用，游戏内界面仍显示中文名。
+// ---------------------------------------------------------------- loot
+// Only scales the exits: damage hits harder, hp keeps you standing, day pays better.
+// en feeds the English personality report at the endings; in-game UI uses name.
 export const LOOT = [
-  { id: 'loot.tail',  name: '拖延兽的尾巴',   en: "Procrastination Beast's Tail", rarity: 'common',    kind: 'damage', value: 0.08,
-    desc: '你把它拽下来的时候，它还在说「明天再说」。' },
-  { id: 'loot.shoe',  name: '旧运动鞋',       en: 'Worn-Out Running Shoes', rarity: 'common',    kind: 'hp',     value: 0.10,
-    desc: '鞋底磨平了，但还合脚。' },
-  { id: 'loot.lamp',  name: '宿舍台灯',       en: 'Dorm Desk Lamp', rarity: 'common',    kind: 'day',    value: 0.08,
-    desc: '灯罩有点歪，光刚好落在书页上。' },
+  { id: 'loot.tail',  name: "Procrastination Beast's Tail",   en: "Procrastination Beast's Tail", rarity: 'common',    kind: 'damage', value: 0.08,
+    desc: 'You tear it off and it is still saying "tomorrow".' },
+  { id: 'loot.shoe',  name: 'Worn-Out Running Shoes',       en: 'Worn-Out Running Shoes', rarity: 'common',    kind: 'hp',     value: 0.10,
+    desc: 'Soles worn flat, but they still fit.' },
+  { id: 'loot.lamp',  name: 'Dorm Desk Lamp',       en: 'Dorm Desk Lamp', rarity: 'common',    kind: 'day',    value: 0.08,
+    desc: 'The shade sits crooked; the light lands right on the page.' },
 
-  { id: 'loot.page',  name: '撕掉的第一页',   en: 'The Torn-Out First Page', rarity: 'rare',      kind: 'damage', value: 0.18,
-    desc: '那页纸上写着「算了」，你把它撕了。' },
-  { id: 'loot.mask',  name: '冒名的面具',     en: "Impostor's Mask", rarity: 'rare',      kind: 'hp',     value: 0.20,
-    desc: '戴上它，那个声音小了一点。' },
-  { id: 'loot.plan',  name: '内卷王的计划表', en: "Grind King's Timetable", rarity: 'rare',      kind: 'day',    value: 0.15,
-    desc: '别人的时间表。你抄了一半就撕了。' },
+  { id: 'loot.page',  name: 'The Torn-Out First Page',   en: 'The Torn-Out First Page', rarity: 'rare',      kind: 'damage', value: 0.18,
+    desc: 'That page said "forget it". You tore it out.' },
+  { id: 'loot.mask',  name: "Impostor's Mask",     en: "Impostor's Mask", rarity: 'rare',      kind: 'hp',     value: 0.20,
+    desc: 'Wear it and the voice gets a little quieter.' },
+  { id: 'loot.plan',  name: "Grind King's Timetable", en: "Grind King's Timetable", rarity: 'rare',      kind: 'day',    value: 0.15,
+    desc: "Someone else's timetable. You copied half, then tore it up." },
 
-  { id: 'loot.hunt',  name: '猎人的直觉',     en: "Hunter's Instinct", rarity: 'legendary', kind: 'damage', value: 0.25,
-    desc: '你开始能听见它们出手前的呼吸。' },
-  { id: 'loot.jersey', name: '校队队服',      en: 'Varsity Jersey', rarity: 'legendary', kind: 'hp',     value: 0.25,
-    desc: '号码是别人挑剩的，但你穿得刚好。' },
-  { id: 'loot.clock', name: '别人的闹钟',     en: "Someone Else's Alarm", rarity: 'legendary', kind: 'day',    value: 0.20,
-    desc: '它每天响得比你早一个小时，你也就跟着起来了。' },
+  { id: 'loot.hunt',  name: "Hunter's Instinct",     en: "Hunter's Instinct", rarity: 'legendary', kind: 'damage', value: 0.25,
+    desc: 'You start hearing them breathe before they swing.' },
+  { id: 'loot.jersey', name: 'Varsity Jersey',      en: 'Varsity Jersey', rarity: 'legendary', kind: 'hp',     value: 0.25,
+    desc: 'A number nobody else wanted. It fits you.' },
+  { id: 'loot.clock', name: "Someone Else's Alarm",     en: "Someone Else's Alarm", rarity: 'legendary', kind: 'day',    value: 0.20,
+    desc: 'It rings an hour before yours, so you get up too.' },
 ];
 
 export const LOOT_WEIGHT = { common: 60, rare: 30, legendary: 10 };
-export const LOOT_KIND = { damage: '夜战伤害', hp: '血量上限', day: '白天收益' };
+export const LOOT_KIND = { damage: 'Night damage', hp: 'Max HP', day: 'Daytime gain' };
 
-// ---------------------------------------------------------------- NPC / 卡 / 敌人
+// ---------------------------------------------------------------- NPC / cards / enemies
 export const NPCS = {
-  lin:  { id: 'lin',  name: '林', en: 'Lin', place: '文娱楼', color: '#d98b8b', taunt: '「输的人请奶茶。」', lines: [
-    '这周的读书会你来吗？我带了手冲。',
-    '别把绩点当成全部啊……虽然我也做不到。',
-    '累了就来坐坐，我请你喝一杯。',
+  lin:  { id: 'lin',  name: 'Lin', en: 'Lin', place: 'Wenyu Building', color: '#d98b8b', taunt: '"Loser buys bubble tea."', lines: [
+    'Coming to Book Club this week? I brought pour-over.',
+    "Don't make GPA your whole life… not that I can help it.",
+    "If you're worn out, come sit. My treat.",
   ] },
-  chen: { id: 'chen', name: '陈', en: 'Chen', place: '社团楼', color: '#7fa8d9', taunt: '「我高中可是校队的。」', lines: [
-    '社团招新还差一个人，就你了。',
-    '排练到十点，反正也睡不着。',
-    '你上次那个点子，其实挺有意思的。',
+  chen: { id: 'chen', name: 'Chen', en: 'Chen', place: 'Club Building', color: '#7fa8d9', taunt: '"I was varsity in high school."', lines: [
+    'Club Fair is one person short. You.',
+    'Rehearsal runs to ten. Not like we sleep anyway.',
+    'That idea of yours last time. It was actually good.',
   ] },
-  zhou: { id: 'zhou', name: '周', en: 'Zhou', place: '社团楼', color: '#9ad98b', taunt: '「让我先热个身。」', lines: [
-    '听说 CDS-1 三楼的自习位，晚上特别安静。',
-    '我把重点整理成卡片了，要不要？',
-    '熬夜是会写在脸上的。',
+  zhou: { id: 'zhou', name: 'Zhou', en: 'Zhou', place: 'Club Building', color: '#9ad98b', taunt: '"Let me warm up first."', lines: [
+    'The seats on CDS-1 3F go dead quiet at night.',
+    'I put the key points on cards. Want them?',
+    'Late nights show on your face.',
   ] },
 };
 
-// en 只给结局的英文人格报告用（游戏内仍显示中文名）
+// en feeds the English personality report at the endings (in-game UI uses name)
 export const TOPICS = [
-  { id: 'linalg', name: '线性代数·特征值', en: 'Linear Algebra · Eigenvalues', power: 9 },
-  { id: 'bayes',  name: '概率论·贝叶斯',   en: 'Probability · Bayes', power: 10 },
-  { id: 'rbtree', name: '数据结构·红黑树', en: 'Data Structures · Red-Black Trees', power: 11 },
-  { id: 'deadlock', name: '操作系统·死锁', en: 'Operating Systems · Deadlock', power: 9 },
-  { id: 'dfa',    name: '编译原理·DFA',    en: 'Compilers · DFA', power: 8 },
-  { id: 'writing', name: '学术写作·论证',  en: 'Academic Writing · Argument', power: 10 },
+  { id: 'linalg', name: 'Linear Algebra · Eigenvalues', en: 'Linear Algebra · Eigenvalues', power: 9 },
+  { id: 'bayes',  name: 'Probability · Bayes',   en: 'Probability · Bayes', power: 10 },
+  { id: 'rbtree', name: 'Data Structures · Red-Black Trees', en: 'Data Structures · Red-Black Trees', power: 11 },
+  { id: 'deadlock', name: 'Operating Systems · Deadlock', en: 'Operating Systems · Deadlock', power: 9 },
+  { id: 'dfa',    name: 'Compilers · DFA',    en: 'Compilers · DFA', power: 8 },
+  { id: 'writing', name: 'Academic Writing · Argument',  en: 'Academic Writing · Argument', power: 10 },
 ];
 
 export const ENEMIES = [
-  { id: 'tuo',   name: '拖延兽',   atk: 6, moodCost: 2, desc: '把你的「明天再说」具象化。' },
-  { id: 'ghost', name: '冒名顶替幽灵', atk: 5, moodCost: 3, desc: '它一直在你耳边说：你只是运气好。' },
-  { id: 'juan',  name: '内卷王',   atk: 7, moodCost: 2, desc: '别人都在跑，你凭什么停。' },
+  { id: 'tuo',   name: 'Procrastination Beast',   atk: 6, moodCost: 2, desc: 'Your "tomorrow" given a body.' },
+  { id: 'ghost', name: 'Impostor Ghost', atk: 5, moodCost: 3, desc: 'It keeps whispering that you just got lucky.' },
+  { id: 'juan',  name: 'Rat-Race King',   atk: 7, moodCost: 2, desc: 'Everyone else is running. Why do you get to stop.' },
 ];
 
-// ---------------------------------------------------------------- 文案
+// ---------------------------------------------------------------- copy
 export const TEXTS = {
-  intro: '白天你有三个自由行动点：进楼上课、找人聊天、去操场跑两圈。' +
-    '走进 CDS-1 或文娱楼，先到电梯厅，再选楼层——楼层之间走动不花行动点，' +
-    '只有真的做一件事才花。晚上只能选一件事：留着灯继续深造，或者出门打一场。' +
-    '你记下的每一行笔记，都会变成晚上能打出去的牌。',
+  intro: 'By day you get three free Action Points: sit in a lecture, talk to someone, run laps on the track. ' +
+    'Step into CDS-1 or the Wenyu Building and you land in the elevator lobby, then pick a floor — moving between floors costs nothing, ' +
+    'only doing something does. At night you pick one thing: keep the lamp on and study, or go out and fight. ' +
+    'Every note you write becomes a card you can play at night.',
   introRules: [
-    'WASD / 方向键走路，E 或空格交互，也可以直接点标签。',
-    '进楼先到电梯厅，电梯面板上标着每层有什么；层间移动 0 行动点。',
-    '房间会先弹确认面板：看清代价再点「开始」。',
-    '每天 3 点行动点，用完自动进入夜晚。心情是乘数，同时决定学习收益和战斗伤害。',
+    'WASD / arrows to walk, E or Space to interact, or just click a label.',
+    'A building drops you in the elevator lobby; the panel lists every floor. Floor to floor: 0 AP.',
+    'Rooms show a confirm panel first: read the cost, then press Start.',
+    '3 AP a day; when it runs out, night falls. Mood is a multiplier on both study gain and battle damage.',
   ],
-  nightTitle: '夜晚',
-  nightStudy: '宿舍深造',
-  nightStudyDesc: '在台灯下继续啃书。稳，但会把自己越拧越紧。',
-  nightFight: '出门夜战',
-  nightFightDesc: '用白天的笔记打一只占位怪物。赢了大回心情、补一点知识；输了心情大跌。',
-  examTitle: '期末考',
+  nightTitle: 'Night',
+  nightStudy: 'Study in your room',
+  nightStudyDesc: 'Keep grinding under the desk lamp. Steady, but the screw tightens every turn.',
+  nightFight: 'Night Fight',
+  nightFightDesc: 'Throw your daytime notes at a placeholder monster. Win: big Mood, some Knowledge. Lose: Mood drops hard.',
+  examTitle: 'Final Exam',
   endings: {
-    great: { name: '学神与侠客', text: '成绩单上是一行漂亮的数字。牌组里那几张笔记，陪你熬过了六个夜晚。' },
-    pass:  { name: '顺利过线', text: '及格线以上，日子照旧。至少你没把自己弄丢。' },
-    warn:  { name: '延毕警告', text: '成绩单被退回，辅导员约你谈话。那些没打的仗，最后还是找上门来。' },
+    great: { name: 'Scholar and Daredevil', text: 'A clean row of numbers on the transcript. The few notes left in your deck carried you through six nights.' },
+    pass:  { name: 'Made the Cut', text: 'Above the line, life goes on. At least you did not lose yourself.' },
+    warn:  { name: 'Deferral Warning', text: 'The transcript came back. Your advisor wants a word. The fights you skipped found you anyway.' },
   },
-  battleIntro: '一个占位怪物从走廊尽头浮出来。',
+  battleIntro: 'A placeholder monster floats up from the end of the hall.',
 };

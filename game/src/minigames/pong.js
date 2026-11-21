@@ -1,6 +1,6 @@
-// minigames/pong.js — 1F 乒乓球台。
-// 经典 Pong 的两块拍子 + 一颗球，换成更耐看的霓虹球台：拖尾、粒子、扫描线、比分。
-// 鼠标 / W S / 上下键控制左边的拍子，先到 7 分。
+// minigames/pong.js — the Table Tennis table on 1F.
+// Classic Pong: two paddles and one ball, dressed as a nicer neon table: trails, particles, scanlines, score.
+// Mouse / W S / arrow keys drive the left paddle; first to 7 points.
 
 import * as ui from '../ui.js';
 import { unlockAudio, sfx } from '../audio.js';
@@ -40,7 +40,7 @@ export function openPong(opts) {
     particles: [],
     flash: 0,
     shake: 0,
-    message: '准备发球',
+    message: 'Ready to serve',
     messageTimer: 0,
     ended: false,
     settled: false,
@@ -55,12 +55,12 @@ export function openPong(opts) {
         <div class="mg-title">
           <span class="mg-icon">🏓</span>
           <div>
-            <h2>乒乓球</h2>
-            <p class="sub">和${esc(opts.npc.name)}打一局 · 先到 ${WIN_SCORE} 分</p>
+            <h2>Table Tennis</h2>
+            <p class="sub">One game vs ${esc(opts.npc.name)} · first to ${WIN_SCORE}</p>
           </div>
         </div>
         <div class="pong-scoreline">
-          <span class="ps you">你 <b id="pp-p">0</b></span>
+          <span class="ps you">You <b id="pp-p">0</b></span>
           <span class="ps sep">:</span>
           <span class="ps foe"><b id="pp-a">0</b> ${esc(opts.npc.name)}</span>
         </div>
@@ -69,23 +69,23 @@ export function openPong(opts) {
         <canvas id="pong-canvas"></canvas>
         <div class="mg-overlay hidden" id="pong-overlay">
           <div class="po-card">
-            <div class="po-tag" id="pp-tag">本局结束</div>
+            <div class="po-tag" id="pp-tag">Game over</div>
             <h3 id="pp-title">—</h3>
             <p id="pp-msg"></p>
             <div class="mg-row">
-              <button class="btn primary" data-act="again">再打一局</button>
-              <button class="btn" data-act="close">收拍</button>
+              <button class="btn primary" data-act="again">Play again</button>
+              <button class="btn" data-act="close">Paddles down</button>
             </div>
           </div>
         </div>
       </div>
       <div class="mg-hint">
-        <span>移动鼠标 / 触屏拖动，或按 <kbd>W</kbd> <kbd>S</kbd>（↑ ↓）控制球拍</span>
-        <span id="pp-status" class="mg-status">${esc(opts.npc.taunt || '开球吧。')}</span>
+        <span>Move the mouse / drag on touch, or press <kbd>W</kbd> <kbd>S</kbd> (↑ ↓) to steer the paddle</span>
+        <span id="pp-status" class="mg-status">${esc(opts.npc.taunt || 'Serve it up.')}</span>
       </div>
       <div class="mg-row">
-        <button class="btn" data-act="restart">重新发球</button>
-        <button class="btn" data-act="close">不打了</button>
+        <button class="btn" data-act="restart">Serve again</button>
+        <button class="btn" data-act="close">Leave</button>
       </div>
     </div>`;
   ui.openModal(html, { cls: 'mg-panel pong-panel' });
@@ -126,12 +126,12 @@ export function openPong(opts) {
     g.ended = false;
     g.overlayShown = false;
     g.rally = 0;
-    g.message = '准备发球';
+    g.message = 'Ready to serve';
     g.messageTimer = 1.2;
     overlay.classList.add('hidden');
     pEl.textContent = '0';
     aEl.textContent = '0';
-    setStatus('先到 ' + WIN_SCORE + ' 分。' + (opts.npc.taunt || ''));
+    setStatus('First to ' + WIN_SCORE + '. ' + (opts.npc.taunt || ''));
   }
 
   function setStatus(text, kind) {
@@ -148,7 +148,7 @@ export function openPong(opts) {
     g.ball.vx = Math.cos(angle) * speed * g.serveDir;
     g.ball.vy = Math.sin(angle) * speed;
     g.trail = [];
-    g.message = '发球';
+    g.message = 'Serve';
     g.messageTimer = 0.5;
   }
 
@@ -165,7 +165,7 @@ export function openPong(opts) {
     g.serveDir = who === 'p' ? -1 : 1;
     g.ball.vx = 0;
     g.ball.vy = 0;
-    g.message = who === 'p' ? '你得分' : opts.npc.name + '得分';
+    g.message = who === 'p' ? 'Your point' : opts.npc.name + ' scores';
     g.messageTimer = 0.9;
     if (g.score.p >= WIN_SCORE || g.score.a >= WIN_SCORE) finish();
   }
@@ -181,15 +181,15 @@ export function openPong(opts) {
       const res = opts.onFinish ? opts.onFinish(outcome, { p: g.score.p, a: g.score.a }) : null;
       g.rewardMsg = res && res.msg ? res.msg : '';
     } else {
-      g.rewardMsg = '今天的结算已经记过了，这局纯属娱乐。';
+      g.rewardMsg = 'Today is already settled; this one is just for fun.';
     }
     sfx(win ? 'win' : 'lose');
-    tagEl.textContent = win ? '这局你赢了' : '这局你输了';
+    tagEl.textContent = win ? 'You took it' : 'You lost it';
     titleEl.textContent = g.score.p + ' : ' + g.score.a;
-    msgEl.textContent = (g.rewardMsg || (win ? '打得不错。' : '再来一局找找手感。')) +
-      ' · 可以继续打，但今天的结算已经记下了。';
+    msgEl.textContent = (g.rewardMsg || (win ? 'Good game.' : 'Play again to find the feel.')) +
+      ' · Play on if you like, but the tally for today is already noted.';
     overlay.classList.remove('hidden');
-    setStatus(win ? '赢了这局。' : '输了这局。', win ? 'ok' : 'muted');
+    setStatus(win ? 'Took the game.' : 'Lost the game.', win ? 'ok' : 'muted');
   }
 
   function burst(x, y, color, n) {
@@ -217,7 +217,7 @@ export function openPong(opts) {
     g.shake = Math.min(6, 2 + speed / 400);
     sfx('paddle', Math.min(1, speed / 900));
     burst(g.ball.x, g.ball.y, pad === g.player ? '#ffe38a' : (opts.npc.color || '#7fa8d9'), 8);
-    if (g.rally > 0 && g.rally % 6 === 0) setStatus('连续对拉 ' + g.rally + ' 拍。');
+    if (g.rally > 0 && g.rally % 6 === 0) setStatus('Rally of ' + g.rally + '.');
   }
 
   function step(h) {
@@ -229,14 +229,14 @@ export function openPong(opts) {
       return;
     }
 
-    // 玩家拍子：鼠标目标 + 键盘
+    // player paddle: mouse target + keyboard
     const kSpeed = 640;
     if (keys.has('w') || keys.has('arrowup')) g.player.target -= kSpeed * h;
     if (keys.has('s') || keys.has('arrowdown')) g.player.target += kSpeed * h;
     g.player.target = clamp(g.player.target, PAD_H / 2 + 8, H - PAD_H / 2 - 8);
     g.player.y += (g.player.target - g.player.y) * Math.min(1, h * 22);
 
-    // 对手：预测落点，带一点人的误差
+    // opponent: predicts the landing point, with a little human error
     const aiSpeed = 250 + skill * 330;
     let target = H / 2;
     if (g.ball.vx > 0) {
@@ -260,14 +260,14 @@ export function openPong(opts) {
       sfx('wall');
     }
 
-    // 左拍
+    // left paddle
     if (b.vx < 0 &&
       b.x - BALL_R <= PAD_X + PAD_W &&
       b.x - BALL_R >= PAD_X - 8 &&
       Math.abs(b.y - g.player.y) <= PAD_H / 2 + BALL_R * 0.8) {
       paddleHit(g.player);
     }
-    // 右拍
+    // right paddle
     if (b.vx > 0 &&
       b.x + BALL_R >= W - PAD_X - PAD_W &&
       b.x + BALL_R <= W - PAD_X + 10 &&
@@ -335,14 +335,14 @@ export function openPong(opts) {
       ctx.translate((Math.random() - 0.5) * g.shake, (Math.random() - 0.5) * g.shake);
     }
 
-    // 底色
+    // base colour
     const bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#0d1620');
     bg.addColorStop(1, '#081019');
     ctx.fillStyle = bg;
     ctx.fillRect(-20, -20, W + 40, H + 40);
 
-    // 球台
+    // table
     const table = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W * 0.62);
     table.addColorStop(0, '#123a3b');
     table.addColorStop(0.6, '#0e2c30');
@@ -359,7 +359,7 @@ export function openPong(opts) {
     roundRect(30, 30, W - 60, H - 60, 12);
     ctx.stroke();
 
-    // 中线 + 中场圆
+    // centre line + centre circle
     ctx.setLineDash([10, 14]);
     ctx.strokeStyle = 'rgba(178, 255, 240, .2)';
     ctx.lineWidth = 2;
@@ -373,7 +373,7 @@ export function openPong(opts) {
     ctx.strokeStyle = 'rgba(178, 255, 240, .13)';
     ctx.stroke();
 
-    // 大比分底纹
+    // big score watermark
     ctx.save();
     ctx.globalAlpha = 0.08;
     ctx.fillStyle = '#d8fff6';
@@ -384,7 +384,7 @@ export function openPong(opts) {
     ctx.fillText(String(g.score.a), W / 2 + 190, H / 2 + 8);
     ctx.restore();
 
-    // 拖尾
+    // trail
     for (const t of g.trail) {
       ctx.globalAlpha = Math.max(0, t.life / 0.22) * 0.35;
       ctx.fillStyle = '#d8fff6';
@@ -394,7 +394,7 @@ export function openPong(opts) {
     }
     ctx.globalAlpha = 1;
 
-    // 球
+    // ball
     if (g.phase !== 'over') {
       const glow = ctx.createRadialGradient(g.ball.x, g.ball.y, 1, g.ball.x, g.ball.y, BALL_R * 3);
       glow.addColorStop(0, 'rgba(220, 255, 248, .5)');
@@ -416,7 +416,7 @@ export function openPong(opts) {
     drawPaddle(PAD_X, g.player.y, '#ffe38a', true);
     drawPaddle(W - PAD_X - PAD_W, g.ai.y, opts.npc.color || '#7fa8d9', false);
 
-    // 粒子
+    // particles
     for (const p of g.particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.max);
       ctx.fillStyle = p.color;
@@ -426,7 +426,7 @@ export function openPong(opts) {
     }
     ctx.globalAlpha = 1;
 
-    // 中央提示
+    // centre message
     if (g.messageTimer > 0 && !g.ended) {
       ctx.globalAlpha = Math.min(1, g.messageTimer * 2.2);
       ctx.fillStyle = '#e8fff9';
@@ -441,10 +441,10 @@ export function openPong(opts) {
       ctx.fillStyle = 'rgba(232, 255, 249, .55)';
       ctx.font = '600 15px "PingFang SC", system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(Math.ceil(Math.max(0, g.serveTimer)) + ' 秒后发球', W / 2, H / 2 + 120);
+      ctx.fillText(Math.ceil(Math.max(0, g.serveTimer)) + 's to serve', W / 2, H / 2 + 120);
     }
 
-    // 扫描线 + 暗角
+    // scanlines + vignette
     ctx.save();
     ctx.globalAlpha = 0.16;
     ctx.fillStyle = '#000';
@@ -491,7 +491,7 @@ export function openPong(opts) {
 
   function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
-  // ---------------------------------------------------------------- 输入
+  // ---------------------------------------------------------------- Input
   function movePointer(clientY) {
     const r = canvas.getBoundingClientRect();
     const y = (clientY - r.top) / r.height * H;

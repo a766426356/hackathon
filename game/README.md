@@ -1,149 +1,149 @@
-# 香港大学张江校区 · 七天
+# HKU Zhangjiang Campus · Seven Days
 
-一个白天养成、晚上抉择的小游戏。7 天，期末考结算 GPA。
+A small game about growing by day and choosing by night. 7 days, then the Final Exam settles your GPA.
 
-零依赖、零构建：原生 ES Modules + Canvas。数据集中在 `data.js`，改平衡只动那个文件。
+Zero dependencies, zero build: plain ES Modules + Canvas. All the numbers live in `data.js`; balance changes touch that file only.
 
-## 运行
+## Running
 
 ```bash
-./serve.sh          # 默认 8000 端口
-# 或
+./serve.sh          # port 8000 by default
+# or
 python3 -m http.server 8000
 ```
 
-打开 <http://localhost:8000>。
+Open <http://localhost:8000>.
 
-> 必须走 http，不能双击 `index.html`：ES module 会被 `file://` 的 CORS 拦掉。
+> It has to be served over http — double-clicking `index.html` will not work: ES modules get blocked by CORS on `file://`.
 
-## 玩法
+## How to play
 
-- **白天**：每天 **3 个行动点**，在校园里走动（WASD / 方向键），走到光圈按 `E` 或空格交互，也可以直接点标签。
-- **校园底图**：`game/assets/campus.jpg`。能用的只有三处 —— **体育场**（最上方）、**文娱楼 = 5#**、**CDS-1**；其余楼只是背景。
-- **镜头**：放大 1.7 倍跟着人物走（`data.js` 的 `CAMPUS.zoom / playerScale / speed` 可调），只显示人物周围一小块。
-- **进楼**：走到楼门口按 `E` → 电梯面板（竖排楼层牌）→ 选一层 → 这一层把房间列成选项 → 点哪个做哪个。
-  楼层之间走动 0 行动点，只有真的做一件事才扣点；做完回到这一层，可以接着做下一件。
-- **房间**：点选项先弹一个确认面板（成本 + 今日收益），点「开始」才结算。
-- **夜晚**：二选一。宿舍深造（知识 +，心情 −）或出门夜战（4 回合卡牌战）。
-- **第 7 天**：期末考，按知识与心情结算 GPA，走三个结局之一。
+- **Daytime**: **3 Action Points** a day. Walk around the campus (WASD / arrow keys), stand in the ring and press `E` or space to interact, or just click a label.
+- **Campus map**: `game/assets/campus.jpg`. Only three places work — the **Stadium** (top of the map), the **Wenyu Building = 5#** and **CDS-1**; every other building is scenery.
+- **Camera**: zoomed 1.7× and following the player (`CAMPUS.zoom / playerScale / speed` in `data.js` are tunable); only the area around the player is drawn.
+- **Entering a building**: walk to the entrance and press `E` → elevator panel (vertical floor plates) → pick a floor → the floor lists its rooms as options → click one to do it.
+  Moving between floors costs 0 Action Points; only actually doing something spends them. Afterwards you are back on that floor and can do the next thing.
+- **Rooms**: clicking an option opens a confirm panel first (cost + today's effect); nothing is settled until you press "Start".
+- **Night**: pick one of two. Study in the Dormitory (Knowledge +, Mood −) or go out and fight (4-round card battle).
+- **Day 7**: Final Exam. GPA is settled from Knowledge and Mood, and you land on one of three endings.
 
-校园里的固定点：**体育场**（心情 +，得「专注」下次自习 ×1.5）、**宿舍**（2# 门口：心情 +，直接结束白天）、
-**公告板**（小量知识 + 一段友谊）、**林 / 陈 / 周**（聊天：友谊 +、心情 +，友谊 ≥ 40 解锁支援卡）。
+Fixed spots on the campus: the **Stadium** (Mood +, grants Focus for a ×1.5 next study session), the **Dormitory** (Dorm 2 entrance: Mood +, ends the day straight away),
+the **Notice Board** (a little Knowledge + one friendship), **Lin / Chen / Zhou** (chat: friendship +, Mood +; friendship ≥ 40 unlocks their support card).
 
-### 楼里有什么
+### What is inside the buildings
 
-| 楼 | 楼层 | 房间（各 1 AP） |
+| Building | Floor | Rooms (1 AP each) |
 |---|---|---|
-| **CDS-1** | 3F 教学楼层 | **大课教室**：知识 +7（×心情，专注 ×1.5）/ 心情 −4 / 产一张笔记卡 · **答疑角**：知识 +2 / 心情 −1 / 随机一位朋友友谊 +5（每天 1 次） |
-| | 5F lab 层 · B1 gym 层 | 电梯面板上灰着（未开放） |
-| **文娱楼** | 1F 活动层 | **乒乓球台**：真打一局 Pong，赢心情 +9 / 友谊 +6，输了也有少量（每天 1 次） · **斯诺克台**：真打一局 6 红 6 彩，赢心情 +8 / 友谊 +8（要 TA 当天还没聊过） · **钢琴**：真钢琴采样，免费无限弹；每天第一次弹满 16 个音心情 +12 |
-| | 2F 自习层 | **自习室**：知识 +5 / 心情 −2 / **不产卡**（分数路线） |
-| | 3F 静室层 | **祷告室**：心情 +15，只有心情 ≤ 45 才进得去（每天 1 次） |
+| **CDS-1** | Teaching Floor 3F | **Lecture Hall**: Knowledge +7 (× Mood, ×1.5 with Focus) / Mood −4 / produces one note card · **Help Desk**: Knowledge +2 / Mood −1 / friendship +5 with a random friend (once a day) |
+| | Lab Floor 5F · Gym Floor B1 | greyed out on the elevator panel (not open yet) |
+| **Wenyu Building** | Activity Floor 1F | **Table Tennis Table**: a real game of Pong, a win gives Mood +9 / friendship +6 and a loss still gives a little (once a day) · **Snooker Table**: a real 6-red 6-colour frame, a win gives Mood +8 / friendship +8 (needs that person unchatted today) · **Piano**: real piano samples, free and unlimited; the first full 16 notes each day give Mood +12 |
+| | Study Floor 2F | **Study Room**: Knowledge +5 / Mood −2 / **no note card** (the GPA route) |
+| | Quiet Floor 3F | **Prayer Room**: Mood +15, only enterable while Mood ≤ 45 (once a day) |
 
-心情是全局乘数（`0.5 + 0.01 × 心情`），同时作用于学习收益和战斗伤害；心情归零会「崩一次」，第二天只剩 1 个行动点。
+Mood is a global multiplier (`0.5 + 0.01 × Mood`) that applies to both study gain and battle damage; when Mood hits zero you "collapse once" and have only 1 Action Point the next day.
 
-### 1F 的三件小游戏
+### The three minigames on 1F
 
-- **钢琴**：3 个八度（C3–C6）的 Salamander Grand Piano 真采样，本地 `assets/audio/piano/`，不依赖网络。
-  鼠标 / 触屏点键，电脑键盘 `Z X C V…` 弹低音区、`Q W E R…` 弹中高音区，按住 `空格` 踩延音。
-  琴可以一直弹；每天第一次弹满 16 个音才花 1 AP 结算心情 +12，之后继续弹不再结算，也不会赶你走。
-- **乒乓球**：经典 Pong 玩法的画质升级版，先到 7 分。鼠标 / 触屏拖动，或 `W` `S`（`↑` `↓`）控制球拍；
-  球会越打越快，对手按林 / 陈 / 周有不同强度。赢、平、输分别结算心情和友谊。
-- **斯诺克**：6 红 6 彩的轻量斯诺克，带真实的碰撞、摩擦、库边反弹和袋口判定。鼠标瞄准，
-  按住左键蓄力、松开击球；`←` `→` 微调角度，`空格` 也能蓄力。规则做了简化但完整：
-  红彩交替、彩球回位、犯规罚 4 分、最后按彩球顺序清台，红球清完后按分数定胜负。
+- **Piano**: 3 octaves (C3–C6) of real Salamander Grand Piano samples, local in `assets/audio/piano/`, no network needed.
+  Click keys with mouse / touch, or play the low register with `Z X C V…` and the mid-high register with `Q W E R…`; hold `space` for sustain.
+  You can keep playing; only the first full 16 notes each day cost 1 AP and settle Mood +12, playing on after that settles nothing and nothing kicks you out.
+- **Table Tennis**: classic Pong with better looks, first to 7. Drag with mouse / touch, or steer the paddle with `W` `S` (`↑` `↓`);
+  the ball gets faster as the rally goes on, and Lin / Chen / Zhou each play at a different strength. Win, draw and loss settle Mood and friendship differently.
+- **Snooker**: lightweight 6-red 6-colour snooker with real collisions, friction, cushion bounce and pocket detection. Aim with the mouse,
+  hold the left button to build power and release to shoot; `←` `→` fine-tune the angle and `space` charges a shot too. The rules are simplified but complete:
+  reds and colours alternate, colours respot, a foul costs 4 points, and at the end you clear the colours in order — once the reds are gone, the score decides.
 
-三局小游戏都嵌在弹窗里，Canvas 渲染 + Web Audio 实时合成音效，不引入任何运行时依赖。
-中途收杆 / 合上琴盖不扣行动点，只有真正打完并结算才扣。
+All three minigames sit inside a modal, rendered with Canvas and with Web Audio synthesising the SFX live — no runtime dependency added.
+Cueing out early / closing the lid costs no Action Points; only finishing a game and settling it does.
 
-## 核心机制
+## Core mechanics
 
-1. **笔记即武器**：每次自习生成一张具名知识卡；重复学到同一主题会让那张卡威力 +2（上限 14）。晚上的牌组就是你白天学的东西。
-2. **社交换战力**：友谊解锁支援卡，战斗里回血 + 回心情。
-3. **稀缺即决策**：3 点行动点 + 心情乘数 + 归零惩罚，逼你在「再学一点」和「去透口气」之间选。
+1. **Your notes are your weapons**: each study session produces one named knowledge card; studying the same topic again gives that card power +2 (cap 14). Your night deck is exactly what you studied by day.
+2. **Socialising buys combat power**: friendship unlocks support cards that heal HP and restore Mood in battle.
+3. **Scarcity is the decision**: 3 Action Points + the Mood multiplier + the bottoming-out penalty force you to choose between "study a bit more" and "go get some air".
 
-## 结构
+## Layout
 
 ```
-index.html          挂载点 + 侧栏
-styles.css          像素风 UI（系统字体，无外部资源）
-data.js             数值 CONFIG / 地图 / 交互点 / 卡 / 敌人 / 文案
-src/state.js        状态、派生数值、存读档（xorshift32 可序列化随机）
-src/rules.js        行动结算 / 夜晚推进 / 考试（纯函数）
-src/battle.js       夜战逻辑（抽牌、出牌、敌人回合）
-src/world.js        校园 canvas：底图渲染 + 跟随镜头、矩形碰撞、移动、邻近交互
-assets/campus.jpg   校园底图（1024×1024，画布按 768×768 显示）
-src/interiors.js    楼 → 楼层 → 房间的纯数据（含每层背景图、未开放说明）
-src/ui.js           HUD / 标签 / 日志 / 牌组 / 电梯面板 / 楼层选项 / 房间与选人面板
-src/audio.js        钢琴采样加载与 Web Audio 混音；小游戏用的合成音效
-src/minigames/piano.js    3 个八度的可弹钢琴（鼠标 / 触屏 / 键盘 / 延音）
-src/minigames/pong.js     经典 Pong 玩法 + 霓虹球台渲染 + AI 对手
-src/minigames/snooker.js  6 红 6 彩轻量斯诺克：物理、瞄准线、规则、AI
-assets/audio/piano/       Salamander Grand Piano 采样（CC-BY 3.0，见 LICENSE.md）
-src/main.js         启动、输入、进楼流程（电梯 → 楼层 → 房间）与阶段状态机
-tests/sim.mjs       无浏览器跑 700 局：不变量 + 结局分布 + 可复现性
-tests/maps.mjs      地图体检：尺寸、交互点落脚、从出生点可达
-serve.sh            本地静态服务器
+index.html          mount point + sidebar
+styles.css          pixel-art UI (system fonts, no external assets)
+data.js             CONFIG numbers / map / interactables / cards / enemies / copy
+src/state.js        state, derived numbers, save/load (xorshift32, serialisable RNG)
+src/rules.js        action settlement / night advance / exam (pure functions)
+src/battle.js       night battle logic (draw, play, enemy turn)
+src/world.js        campus canvas: map rendering + follow camera, rect collision, movement, proximity interaction
+assets/campus.jpg   campus map image (1024×1024, canvas shows it at 768×768)
+src/interiors.js    building → floor → room plain data (incl. per-floor background image, locked notes)
+src/ui.js           HUD / labels / log / deck / elevator panel / floor options / room and picker panels
+src/audio.js        piano sample loading and Web Audio mixing; synthesised SFX for the minigames
+src/minigames/piano.js    playable 3-octave piano (mouse / touch / keyboard / sustain)
+src/minigames/pong.js     classic Pong + neon table rendering + AI opponent
+src/minigames/snooker.js  lightweight 6-red 6-colour snooker: physics, aiming line, rules, AI
+assets/audio/piano/       Salamander Grand Piano samples (CC-BY 3.0, see LICENSE.md)
+src/main.js         boot, input, building entry flow (elevator → floor → room) and the phase state machine
+tests/sim.mjs       runs 700 games headless: invariants + ending distribution + reproducibility
+tests/maps.mjs      map health check: size, standing room at interactables, reachable from spawn
+serve.sh            local static server
 ```
 
-存档写在 `localStorage`（键 `zjxy.save.v3`），刷新自动恢复（连「在哪栋楼的哪一层、站在哪」一起恢复），开局可点「继续上次」。`?seed=123` 可固定随机种子复现。
+Saves go to `localStorage` (key `zjxy.save.v3`) and are restored on reload — including which building, which floor and where you were standing. The title screen offers "Continue". `?seed=123` pins the RNG seed for reproduction.
 
-## 测试
+## Tests
 
 ```bash
-node tests/sim.mjs     # 700 局（7 种打法 × 100 种子）
-node tests/maps.mjs    # 校园可行走区域 + 楼层/房间数据自洽
+node tests/sim.mjs     # 700 games (7 strategies × 100 seeds)
+node tests/maps.mjs    # campus walkable areas + floor/room data consistency
 ```
 
-`maps` 断言：校园 12 块可行走矩形连成一片、每个交互点 46px 内都有站立点；每栋楼的楼层 level 不重复、开放楼层都有房间、每个房间的 action 都能在 rules.js 里找到对应函数。
-`sim` 断言：心情/知识/友谊在范围内、牌组不超上限、流程必定终止、同种子结果一致、摆烂拿不到高分、
-三个结局都出现过；另外两条是这轮新加的护栏 —— **只泡文娱楼（不产卡）摸不到「学神」**、
-**室内路线不能显著强过纯自习**。
+`maps` asserts: the 12 walkable rectangles on the campus form one connected piece, every interactable has a standing spot within 46px; no building has duplicate floor levels, every open floor has rooms, and every room's action resolves to a function in rules.js.
+`sim` asserts: Mood/Knowledge/friendship stay in range, the deck never exceeds its cap, the run always terminates, the same seed gives the same result, slacking off cannot score high,
+and all three endings show up. Two more are guards added this round — **Wenyu Building only (no cards) cannot touch "Scholar"**
+and **the indoor route must not be clearly stronger than plain studying**.
 
-| 打法 | GPA | 说明 |
+| Strategy | GPA | Notes |
 |---|---|---|
-| study | 3.03 | 只上大课教室 |
-| mixed | 3.33（2.3 胜） | 学 + 社交 + 隔天夜战 |
-| social | 2.07 | 只聊天 |
-| lazy | 2.09 | 白天躺平 |
-| smart | 4.15（4 战 4 胜） | 低心情先跑体育场，隔天社交 |
-| indoor | 2.98 | 答疑 + 乒乓 + 大课（不夜战所以拿不到学神） |
-| chill | 2.84 | 钢琴 + 乒乓 + 自习室（新增，验证「纯心情路线」拿不到高分） |
+| study | 3.03 | Lecture Hall only |
+| mixed | 3.33 (2.3 wins) | study + social + night battle every other day |
+| social | 2.07 | chat only |
+| lazy | 2.09 | slack off all day |
+| smart | 4.15 (4 fights, 4 wins) | Stadium first when Mood is low, socialise every other day |
+| indoor | 2.98 | Help Desk + Table Tennis + Lecture Hall (no night battles, so no Scholar) |
+| chill | 2.84 | Piano + Table Tennis + Study Room (new; proves a "pure Mood route" cannot score high) |
 
-结局分布：原 5 种打法 `great 27% / pass 32% / warn 41%`；加上两个室内打法后 `19% / 52% / 29%`
-（这两种本来就不打怪，拿不到需要「GPA ≥ 3.4 且胜场 ≥ 2」的学神），目标区间 `20–35 / 30–40 / 25–40`。
+Ending distribution: the original 5 strategies give `great 27% / pass 32% / warn 41%`; adding the two indoor strategies gives `19% / 52% / 29%`
+(neither of those two fights, so neither can take the Scholar that needs "GPA ≥ 3.4 and at least 2 wins"). Target bands are `20–35 / 30–40 / 25–40`.
 
-## 还没做
+## Not built yet
 
-CDS-1 的 5F lab 层 / B1 gym 层（电梯面板上已经列出来、灰着）、大狮子拍照、校门出口 / company visit、
-日历与 ddl boss、正式反派主题（现在是占位怪物：拖延兽 / 冒名顶替幽灵 / 内卷王）、
-主流程 BGM、移动端细节适配、结局 CG。
+CDS-1's Lab Floor 5F / Gym Floor B1 (already listed and greyed out on the elevator panel), the big lion photo spot, the campus gate exit / Company Visit,
+the calendar and the ddl boss, a proper villain theme (right now they are placeholder monsters: Procrastination Beast / Impostor Ghost / Rat-Race King),
+main-loop BGM, mobile polish, ending CG.
 
-多层结构与日历的完整设计在仓库上一级的 `设计-多层交互与日历.md`。
+The full design for the multi-floor structure and the calendar is one directory up from the repo root, in `design-multi-floor-and-calendar.md`.
 
-反派主题如果要换，改 `data.js` 的 `ENEMIES` 即可，结构已经预留（`atk` / `moodCost` / `desc`）。
+If the villain theme needs swapping, just edit `ENEMIES` in `data.js` — the shape is already reserved (`atk` / `moodCost` / `desc`).
 
-## 三分钟演示动线
+## Three-minute demo path
 
-1. **0:00** 一句话立住：白天记下的每一行笔记，晚上就是能打出去的牌。
-2. **0:20** 向上走两步到公告板按 `E`：知识 +4、和林搭上话。展示右侧「手记」。
-3. **0:40** 走到 CDS-1（右侧）按 `E` 进楼 → 电梯面板选 **3F 教学楼层** → 走到「大课教室」按 `E` → 面板上写着「知识 +7 / 心情 −4 / 笔记 +1 张」→ 点「开始」。右侧「牌组」跟着变长。
-4. **1:10** 行动点用光自动入夜：选「宿舍深造」，指出心情从 60 掉到 52 —— 下次自习收益已经变低（HUD 里的乘数）。
-5. **1:40** 第二天先去**体育场**（最上方）拿「专注」，再回 3F 大课教室，对比同一动作的收益差（×1.5）。
-   顺路去文娱楼：`1F` 三件都能玩 —— 钢琴有真采样、乒乓球是 Pong、斯诺克能打完整一局；
-   `2F` 自习室给知识但不产卡，`3F` 祷告室心情高的时候进不去 —— 三件事说明「楼层不是菜单，是取舍」。
-6. **2:10** 任一晚选「出门夜战」：出牌就是把自己的笔记砸出去；打输了心情 −15、知识 −5，说明「准备不够就别硬打」。
-7. **2:40** 连点「结束白天 → 深造」到第 7 天，展示 GPA 结算与结局；三个结局的判定条件一句话带过。
-8. 收尾：反派现在是占位（拖延兽 / 冒名顶替幽灵 / 内卷王），换主题只改 `data.js`；下一版接日历，ddl 会直接变成当晚的 boss。
+1. **0:00** Set it up in one line: every note you take by day is a card you can throw at night.
+2. **0:20** Walk two steps up to the Notice Board and press `E`: Knowledge +4, and you have talked to Lin. Point at "Log" on the right.
+3. **0:40** Walk to CDS-1 (on the right) and press `E` to enter → pick **Teaching Floor 3F** on the elevator panel → walk to "Lecture Hall" and press `E` → the panel reads "Knowledge +7 / Mood −4 / note +1" → click "Start". The "Deck" on the right grows.
+4. **1:10** Action Points run out and night falls: choose "Study in the Dormitory" and point out Mood dropping from 60 to 52 — the next study session already pays less (the multiplier in the HUD).
+5. **1:40** On day 2 hit the **Stadium** (top of the map) for Focus, then go back to the 3F Lecture Hall and compare the payout for the same action (×1.5).
+   On the way, drop into the Wenyu Building: all three things on `1F` are playable — real samples on the Piano, Pong as Table Tennis, a full frame of Snooker;
+   `2F` Study Room gives Knowledge but no cards, and the `3F` Prayer Room refuses you while Mood is high — three things that say "a floor is not a menu, it is a trade-off".
+6. **2:10** On any night pick "Night battle": playing a card is throwing your own notes; losing costs Mood −15 and Knowledge −5, which shows "if you are not prepared, do not force it".
+7. **2:40** Click "End the day → Study in the Dormitory" until day 7 to show the GPA settlement and the ending; run through the three ending conditions in one sentence.
+8. Close: the villains are placeholders right now (Procrastination Beast / Impostor Ghost / Rat-Race King) and swapping the theme only touches `data.js`; the next version hooks up the calendar, and a ddl becomes that night's boss.
 
-## 开源参考与素材授权
+## Open-source references and asset licences
 
-- **钢琴采样**：*Salamander Grand Piano* by Alexander Holm，**CC-BY 3.0**。
-  本项目只取了 C3–C6 每八度 C / D# / F# / A 共 13 个 mp3 放在 `assets/audio/piano/`，
-  其余音按 playbackRate 变调。完整授权与出处见 `assets/audio/piano/LICENSE.md`。
-- **斯诺克实现**：没有直接引入第三方库，物理和规则是本仓库自己的轻量实现；
-  设计时参考了以下 MIT 项目的公开思路：
-  - [henshmi/Classic-Pool-Game](https://github.com/henshmi/Classic-Pool-Game)（MIT）
-  - [XingS117/pro-pool](https://github.com/XingS117/pro-pool)（MIT，单文件 8-ball）
-  - [mimonelu/billiards-js](https://mimonelu.github.io/billiards-js/)（MIT，轻量渲染）
-  选择自写而不是直接嵌入，是为了保持零依赖、和现有弹窗 / 结算流程一致，并把代码压到可维护的大小。
+- **Piano samples**: *Salamander Grand Piano* by Alexander Holm, **CC-BY 3.0**.
+  This project only takes 13 mp3s (C / D# / F# / A in each octave, C3–C6) into `assets/audio/piano/`,
+  and pitches the remaining notes via playbackRate. Full licence and provenance in `assets/audio/piano/LICENSE.md`.
+- **Snooker implementation**: no third-party library is pulled in; the physics and rules are this repo's own lightweight version,
+  designed after the public ideas in these MIT projects:
+  - [henshmi/Classic-Pool-Game](https://github.com/henshmi/Classic-Pool-Game) (MIT)
+  - [XingS117/pro-pool](https://github.com/XingS117/pro-pool) (MIT, single-file 8-ball)
+  - [mimonelu/billiards-js](https://mimonelu.github.io/billiards-js/) (MIT, lightweight rendering)
+  Writing it rather than embedding a library keeps the zero-dependency promise, fits the existing modal / settlement flow, and keeps the code at a maintainable size.

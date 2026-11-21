@@ -14,7 +14,7 @@
 
 import { CONFIG, NPCS, TOPICS, LOOT } from '../data.js';
 
-// 旧存档里的卡和战利品没有 en 字段，回查数据表补上，免得英文报告里蹦出中文
+// Cards and loot from older saves carry no `en` field; look one up so the report never falls back to Chinese.
 const cardLabel = (c) => c.en || (TOPICS.find((t) => t.id === c.topic) || {}).en || c.name;
 const lootLabel = (l) => l.en || (LOOT.find((x) => x.id === l.id) || {}).en || l.name;
 

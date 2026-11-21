@@ -1,19 +1,19 @@
-// world.js — 校园：一张画好的大图当背景，走位靠「可行走矩形」，不再是地砖格子。
+// world.js — campus: one pre-drawn big image as the background, movement via "walkable rectangles", no tile grid.
 
 import { CAMPUS, WALKABLE, INTERACTABLES, SPAWN, MAP_W, MAP_H } from '../data.js';
 
 const INTERACT_RANGE = 46;
-const S = MAP_W / CAMPUS.w; // 图片坐标 → 画布坐标（1024 → 768）
+const S = MAP_W / CAMPUS.w; // image coords → canvas coords (1024 → 768)
 
-// 镜头：只看见玩家周围一小块，人跟着镜头走（数值在 data.js 的 CAMPUS 里）
+// camera: you only ever see a small patch around the player, and the player moves with the camera (values live in CAMPUS in data.js)
 const SPEED = CAMPUS.speed;
 const ZOOM = CAMPUS.zoom;
 const VIEW_W = MAP_W / ZOOM;
 const VIEW_H = MAP_H / ZOOM;
 const PLAYER_SCALE = CAMPUS.playerScale;
-const LEAD = 16; // 镜头朝向前瞻的像素数
+const LEAD = 16; // pixels the camera looks ahead
 
-// 把行走矩形换到画布坐标系，只算一次
+// convert the walk rectangles into canvas coords, once
 const WALK = WALKABLE.map((r) => ({
   x0: r.x * S,
   y0: r.y * S,
@@ -30,7 +30,7 @@ function onWalkable(x, y) {
 
 export function createWorld(canvas) {
   const ctx = canvas.getContext('2d');
-  // 画好的图缩放后当背景；加载失败就退成一块底色，不让游戏卡住
+  // the drawn image, scaled, as the background; if loading fails fall back to a flat colour so the game does not stall
   const bg = new Image();
   let bgReady = false;
   bg.onload = () => { bgReady = true; };
@@ -45,12 +45,12 @@ export function createWorld(canvas) {
   const keys = new Set();
   let near = null;
   let t = 0;
-  // 交互点不是固定的：当天有日历活动时会多出一个出发点。
-  // 留一份可变列表，setSpots 由 main 在场景切换和行动结算后调用。
+  // interaction points are not fixed: a calendar event adds one starting point for the day.
+  // keep a mutable list; main calls setSpots after scene changes and after actions settle.
   let spots = INTERACTABLES;
-  // 镜头中心：平滑跟到玩家身上，并夹在图的边界内
+  // camera centre: eases onto the player, clamped inside the image bounds
   const cam = { x: player.x, y: player.y };
-  const lead = { x: 0, y: 0 }; // 镜头前瞻：朝哪走就先往哪偏一点
+  const lead = { x: 0, y: 0 }; // camera lead: lean toward whichever way you walk
 
   function clampCam() {
     cam.x = Math.max(VIEW_W / 2, Math.min(MAP_W - VIEW_W / 2, cam.x));
@@ -58,7 +58,7 @@ export function createWorld(canvas) {
   }
   clampCam();
 
-  // 只要身体的四角都踩在可行走区域里，就算站得住
+  // as long as all four corners of the body are on walkable ground, you can stand there
   function blockedAt(cx, cy) {
     const l = cx - 7;
     const r = cx + 7;
@@ -97,14 +97,14 @@ export function createWorld(canvas) {
     player.x = Math.max(8, Math.min(MAP_W - 8, player.x));
     player.y = Math.max(8, Math.min(MAP_H - 8, player.y));
 
-    // 镜头跟得慢一点：先慢慢飘向玩家朝的那一侧（前瞻），再追上玩家，走起来有"镜头在追人"的手感
+    // the camera lags a little: first it drifts toward the side the player faces (lead), then catches up, so walking feels like "the camera is chasing you"
     const leadX = player.dir === 'left' ? -LEAD : player.dir === 'right' ? LEAD : 0;
     const leadY = player.dir === 'up' ? -LEAD * 0.7 : player.dir === 'down' ? LEAD * 0.7 : 0;
     const leadK = Math.min(1, dt * 2.4);
     lead.x += (leadX - lead.x) * leadK;
     lead.y += (leadY - lead.y) * leadK;
 
-    const follow = Math.min(1, dt * 4.2); // 原来是 10，慢下来才有延迟感
+    const follow = Math.min(1, dt * 4.2); // was 10; slower gives the sense of lag
     cam.x += (player.x + lead.x - cam.x) * follow;
     cam.y += (player.y + lead.y - cam.y) * follow;
     clampCam();
@@ -119,20 +119,20 @@ export function createWorld(canvas) {
     }
   }
 
-  // 换一批交互点（当天多了一个活动出发点时用）
+  // swap in another set of interaction points (used when the day adds an event starting point)
   function setSpots(list) {
     spots = list && list.length ? list : INTERACTABLES;
     near = null;
   }
 
-  // ------------------------------------------------------------ 绘制
+  // ------------------------------------------------------------ drawing
   function drawMarkers() {
     for (const item of spots) {
       const cx = item.x * S;
       const cy = item.y * S;
       const active = near && near.id === item.id;
       const pulse = 0.5 + 0.5 * Math.sin(t * 3 + item.x);
-      const k = 1 / ZOOM; // 已经乘过 ZOOM 的坐标系，这里除回去，光圈在屏幕上才不会跟着变大
+      const k = 1 / ZOOM; // this space has already been multiplied by ZOOM; divide it back out so the ring does not grow on screen
       ctx.beginPath();
       ctx.arc(cx, cy, (13 + pulse * (active ? 3 : 1.5)) * k, 0, Math.PI * 2);
       ctx.strokeStyle = active ? 'rgba(255,236,150,0.95)' : 'rgba(255,255,255,0.38)';
@@ -150,7 +150,7 @@ export function createWorld(canvas) {
   function draw(night) {
     ctx.clearRect(0, 0, MAP_W, MAP_H);
 
-    // 镜头：以玩家为中心放大 ZOOM 倍，图上只有他周围这一块被画出来
+    // camera: scale up around the player by ZOOM; only the patch around them gets drawn
     ctx.save();
     ctx.scale(ZOOM, ZOOM);
     ctx.translate(-(cam.x - VIEW_W / 2), -(cam.y - VIEW_H / 2));
@@ -162,7 +162,7 @@ export function createWorld(canvas) {
       ctx.fillRect(0, 0, MAP_W, MAP_H);
       ctx.fillStyle = 'rgba(230,240,235,0.7)';
       ctx.font = '14px system-ui, sans-serif';
-      ctx.fillText('校园图载入中…', 24, 40);
+      ctx.fillText('Loading campus map…', 24, 40);
     }
     drawMarkers();
     drawPlayerSprite(ctx, player, PLAYER_SCALE, t);
@@ -175,7 +175,7 @@ export function createWorld(canvas) {
     }
   }
 
-  // 把某个交互点换算成「占画面百分之几」，DOM 标签跟着镜头走
+  // turn an interaction point into "what percent of the frame", so DOM labels follow the camera
   function project(item) {
     const sx = (item.x * S - (cam.x - VIEW_W / 2)) * ZOOM;
     const sy = (item.y * S - (cam.y - VIEW_H / 2)) * ZOOM;
@@ -196,8 +196,8 @@ export function createWorld(canvas) {
   };
 }
 
-// 玩家小人：像素风，站着不动时有呼吸 + 眨眼 + 轻微晃身；走路时手臂和腿摆起来。
-// drawPlayerSprite(ctx, player, scale, time) —— time 是场景时钟，用来驱动待机动画。
+// the player sprite: pixel style, breathing + blinking + a slight sway when idle; arms and legs swing when walking.
+// drawPlayerSprite(ctx, player, scale, time) — time is the scene clock, it drives the idle animation.
 export function drawPlayerSprite(ctx, player, scale = 1, time = 0) {
   const px = Math.round(player.x);
   const py = Math.round(player.y);
@@ -209,27 +209,27 @@ export function drawPlayerSprite(ctx, player, scale = 1, time = 0) {
   }
 
   const walking = player.moving;
-  // 走路：腿和手臂跟着 walk 相位摆；待机：呼吸起伏 + 每 3.4 秒眨一次眼
+  // walking: legs and arms swing with the walk phase; idle: breathing plus a blink every 3.4 seconds
   const swing = walking ? Math.sin(player.walk) : 0;
   const breathe = walking ? Math.sin(player.walk) * 1.5 : Math.sin(time * 1.9) * 0.9;
-  const sway = walking ? 0 : Math.sin(time * 1.1) * 0.7; // 站立时身体轻轻晃
+  const sway = walking ? 0 : Math.sin(time * 1.1) * 0.7; // the body sways a little while standing
   const blink = !walking && time % 3.4 < 0.13;
   const bob = breathe;
 
-  // 影子：待机时随呼吸微微缩放，看着像在"喘气"
+  // shadow: scales slightly with the breathing when idle, so it looks like "panting"
   const shadowR = walking ? 9 : 8.4 + Math.sin(time * 1.9) * 0.5;
   ctx.fillStyle = 'rgba(0,0,0,0.24)';
   ctx.beginPath();
   ctx.ellipse(px, py + 2, shadowR, 4, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // 腿：走路时前后交替，待机时并拢
+  // legs: alternate while walking, together while idle
   const legA = py - 8 + Math.max(0, swing * 3) * (walking ? 1 : 0);
   const legB = py - 8 + Math.max(0, -swing * 3) * (walking ? 1 : 0);
   ctx.fillStyle = '#2a2a35';
   ctx.fillRect(px - 6, legA, 5, 8);
   ctx.fillRect(px + 1, legB, 5, 8);
-  // 鞋
+  // shoes
   ctx.fillStyle = '#15151c';
   ctx.fillRect(px - 6, legA + 7, 5, 2);
   ctx.fillRect(px + 1, legB + 7, 5, 2);
@@ -237,33 +237,33 @@ export function drawPlayerSprite(ctx, player, scale = 1, time = 0) {
   const bodyY = py - 20 + bob;
   const bodyX = px + sway;
 
-  // 手臂：先画在身体后面，摆幅小一点
+  // arms: drawn behind the body first, smaller swing
   ctx.fillStyle = '#2b3a5c';
   const armA = walking ? swing * 2.5 : Math.sin(time * 1.9 + 0.6) * 0.6;
   ctx.fillRect(bodyX - 9, bodyY + 2 - armA, 2, 8);
   ctx.fillRect(bodyX + 7, bodyY + 2 + armA, 2, 8);
 
-  // 校服 / 身体
+  // uniform / body
   ctx.fillStyle = '#33456b';
   ctx.fillRect(bodyX - 7, bodyY, 14, 13);
-  // 身体暗部（右侧）
+  // body shading (right side)
   ctx.fillStyle = '#2a3a5c';
   ctx.fillRect(bodyX + 4, bodyY, 3, 13);
-  // 白领口 + 领带
+  // white collar + tie
   ctx.fillStyle = '#f2f2f6';
   ctx.fillRect(bodyX - 4, bodyY, 8, 4);
   ctx.fillStyle = '#8c3b45';
   ctx.fillRect(bodyX - 1, bodyY + 3, 2, 6);
-  // 下摆一条深线
+  // one dark line along the hem
   ctx.fillStyle = '#1b1b1b';
   ctx.fillRect(bodyX - 7, bodyY + 12, 14, 1);
 
-  // 头
+  // head
   const headY = py - 31 + bob;
   const headX = px + sway;
   ctx.fillStyle = '#f3c9a3';
   ctx.fillRect(headX - 6, headY, 12, 11);
-  // 头发：上面一块 + 两侧鬓角 + 一撮高光
+  // hair: one block on top + sideburns + a single highlight
   ctx.fillStyle = '#2a2118';
   ctx.fillRect(headX - 6, headY, 12, 4);
   ctx.fillRect(headX - 6, headY + 4, 2, 3);
@@ -271,7 +271,7 @@ export function drawPlayerSprite(ctx, player, scale = 1, time = 0) {
   ctx.fillStyle = '#3d3025';
   ctx.fillRect(headX - 4, headY + 1, 6, 1);
 
-  // 脸：眨眼时眼睛压成一条线；朝上走只露后脑勺，不画眼睛
+  // face: eyes squash to a line when blinking; walking up only shows the back of the head, no eyes
   if (player.dir !== 'up') {
     const ox = player.dir === 'left' ? -2 : player.dir === 'right' ? 2 : 0;
     ctx.fillStyle = '#2a2118';
@@ -285,11 +285,11 @@ export function drawPlayerSprite(ctx, player, scale = 1, time = 0) {
       ctx.fillRect(headX - 3 + ox, headY + 6, 1, 1);
       ctx.fillRect(headX + 2 + ox, headY + 6, 1, 1);
     }
-    // 腮红一点点，像素小人看起来不至于太硬
+    // a touch of blush so the pixel person does not look too stiff
     ctx.fillStyle = 'rgba(226,140,120,0.45)';
     ctx.fillRect(headX - 5 + ox, headY + 8, 2, 1);
     ctx.fillRect(headX + 3 + ox, headY + 8, 2, 1);
-    // 嘴：走路时张开一点
+    // mouth: opens a little while walking
     ctx.fillStyle = '#8a5c48';
     ctx.fillRect(headX - 1 + ox, headY + 9, 2, walking ? 2 : 1);
   }

@@ -1,6 +1,6 @@
-// minigames/piano.js — 文娱楼 1F 的钢琴。
-// 三个八度（C3–C6）的真采样钢琴：鼠标 / 触屏 / 电脑键盘都能弹，空格踩延音。
-// 琴随便弹、无限弹；每天第一次弹满 N 个音才结算心情奖励。
+// minigames/piano.js — the piano on Wenyu Building 1F.
+// Three octaves (C3–C6) of real piano samples: mouse / touch / computer keyboard all play, space is the sustain pedal.
+// Play freely, endlessly; only the first N notes each day settle the mood reward.
 
 import * as ui from '../ui.js';
 import {
@@ -20,7 +20,7 @@ const KEYMAP = {
   '[': 77, '=': 78, ']': 79,
 };
 
-let active = null; // 当前这一局钢琴的清理函数
+let active = null; // cleanup function for the current piano session
 
 export function openPiano(opts) {
   if (active) active();
@@ -28,7 +28,7 @@ export function openPiano(opts) {
   loadPianoSamples();
 
   const notes = [];
-  const pressed = new Map(); // midi → 还在按着的音
+  const pressed = new Map(); // midi → notes still held
   const pointerNotes = new Map(); // pointerId → midi
   const entry = {
     state: opts.state,
@@ -47,30 +47,30 @@ export function openPiano(opts) {
         <div class="mg-title">
           <span class="mg-icon">🎹</span>
           <div>
-            <h2>钢琴</h2>
-            <p class="sub">三个八度 · 真钢琴采样 · 想弹多久都行</p>
+            <h2>Piano</h2>
+            <p class="sub">Three octaves · real samples · play as long as you like</p>
           </div>
         </div>
         <div class="mg-meters">
-          <div class="mg-meter"><b id="pg-count">0</b><span>今日手感</span></div>
-          <div class="mg-meter"><b id="pg-notes">/ ${entry.need}</b><span>结算所需</span></div>
+          <div class="mg-meter"><b id="pg-count">0</b><span>Feel today</span></div>
+          <div class="mg-meter"><b id="pg-notes">/ ${entry.need}</b><span>To settle</span></div>
         </div>
       </div>
       <div class="piano-toolbar">
-        <span id="pg-status" class="mg-status">先弹几个音试试。</span>
-        <span id="pg-pedal" class="piano-pedal">延音 <kbd>空格</kbd></span>
+        <span id="pg-status" class="mg-status">Try a few notes first.</span>
+        <span id="pg-pedal" class="piano-pedal">Sustain <kbd>Space</kbd></span>
       </div>
       <div class="piano-progress"><i id="pg-bar"></i></div>
       <div class="piano-body">
         <div class="piano-keys" id="pg-keys"></div>
       </div>
       <div class="piano-hint">
-        <span>鼠标 / 触屏点琴键</span>
-        <span>键盘：<kbd>Z X C V…</kbd> 低音区 · <kbd>Q W E R…</kbd> 中高音区</span>
-        <span>按住 <kbd>空格</kbd> 踩延音</span>
+        <span>Mouse / touch the keys</span>
+        <span>Keyboard: <kbd>Z X C V…</kbd> low range · <kbd>Q W E R…</kbd> mid and high</span>
+        <span>Hold <kbd>Space</kbd> for sustain</span>
       </div>
       <div class="mg-row">
-        <button class="btn primary" data-act="close">合上琴盖</button>
+        <button class="btn primary" data-act="close">Close the lid</button>
       </div>
     </div>`;
   ui.openModal(html, { cls: 'mg-panel piano-panel' });
@@ -141,17 +141,17 @@ export function openPiano(opts) {
     entry.rewarded = true;
     if (!entry.canReward) {
       setStatus(entry.state.today.piano
-        ? '今天已经弹尽兴了。琴盖开着，继续随便弹。'
-        : '今天没有行动点了。琴可以随便弹，但不算今天的收获。', 'muted');
+        ? 'Played plenty today. Lid stays open, play on.'
+        : 'No Action Points today. Play all you like, it just will not count.', 'muted');
       return;
     }
     const res = opts.onReward ? opts.onReward(entry.count) : null;
     if (res && res.ok) {
-      setStatus(res.msg + ' 继续弹不额外结算。', 'ok');
+      setStatus(res.msg + ' Playing on will not settle again.', 'ok');
       sfx('win');
       entry.canReward = false;
     } else {
-      setStatus((res && res.msg) || '今天已经弹过了。', 'muted');
+      setStatus((res && res.msg) || 'Already played today.', 'muted');
     }
   }
 
@@ -189,7 +189,7 @@ export function openPiano(opts) {
     return key ? Number(key.dataset.midi) : null;
   }
 
-  // 鼠标 / 触屏：按下响，抬起停；按住滑过琴键也能连起来
+  // mouse / touch: press to sound, lift to stop; press and slide across keys also chains notes
   function onPointerDown(ev) {
     const key = ev.target.closest && ev.target.closest('.pkey');
     if (!key) return;
@@ -197,7 +197,7 @@ export function openPiano(opts) {
     const midi = Number(key.dataset.midi);
     pointerNotes.set(ev.pointerId, midi);
     noteOn(midi, velocityFor(ev, key));
-    try { key.setPointerCapture(ev.pointerId); } catch (e) { /* 老浏览器 */ }
+    try { key.setPointerCapture(ev.pointerId); } catch (e) { /* old browsers */ }
   }
 
   function onPointerMove(ev) {
@@ -273,34 +273,34 @@ export function openPiano(opts) {
   };
   ui.setModalCleanup(active);
 
-  // 采样加载状态：先显示"调音中"，好了再换掉，不挡着弹
+  // sample loading state: show "tuning" first, swap it when done, never blocks playing
   const total = pianoLoadProgress().total;
   if (!pianoLoadProgress().loaded) {
-    setStatus('正在调音（0 / ' + total + ' 个采样）…');
+    setStatus('Tuning (0 / ' + total + ' samples)…');
     let timer = 0;
     timer = setInterval(() => {
       if (destroyed) { clearInterval(timer); return; }
       const p = pianoLoadProgress();
       if (p.loaded >= p.total) clearInterval(timer);
-      else setStatus('正在调音（' + p.loaded + ' / ' + p.total + ' 个采样）…');
+      else setStatus('Tuning (' + p.loaded + ' / ' + p.total + ' samples)…');
     }, 220);
     loadPianoSamples().then((ok) => {
       clearInterval(timer);
       if (destroyed) return;
       if (ok && pianoLoadProgress().loaded >= total) {
-        setStatus('钢琴调好了。随便弹，弹满 ' + entry.need + ' 个音结算今天的收获。', 'ok');
+        setStatus('Piano is tuned. Play freely; ' + entry.need + ' notes settle the haul for today.', 'ok');
       } else {
-        setStatus('采样没加载出来，先用合成钢琴音顶着。照样能弹。', 'muted');
+        setStatus('Samples did not load; synth piano covers for now. Still playable.', 'muted');
       }
     });
     active = ((prev) => () => { clearInterval(timer); prev(); })(active);
     ui.setModalCleanup(active);
   } else {
     setStatus(entry.canReward
-      ? '弹满 ' + entry.need + ' 个音：今天的心情结算 + 1 AP。之后随便弹。'
+      ? 'Play ' + entry.need + ' notes: today settles for + 1 AP of mood. Free play after.'
       : entry.state.today.piano
-        ? '今天已经弹尽兴了。琴盖开着，继续随便弹。'
-        : '今天没有行动点了。琴可以随便弹，但不算今天的收获。', entry.canReward ? '' : 'muted');
+        ? 'Played plenty today. Lid stays open, play on.'
+        : 'No Action Points today. Play all you like, it just will not count.', entry.canReward ? '' : 'muted');
   }
   refreshProgress();
   updatePedal();

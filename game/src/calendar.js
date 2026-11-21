@@ -1,9 +1,9 @@
-// calendar.js — 日历：条目、当天出发点、错过判定。纯数据，不碰 DOM、不碰规则结算。
-// 结算在 rules.doEvent 里做，这里只回答「今天有什么」「这一条能不能去」。
+// calendar.js — the calendar: entries, today's starting point, miss checks. Pure data, no DOM, no rule settlement.
+// Settlement happens in rules.doEvent; this file only answers "what is on today" and "can this one be attended".
 
 import { EVENTS, EVENT_PLACES } from '../data.js';
 
-// 开局从模板复制一份；之后 done / missed 都写在 state.calendar 上
+// copy the template at game start; after that done / missed live on state.calendar
 export function freshCalendar() {
   return EVENTS.map((e) => ({
     id: e.id,
@@ -26,7 +26,7 @@ export function entriesOf(s, day) {
   return (s.calendar || []).filter((e) => e.day === day);
 }
 
-// 今天还没做、也还没错过的那一条（一天最多一场）
+// the entry for today that is neither done nor missed (at most one per day)
 export function activeEntry(s) {
   return (s.calendar || []).find((e) => e.day === s.day && !e.done && !e.missed) || null;
 }
@@ -35,7 +35,7 @@ export function placeOf(entry) {
   return entry ? EVENT_PLACES[entry.place] || null : null;
 }
 
-// 当天在校园上多出来的那个点：走到这里按 E 才能出发
+// the extra dot that appears on campus for the day: walk there and press E to set off
 export function eventSpots(s) {
   const e = activeEntry(s);
   if (!e) return [];
@@ -48,13 +48,13 @@ export function eventSpots(s) {
     name: e.title,
     icon: '📌',
     kind: 'event',
-    hint: '今天的日程：' + e.title + '（' + p.name + '）',
+    hint: 'On the calendar today: ' + e.title + ' (' + p.name + ')',
     labelBelow: true,
     entry: e,
   }];
 }
 
-// 翻页时把过去没做的划掉，返回这一批被划掉的条目（交给 rules 记手记）
+// when the day turns, cross out whatever went undone; return the crossed-out entries (rules logs them)
 export function expirePast(s) {
   const gone = [];
   for (const e of s.calendar || []) {
@@ -66,11 +66,11 @@ export function expirePast(s) {
   return gone;
 }
 
-// 面板上那一行「知识 +6 · 心境 +6」
+// the "Knowledge +6 · Mood +6" line on the panel
 export function effectLine(entry) {
   const bits = [];
-  if (entry.know) bits.push('知识 +' + entry.know);
-  if (entry.mood) bits.push('心境 ' + (entry.mood > 0 ? '+' + entry.mood : '−' + Math.abs(entry.mood)));
-  if (entry.physique) bits.push('体质 +' + entry.physique);
-  return bits.join(' · ') || '没什么实际收益';
+  if (entry.know) bits.push('Knowledge +' + entry.know);
+  if (entry.mood) bits.push('Mood ' + (entry.mood > 0 ? '+' + entry.mood : '−' + Math.abs(entry.mood)));
+  if (entry.physique) bits.push('Physique +' + entry.physique);
+  return bits.join(' · ') || 'no real gain';
 }

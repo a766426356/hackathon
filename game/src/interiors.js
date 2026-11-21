@@ -1,119 +1,119 @@
-// interiors.js — 楼 → 楼层 → 房间的纯数据。室内不再走地图，房间就是一层里的几个选项。
+// interiors.js — building → floor → room, pure data. Interiors are no longer a map; a room is just an option on a floor.
 //
-// 层级：校园（按 E 进楼）→ 电梯面板（竖排楼层牌）→ 这一层的房间选项 → 确认面板 → 结算。
+// Flow: campus (press E to enter) → elevator panel (floor plates stacked) → this floor's rooms → confirm panel → settle.
 
 import { CONFIG } from '../data.js';
 
 const R = CONFIG.room;
 const sgn = (n) => (n >= 0 ? '+' + n : '−' + Math.abs(n));
 
-// 房间 = 一个选项。action 对应 rules.js 里的函数；pick 表示要先选一位朋友。
+// A room = one option. action maps to a function in rules.js; pick means choose a friend first.
 const ROOMS = {
   course: {
-    id: 'course', name: '大课教室', icon: '🎓', action: 'course', ap: 1,
-    tagline: '上一节课，换一张笔记卡',
-    desc: '阶梯教室空着。前排有人占座，后排有人睡觉，黑板上还留着上一节的板书。',
-    effect: '知识 +' + CONFIG.studyGain + '（心情越高越接近上限，专注 ×' + CONFIG.studyFocusMult + '），心情 −' + CONFIG.studyMoodCost + '，笔记 +1 张',
+    id: 'course', name: 'Lecture Hall', icon: '🎓', action: 'course', ap: 1,
+    tagline: 'Sit through a class, get one note card',
+    desc: 'The lecture hall is empty. Someone saved a front-row seat, someone\'s asleep in the back, last period\'s notes still on the board.',
+    effect: 'Knowledge +' + CONFIG.studyGain + ' (higher mood gets closer to the cap, Focus ×' + CONFIG.studyFocusMult + '), Mood −' + CONFIG.studyMoodCost + ', note +1',
   },
   doubt: {
-    id: 'doubt', name: '答疑角', icon: '📎', action: 'doubt', ap: 1,
-    tagline: '问两道题，顺手认识一个人',
-    desc: '助教坐在沙发边上，桌上摊着一沓没改完的作业。',
-    effect: '知识 +' + R.doubt.know + '，心情 ' + sgn(R.doubt.mood) + '，和随机一位朋友的友谊 +' + R.doubt.friend + '（每天 1 次）',
+    id: 'doubt', name: 'Help Desk', icon: '📎', action: 'doubt', ap: 1,
+    tagline: 'Ask two questions, meet someone by the way',
+    desc: 'The TA sits by the sofa, unmarked homework spread across the table.',
+    effect: 'Knowledge +' + R.doubt.know + ', Mood ' + sgn(R.doubt.mood) + ', friendship +' + R.doubt.friend + ' with a random friend (daily)',
   },
   pingpong: {
-    id: 'pingpong', name: '乒乓球台', icon: '🏓', action: 'pingpong', ap: 1, pick: 'pingpong',
+    id: 'pingpong', name: 'Table Tennis', icon: '🏓', action: 'pingpong', ap: 1, pick: 'pingpong',
     bg: 'assets/bg/wenyu-pingpong.jpg',
-    tagline: '和 classic Pong 一样，先到 7 分',
-    desc: '台子空着，边上扔着两副拍子和一筒球。想打就得找人。',
-    effect: '和一位朋友打一局：赢心情 +' + R.pingpong.mood + ' / 友谊 +' + R.pingpong.friend + '，输了也有少量（每天 1 次）',
+    tagline: 'Like classic Pong — first to 7',
+    desc: 'Table\'s free. Two paddles, a tube of balls dumped beside it. Find a partner.',
+    effect: 'A game with a friend: win, Mood +' + R.pingpong.mood + ' / friendship +' + R.pingpong.friend + '; a little on a loss (daily)',
   },
   snooker: {
-    id: 'snooker', name: '斯诺克台', icon: '🎱', action: 'snooker', ap: 1, pick: 'snooker',
+    id: 'snooker', name: 'Snooker Table', icon: '🎱', action: 'snooker', ap: 1, pick: 'snooker',
     bg: 'assets/bg/wenyu-snooker.jpg',
-    tagline: '6 红 6 彩，一局定胜负',
-    desc: '绿呢台面，灯压得很低。这地方适合边打球边说点平时不说的话。',
-    effect: '和一位朋友打一局：赢心情 +' + R.snooker.mood + ' / 友谊 +' + R.snooker.friend + '，输了也有少量（TA 今天还没和你聊过才行）',
+    tagline: '6 reds, 6 colours, one frame decides it',
+    desc: 'Green baize, lamp hung low. Good for saying what you normally do not.',
+    effect: 'A game with a friend: win, Mood +' + R.snooker.mood + ' / friendship +' + R.snooker.friend + '; a little on a loss (only if they have not chatted today)',
   },
   piano: {
-    id: 'piano', name: '钢琴', icon: '🎹', action: 'piano', ap: 1,
+    id: 'piano', name: 'Piano', icon: '🎹', action: 'piano', ap: 1,
     bg: 'assets/bg/wenyu-piano.jpg', freeEntry: true,
-    tagline: '三个八度 · 无限弹',
-    desc: '一架立式钢琴，琴盖是开的。没人管，你可以弹。',
-    effect: '免费、随便弹；每天第一次弹满 ' + R.piano.notes + ' 个音：心情 +' + R.piano.mood + '（之后不再结算）',
+    tagline: 'Three octaves · play forever',
+    desc: 'An upright piano, lid open. Nobody minds, so play.',
+    effect: 'Free, play as you like; first time each day hitting ' + R.piano.notes + ' notes: Mood +' + R.piano.mood + ' (no payout after)',
   },
   studyroom: {
-    id: 'studyroom', name: '自习室', icon: '📖', action: 'studyroom', ap: 1,
+    id: 'studyroom', name: 'Study Room', icon: '📖', action: 'studyroom', ap: 1,
     bg: 'assets/bg/wenyu-study.jpg',
-    tagline: '安静记一点，但写不成卡',
-    desc: '长桌一路排到窗边，安静得能听见空调。',
-    effect: '知识 +' + R.studyroom.know + '，心情 ' + sgn(R.studyroom.mood) + '，不产出笔记卡',
+    tagline: 'Quiet notes, but they do not become cards',
+    desc: 'Long tables run to the window. Quiet enough to hear the air con.',
+    effect: 'Knowledge +' + R.studyroom.know + ', Mood ' + sgn(R.studyroom.mood) + ', no note card',
   },
   pray: {
-    id: 'pray', name: '祷告室', icon: '🕯️', action: 'pray', ap: 1,
+    id: 'pray', name: 'Prayer Room', icon: '🕯️', action: 'pray', ap: 1,
     bg: 'assets/bg/wenyu-pray.jpg',
-    tagline: '心情低的时候进来坐坐',
-    desc: '一排长椅，窗上有彩色的玻璃。没有神像，只有安静。',
-    effect: '心情 +' + R.pray.mood + '，但只有心情 ≤ ' + R.pray.moodMax + ' 时才进得去（每天 1 次）',
+    tagline: 'Sit here when mood is low',
+    desc: 'Rows of benches, coloured glass in the window. No idol, just quiet.',
+    effect: 'Mood +' + R.pray.mood + ', but you only get in when mood ≤ ' + R.pray.moodMax + ' (daily)',
   },
 
-  // ---- 寝室：不花行动点的三件事 + 一张床 ----
+  // ---- your room: three things that cost no AP + one bed ----
   desk: {
-    id: 'desk', name: '书桌', icon: '🪑', action: 'char', ap: 0,
-    tagline: '看属性换算，不花时间',
-    desc: '台灯、摊开的笔记本、一张写满又划掉的计划。',
-    effect: '角色面板：三个属性各自换算成多少伤害 / 多少血，战利品加成也在里面',
+    id: 'desk', name: 'Desk', icon: '🪑', action: 'char', ap: 0,
+    tagline: 'Check the stat math, costs no time',
+    desc: 'Desk lamp, open notebook, a plan written and crossed out.',
+    effect: 'Character panel: what each stat turns into in damage / HP, loot bonuses included',
   },
   wall: {
-    id: 'wall', name: '日历墙', icon: '📅', action: 'calendar', ap: 0,
-    tagline: '学期还剩几天',
-    desc: '墙上钉着一张手写的学期表，某几天被人圈了出来。',
-    effect: '7 天时间轴：今天有什么活动、第 7 天期末考',
+    id: 'wall', name: 'Calendar Wall', icon: '📅', action: 'calendar', ap: 0,
+    tagline: 'How many days left this term',
+    desc: 'A hand-written term schedule on the wall, a few days circled.',
+    effect: '7-day timeline: what is on today, Final Exam on day 7',
   },
   roomie: {
-    id: 'roomie', name: '室友 哲', icon: '🧑', action: 'roomie', ap: 0,
-    tagline: '问一句今天该干什么',
-    desc: '他基本一直在，戴着耳机，桌上堆着别人的书。',
-    effect: '每天一句判断：今天有活动会直接报给你，其余时候按你的状态说话（不产数值）',
+    id: 'roomie', name: 'Your roommate, Zhe', icon: '🧑', action: 'roomie', ap: 0,
+    tagline: 'Ask what you should do today',
+    desc: 'Usually there, headphones on, other people\'s books piled on the desk.',
+    effect: 'One line a day: he calls out today\'s event, otherwise reads your state (no numbers)',
   },
   bed: {
-    id: 'bed', name: '床', icon: '🛏️', action: 'bed', ap: 1,
-    tagline: '躺下，今天到此为止',
-    desc: '被子没叠。窗外的光刚好落在枕头边上。',
-    effect: '心境 +' + (R.bed ? R.bed.mood : 12) + '，立刻结束白天进入夜晚',
+    id: 'bed', name: 'Bed', icon: '🛏️', action: 'bed', ap: 1,
+    tagline: 'Lie down, call it a day',
+    desc: 'Quilt unfolded. Light from the window lands right on the pillow.',
+    effect: 'Mood +' + (R.bed ? R.bed.mood : 12) + ', ends the day and goes straight to night',
   },
 
-  // ---- B1 gym 层：反应小游戏 ----
+  // ---- B1 Gym Floor: reaction minigame ----
   gym: {
-    id: 'gym', name: '健身房', icon: '🏋️', action: 'gym', ap: 1,
+    id: 'gym', name: 'Gym', icon: '🏋️', action: 'gym', ap: 1,
     bg: 'assets/elevator-test/cds1-b1.jpg',
-    tagline: '灯一亮就按，别犹豫',
-    desc: '杠铃片挂在架上，镜子有点雾。没人在看你。',
-    effect: '跟上节奏举 ' + R.gym.need + ' 次：心境 +' + R.gym.mood + '，体质 +' + R.gym.physique +
-      '（失手太多只剩 ' + R.gym.loseMood + ' / ' + R.gym.losePhysique + '，每天 1 次）',
+    tagline: 'Press when the light hits, do not hesitate',
+    desc: 'Plates racked up, mirror slightly fogged. Nobody is watching.',
+    effect: 'Keep the rhythm for ' + R.gym.need + ' reps: Mood +' + R.gym.mood + ', Physique +' + R.gym.physique +
+      ' (too many misses leaves only ' + R.gym.loseMood + ' / ' + R.gym.losePhysique + ', daily)',
   },
 };
 
-// 楼 → 楼层（level 越大越高，可正可负）→ 这一层有哪些房间
+// building → floor (larger level is higher, may be negative) → which rooms sit on that floor
 export const BUILDING_FLOORS = {
   cds1: {
     id: 'cds1',
     name: 'CDS-1',
-    full: 'CDS-1 主教学楼',
-    bg: 'assets/bg/cds1-lobby.jpg', // 打开电梯面板时就铺这张大堂图
+    full: 'CDS-1 Main Teaching Building',
+    bg: 'assets/bg/cds1-lobby.jpg', // this lobby image shows when the elevator panel opens
     floors: [
       {
-        level: 5, label: '5F', name: 'lab 层', locked: true,
-        rooms: [], note: '要先在 3F 注册实验课',
+        level: 5, label: '5F', name: 'Lab Floor', locked: true,
+        rooms: [], note: 'Register for the lab on 3F first',
         bg: 'assets/elevator-test/cds1-f5.jpg',
       },
       {
-        level: 3, label: '3F', name: '教学楼层',
+        level: 3, label: '3F', name: 'Teaching Floor',
         rooms: [ROOMS.course, ROOMS.doubt],
         bg: 'assets/elevator-test/cds1-f3.jpg',
       },
       {
-        level: -1, label: 'B1', name: 'gym 层',
+        level: -1, label: 'B1', name: 'Gym Floor',
         rooms: [ROOMS.gym],
         bg: 'assets/elevator-test/cds1-b1.jpg',
       },
@@ -121,35 +121,35 @@ export const BUILDING_FLOORS = {
   },
   wenyu: {
     id: 'wenyu',
-    name: '文娱楼',
-    full: '文娱楼',
+    name: 'Wenyu Building',
+    full: 'Wenyu Building',
     floors: [
       {
-        level: 3, label: '3F', name: '静室层',
+        level: 3, label: '3F', name: 'Quiet Floor',
         rooms: [ROOMS.pray],
         bg: 'assets/elevator-test/wenyu-f3.jpg',
       },
       {
-        level: 2, label: '2F', name: '自习层',
+        level: 2, label: '2F', name: 'Study Floor',
         rooms: [ROOMS.studyroom],
         bg: 'assets/bg/wenyu-study.jpg',
       },
       {
-        level: 1, label: '1F', name: '活动层',
+        level: 1, label: '1F', name: 'Activity Floor',
         rooms: [ROOMS.pingpong, ROOMS.snooker, ROOMS.piano],
         bg: 'assets/elevator-test/wenyu-f1.jpg',
       },
     ],
   },
 
-  // 寝室：单层楼，进门就是一间屋子。三件不花时间的事 + 一张床。
+  // Dormitory: one floor, the door opens into your room. Three things that cost no time + one bed.
   dorm: {
     id: 'dorm',
-    name: '宿舍',
-    full: '2# 宿舍',
+    name: 'Dormitory',
+    full: 'Dorm 2',
     floors: [
       {
-        level: 1, label: '1F', name: '寝室',
+        level: 1, label: '1F', name: 'Your room',
         rooms: [ROOMS.desk, ROOMS.wall, ROOMS.roomie, ROOMS.bed],
       },
     ],
@@ -160,9 +160,9 @@ export function buildingOf(id) {
   return BUILDING_FLOORS[id] || null;
 }
 
-// 一层有哪些东西，写在楼层牌右边
+// what is on the floor, printed to the right of the floor plate
 export function roomsText(floor) {
-  if (floor.locked) return floor.note || '未开放';
+  if (floor.locked) return floor.note || 'Not open';
   return floor.rooms.map((r) => r.name).join(' · ');
 }
 

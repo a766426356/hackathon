@@ -1,21 +1,21 @@
-// minigames/snooker.js — 1F 斯诺克台。
-// 轻量版斯诺克：6 颗红球 + 6 颗彩球 + 白球，真实的碰撞 / 摩擦 / 袋口判定，
-// 简化但完整的规则（红彩交替、彩球回位、犯规罚 4 分、清彩收官）。
-// 物理和规则都是本仓库自己的实现；设计时参考了 MIT 许可的
-// https://github.com/henshmi/Classic-Pool-Game 与 https://github.com/XingS117/pro-pool 的公开思路。
-// 零依赖，不引入任何运行时库。
+// minigames/snooker.js — the Snooker Table on 1F.
+// Snooker, lightweight: 6 reds + 6 colours + the white, with real collision / friction / pocket checks,
+// and a simple but complete ruleset (red–colour alternation, colour respotting, 4-point fouls, colours to close).
+// The physics and rules are this repo's own work; the design took cues from the public
+// ideas in the MIT-licensed https://github.com/henshmi/Classic-Pool-Game and https://github.com/XingS117/pro-pool.
+// Zero dependencies, no runtime libraries pulled in.
 
 import * as ui from '../ui.js';
 import { unlockAudio, sfx } from '../audio.js';
 
 const W = 960;
 const H = 540;
-const L = 64;   // 台面左
-const R = 896;  // 台面右
-const T = 62;   // 台面上
-const B = 478;  // 台面下
+const L = 64;   // cloth left
+const R = 896;  // cloth right
+const T = 62;   // cloth top
+const B = 478;  // cloth bottom
 const CY = (T + B) / 2;
-const BR = 10;  // 球半径
+const BR = 10;  // ball radius
 const POCKET_R = 17;
 const POCKET_VIS = 21;
 const FRICTION = 235;
@@ -28,12 +28,12 @@ const BAI = 236;
 const D_R = 66;
 
 const COLORS = [
-  { id: 'yellow', name: '黄', value: 2, color: '#e9c84c', x: BAI, y: CY + 66 },
-  { id: 'green', name: '绿', value: 3, color: '#3f9d5a', x: BAI, y: CY - 66 },
-  { id: 'brown', name: '棕', value: 4, color: '#8a5a2b', x: BAI, y: CY },
-  { id: 'blue', name: '蓝', value: 5, color: '#3d6fd8', x: L + (R - L) * 0.5, y: CY },
-  { id: 'pink', name: '粉', value: 6, color: '#e88aa8', x: L + (R - L) * 0.715, y: CY },
-  { id: 'black', name: '黑', value: 7, color: '#20222b', x: L + (R - L) * 0.905, y: CY },
+  { id: 'yellow', name: 'yellow', value: 2, color: '#e9c84c', x: BAI, y: CY + 66 },
+  { id: 'green', name: 'green', value: 3, color: '#3f9d5a', x: BAI, y: CY - 66 },
+  { id: 'brown', name: 'brown', value: 4, color: '#8a5a2b', x: BAI, y: CY },
+  { id: 'blue', name: 'blue', value: 5, color: '#3d6fd8', x: L + (R - L) * 0.5, y: CY },
+  { id: 'pink', name: 'pink', value: 6, color: '#e88aa8', x: L + (R - L) * 0.715, y: CY },
+  { id: 'black', name: 'black', value: 7, color: '#20222b', x: L + (R - L) * 0.905, y: CY },
 ];
 const ORDER = COLORS.map((c) => c.id);
 const RED_APEX = L + (R - L) * 0.75;
@@ -71,7 +71,7 @@ export function openSnooker(opts) {
     chargeStart: 0,
     pointer: { x: 0, y: 0, has: false },
     placeGhost: { x: BAI - 20, y: CY + 20, valid: true },
-    message: '你先开球。按住鼠标蓄力，松开击球。',
+    message: 'You break. Hold the mouse to charge, release to shoot.',
     messageKind: '',
     settled: false,
     rewardMsg: '',
@@ -86,43 +86,43 @@ export function openSnooker(opts) {
         <div class="mg-title">
           <span class="mg-icon">🎱</span>
           <div>
-            <h2>斯诺克</h2>
-            <p class="sub">6 红 6 彩 · 和${esc(opts.npc.name)}一局</p>
+            <h2>Snooker</h2>
+            <p class="sub">6 reds, 6 colours · one frame vs ${esc(opts.npc.name)}</p>
           </div>
         </div>
         <div class="sn-scoreline">
-          <span class="sn-score you"><b id="sn-p">0</b><em>你</em></span>
-          <span class="sn-turn" id="sn-turn">你</span>
+          <span class="sn-score you"><b id="sn-p">0</b><em>You</em></span>
+          <span class="sn-turn" id="sn-turn">You</span>
           <span class="sn-score foe"><b id="sn-a">0</b><em>${esc(opts.npc.name)}</em></span>
         </div>
       </div>
       <div class="sn-subline">
-        <span>目标：<b id="sn-target">红球</b></span>
-        <span>红球 <b id="sn-reds">6</b></span>
-        <span>本杆 <b id="sn-break">0</b></span>
-        <span id="sn-status" class="mg-status">你先开球。</span>
+        <span>Target: <b id="sn-target">red</b></span>
+        <span>Reds <b id="sn-reds">6</b></span>
+        <span>Break <b id="sn-break">0</b></span>
+        <span id="sn-status" class="mg-status">You break.</span>
       </div>
       <div class="sn-stage">
         <canvas id="sn-canvas"></canvas>
         <div class="mg-overlay hidden" id="sn-overlay">
           <div class="po-card">
-            <div class="po-tag" id="sn-tag">本局结束</div>
+            <div class="po-tag" id="sn-tag">Frame over</div>
             <h3 id="sn-title">—</h3>
             <p id="sn-msg"></p>
             <div class="mg-row">
-              <button class="btn primary" data-act="again">再来一局</button>
-              <button class="btn" data-act="close">收杆</button>
+              <button class="btn primary" data-act="again">Another frame</button>
+              <button class="btn" data-act="close">Cues down</button>
             </div>
           </div>
         </div>
       </div>
       <div class="mg-hint">
-        <span>移动鼠标瞄准 · 按住左键蓄力、松开击球 · <kbd>←</kbd> <kbd>→</kbd> 微调 · <kbd>空格</kbd> 蓄力</span>
-        <span>犯规后白球回到 D 区，点击 D 区摆球</span>
+        <span>Move to aim · hold left button to charge, release to shoot · <kbd>←</kbd> <kbd>→</kbd> fine-tune · <kbd>Space</kbd> charge</span>
+        <span>After a foul the white goes back to the D; click the D to place it</span>
       </div>
       <div class="mg-row">
-        <button class="btn" data-act="restart">重新摆球</button>
-        <button class="btn" data-act="close">收杆（不结算）</button>
+        <button class="btn" data-act="restart">Re-rack</button>
+        <button class="btn" data-act="close">Cues down (no result)</button>
       </div>
     </div>`;
   ui.openModal(html, { cls: 'mg-panel snooker-panel' });
@@ -164,7 +164,7 @@ function roundRectPath(c, x, y, w, h, r) {
   c.closePath();
 }
 
-  // ---------------------------------------------------------------- 摆球
+  // ---------------------------------------------------------------- Rack
   function freshBalls() {
     const balls = [];
     const cue = { id: 'cue', color: 'cue', value: 0, x: BAI - 24, y: CY + 22, vx: 0, vy: 0, potted: false, isCue: true };
@@ -206,14 +206,14 @@ function roundRectPath(c, x, y, w, h, r) {
     g.overlayShown = false;
     g.particles = [];
     g.shake = 0;
-    g.message = '你先开球。按住鼠标蓄力，松开击球。';
+    g.message = 'You break. Hold the mouse to charge, release to shoot.';
     g.messageKind = '';
     overlay.classList.add('hidden');
     hudDirty = true;
     syncHud();
   }
 
-  // ---------------------------------------------------------------- 规则辅助
+  // ---------------------------------------------------------------- Rule helpers
   const colorBall = (id) => g.balls.find((b) => b.id === id);
   const activeBalls = () => g.balls.filter((b) => !b.potted);
   const redsActive = () => g.balls.filter((b) => b.color === 'red' && !b.potted);
@@ -227,16 +227,16 @@ function roundRectPath(c, x, y, w, h, r) {
   }
 
   function expectLabel() {
-    if (g.expect === 'red') return '红球';
-    if (g.expect === 'color') return '任意彩球';
+    if (g.expect === 'red') return 'red';
+    if (g.expect === 'color') return 'any colour';
     const c = COLORS.find((x) => x.id === g.expect);
-    return c ? c.name + '球' : '结束';
+    return c ? c.name + ' ball' : 'over';
   }
 
   function syncHud() {
     pEl.textContent = String(g.scores[0]);
     aEl.textContent = String(g.scores[1]);
-    turnEl.textContent = g.turn === 0 ? '你' : opts.npc.name;
+    turnEl.textContent = g.turn === 0 ? 'You' : opts.npc.name;
     turnEl.className = 'sn-turn ' + (g.turn === 0 ? 'you' : 'foe');
     targetEl.textContent = expectLabel();
     redsEl.textContent = String(g.redsLeft);
@@ -251,7 +251,7 @@ function roundRectPath(c, x, y, w, h, r) {
     statusEl.className = 'mg-status' + (kind ? ' ' + kind : '');
   }
 
-  // 把一颗彩球放回它的点位；点位被占就沿螺旋找最近的空位
+  // put a colour back on its spot; if the spot is taken, spiral out to the nearest free space
   function respot(ball) {
     const spot = ball.spot || { x: R - 70, y: CY };
     for (let ring = 0; ring < 18; ring++) {
@@ -284,7 +284,7 @@ function roundRectPath(c, x, y, w, h, r) {
     ball.potted = false;
   }
 
-  // ---------------------------------------------------------------- 台面物理
+  // ---------------------------------------------------------------- Table physics
   function pocketCheck() {
     const pockets = [
       { x: L, y: T }, { x: R, y: T }, { x: L, y: B }, { x: R, y: B },
@@ -354,7 +354,7 @@ function roundRectPath(c, x, y, w, h, r) {
           a.vy -= ny * imp;
           b.vx += nx * imp;
           b.vy += ny * imp;
-          // 一点点切向摩擦，避免擦边后像镜面
+          // a little tangential friction so thin cuts do not bounce like a mirror
           const tx = -ny;
           const ty = nx;
           const vt = rvx * tx + rvy * ty;
@@ -394,7 +394,7 @@ function roundRectPath(c, x, y, w, h, r) {
         if (ns < 2.5) { b.vx = 0; b.vy = 0; }
       }
       if (b.x < L - 20 || b.x > R + 20 || b.y < T - 20 || b.y > B + 20) {
-        // 理论上不会发生；兜底把球放回台面
+        // should never happen; fallback puts the ball back on the cloth
         b.x = clamp(b.x, L + BR, R - BR);
         b.y = clamp(b.y, T + BR, B - BR);
       }
@@ -412,7 +412,7 @@ function roundRectPath(c, x, y, w, h, r) {
     return true;
   }
 
-  // ---------------------------------------------------------------- 出杆
+  // ---------------------------------------------------------------- Shooting
   function chargePower() {
     return clamp((performance.now() - g.chargeStart) / 900, 0.08, 1);
   }
@@ -472,7 +472,7 @@ function roundRectPath(c, x, y, w, h, r) {
       aim = Math.atan2(best.ghost.y - cue.y, best.ghost.x - cue.x);
       power = best.power;
     } else {
-      // 没有进球线：打最近的合法球，尽量薄一点
+      // no potting line: hit the nearest legal ball, as thin as possible
       let near = legal[0];
       let nd = Infinity;
       for (const b of legal) {
@@ -494,7 +494,7 @@ function roundRectPath(c, x, y, w, h, r) {
     g.settle = 0;
     lastClack = 0;
     sfx('cue');
-    setMessage(opts.npc.name + '出杆了。');
+    setMessage(opts.npc.name + ' shoots.');
   }
 
   function legalBalls() {
@@ -511,7 +511,7 @@ function roundRectPath(c, x, y, w, h, r) {
     return b.id === g.expect;
   }
 
-  // 线段 a→b 上有没有别的球挡路（target 自己不算）
+  // is anything in the way on the a→b line (the target itself does not count)
   function clearPath(a, b, ignore) {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
@@ -531,7 +531,7 @@ function roundRectPath(c, x, y, w, h, r) {
     return true;
   }
 
-  // ---------------------------------------------------------------- 结算一杆
+  // ---------------------------------------------------------------- Settle one shot
   function setExpectBase() {
     if (g.redsLeft > 0) g.expect = 'red';
     else {
@@ -566,7 +566,7 @@ function roundRectPath(c, x, y, w, h, r) {
       cue.y = CY + 22;
       g.ballInHand = true;
       g.phase = 'place';
-      setMessage('白球落袋。点击 D 区把白球摆回去。', 'muted');
+      setMessage('White potted. Click the D to place it back.', 'muted');
     }
   }
 
@@ -578,25 +578,25 @@ function roundRectPath(c, x, y, w, h, r) {
     const colorsPotted = potted.filter((b) => b.color !== 'red');
     const cuePotted = shot.cuePotted;
 
-    // 红球落袋就留在袋里，犯规也一样
+    // potted reds stay down, fouls included
     g.redsLeft = Math.max(0, g.redsLeft - redsPotted.length);
 
     let foul = false;
     let reason = '';
 
-    if (cuePotted) { foul = true; reason = '白球落袋'; }
-    else if (!shot.firstContact) { foul = true; reason = '空杆，没碰到球'; }
-    else if (!isLegalFirst(shot.firstContact)) { foul = true; reason = '先碰到了不该打的球'; }
+    if (cuePotted) { foul = true; reason = 'white potted'; }
+    else if (!shot.firstContact) { foul = true; reason = 'air shot, nothing hit'; }
+    else if (!isLegalFirst(shot.firstContact)) { foul = true; reason = 'wrong ball first'; }
 
     let points = 0;
     let pottedLegal = false;
 
     if (foul) {
-      // 犯规时彩球回位，红球留在袋里
+      // on a foul colours respot, reds stay down
       for (const c of colorsPotted) respot(c);
       g.scores[1 - g.turn] += 4;
       sfx('foul');
-      setMessage('犯规：' + reason + '。' + opts.npc.name + ' +4 分。', 'warn');
+      setMessage('Foul: ' + reason + '. ' + opts.npc.name + ' +4.', 'warn');
       g.breakScore = 0;
       setExpectBase();
       switchTurn();
@@ -611,7 +611,7 @@ function roundRectPath(c, x, y, w, h, r) {
         for (const c of colorsPotted) respot(c);
         g.scores[1 - g.turn] += 4;
         sfx('foul');
-        setMessage('犯规：打红球时把彩球也打进了。' + opts.npc.name + ' +4 分。', 'warn');
+        setMessage('Foul: a colour went down on a red. ' + opts.npc.name + ' +4.', 'warn');
         g.breakScore = 0;
         setExpectBase();
         switchTurn();
@@ -626,7 +626,7 @@ function roundRectPath(c, x, y, w, h, r) {
         g.breakScore += points;
         g.expect = 'color';
         pottedLegal = true;
-        setMessage('进 ' + points + ' 颗红球，+ ' + points + ' 分。接着打彩球。', 'ok');
+        setMessage('Potted ' + points + ' reds, + ' + points + '. Now a colour.', 'ok');
         sfx('pot');
       }
     } else if (g.expect === 'color') {
@@ -634,7 +634,7 @@ function roundRectPath(c, x, y, w, h, r) {
         for (const c of colorsPotted) respot(c);
         g.scores[1 - g.turn] += 4;
         sfx('foul');
-        setMessage('犯规：这杆只能打一颗彩球。' + opts.npc.name + ' +4 分。', 'warn');
+        setMessage('Foul: only one colour per shot. ' + opts.npc.name + ' +4.', 'warn');
         g.breakScore = 0;
         setExpectBase();
         switchTurn();
@@ -658,17 +658,17 @@ function roundRectPath(c, x, y, w, h, r) {
           finishGame();
           return;
         }
-        setMessage(c.name + '球入袋，+ ' + points + ' 分。下一杆打' + expectLabel() + '。', 'ok');
+        setMessage(c.name + ' potted, + ' + points + '. Next up: ' + expectLabel() + '.', 'ok');
         sfx('pot');
       }
     } else {
-      // 清彩阶段：只能打当前最低的彩球
+      // colours phase: only the lowest colour is on
       const wrongColor = colorsPotted.find((c) => c.id !== g.expect);
       if (redsPotted.length || wrongColor) {
         for (const c of colorsPotted) respot(c);
         g.scores[1 - g.turn] += 4;
         sfx('foul');
-        setMessage('犯规：该打' + expectLabel() + '。' + opts.npc.name + ' +4 分。', 'warn');
+        setMessage('Foul: ' + expectLabel() + ' was on. ' + opts.npc.name + ' +4.', 'warn');
         g.breakScore = 0;
         setExpectBase();
         switchTurn();
@@ -683,7 +683,7 @@ function roundRectPath(c, x, y, w, h, r) {
         g.scores[g.turn] += points;
         g.breakScore += points;
         pottedLegal = true;
-        target.potted = true; // 清彩阶段不再回位
+        target.potted = true; // in the colours phase it stays down
         setExpectBase();
         if (!g.expect) {
           g.shot = null;
@@ -692,7 +692,7 @@ function roundRectPath(c, x, y, w, h, r) {
           finishGame();
           return;
         }
-        setMessage(target.name + '球入袋，+ ' + points + ' 分。下一杆打' + expectLabel() + '。', 'ok');
+        setMessage(target.name + ' potted, + ' + points + '. Next up: ' + expectLabel() + '.', 'ok');
         sfx('pot');
       }
     }
@@ -707,15 +707,15 @@ function roundRectPath(c, x, y, w, h, r) {
       return;
     }
 
-    // 没进球但没犯规 → 换人
+    // nothing potted, no foul → turn passes
     setExpectBase();
     if (g.redsLeft === 0 && !g.expect) { finishGame(); return; }
-    if (g.turn === 0) setMessage('没进。换' + opts.npc.name + '。', 'muted');
-    else setMessage(opts.npc.name + '没进。轮到你了。', 'ok');
+    if (g.turn === 0) setMessage('Missed. Over to ' + opts.npc.name + '.', 'muted');
+    else setMessage(opts.npc.name + ' missed. Your turn.', 'ok');
     switchTurn();
   }
 
-  // ---------------------------------------------------------------- 结束
+  // ---------------------------------------------------------------- Wrap up
   function finishGame() {
     if (g.phase === 'over') return;
     g.phase = 'over';
@@ -726,19 +726,19 @@ function roundRectPath(c, x, y, w, h, r) {
       const res = opts.onFinish ? opts.onFinish(outcome, { p, a }) : null;
       g.rewardMsg = res && res.msg ? res.msg : '';
     } else {
-      g.rewardMsg = '今天的结算已经记过了，这局纯属娱乐。';
+      g.rewardMsg = 'Today is already settled; this frame is just for fun.';
     }
     sfx(outcome === 'win' ? 'win' : 'lose');
-    tagEl.textContent = outcome === 'win' ? '你赢了这局' : outcome === 'draw' ? '这局打平' : '这局你输了';
+    tagEl.textContent = outcome === 'win' ? 'Frame won' : outcome === 'draw' ? 'Frame drawn' : 'Frame lost';
     titleEl.textContent = p + ' : ' + a;
-    msgEl.textContent = (g.rewardMsg || (outcome === 'win' ? '这局打得不错。' : outcome === 'draw' ? '势均力敌。' : '再来一局。')) +
-      ' · 可以继续打，但今天的结算已经记下了。';
+    msgEl.textContent = (g.rewardMsg || (outcome === 'win' ? 'Decent frame.' : outcome === 'draw' ? 'Dead even.' : 'Another frame.')) +
+      ' · Play on if you like, but the tally for today is already noted.';
     g.overlayShown = true;
     overlay.classList.remove('hidden');
-    setMessage(outcome === 'win' ? '你赢下了这一局。' : outcome === 'draw' ? '打平了。' : '这一局输了。', outcome === 'win' ? 'ok' : 'muted');
+    setMessage(outcome === 'win' ? 'You took the frame.' : outcome === 'draw' ? 'Drawn.' : 'Frame lost.', outcome === 'win' ? 'ok' : 'muted');
   }
 
-  // ---------------------------------------------------------------- 瞄准线
+  // ---------------------------------------------------------------- Aim line
   function boundaryT(cue, dir) {
     let t = Infinity;
     if (dir.x > 0.0001) t = Math.min(t, (R - BR - cue.x) / dir.x);
@@ -779,7 +779,7 @@ function roundRectPath(c, x, y, w, h, r) {
     return { x: x / d, y: y / d };
   }
 
-  // ---------------------------------------------------------------- 粒子
+  // ---------------------------------------------------------------- Particles
   function burst(x, y, color, n) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -788,16 +788,16 @@ function roundRectPath(c, x, y, w, h, r) {
     }
   }
 
-  // ---------------------------------------------------------------- 渲染
+  // ---------------------------------------------------------------- Render
   function drawTable() {
-    // 房间
+    // room
     const bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#11151c');
     bg.addColorStop(1, '#080b10');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // 桌沿木框
+    // wooden frame around the table
     const wood = ctx.createLinearGradient(0, 20, 0, H - 20);
     wood.addColorStop(0, '#6b4527');
     wood.addColorStop(0.5, '#4b2d17');
@@ -809,7 +809,7 @@ function roundRectPath(c, x, y, w, h, r) {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 台呢
+    // cloth
     const cloth = ctx.createRadialGradient(W / 2, CY, 80, W / 2, CY, W * 0.6);
     cloth.addColorStop(0, '#26694f');
     cloth.addColorStop(0.65, '#1b563f');
@@ -817,7 +817,7 @@ function roundRectPath(c, x, y, w, h, r) {
     ctx.fillStyle = cloth;
     ctx.fillRect(L, T, R - L, B - T);
 
-    // 台呢纹理：细小的斜纹
+    // cloth texture: fine diagonal weave
     ctx.save();
     ctx.globalAlpha = 0.05;
     ctx.strokeStyle = '#d6ffe9';
@@ -830,7 +830,7 @@ function roundRectPath(c, x, y, w, h, r) {
     }
     ctx.restore();
 
-    // 库边
+    // cushions
     ctx.strokeStyle = '#0c2a20';
     ctx.lineWidth = 7;
     ctx.strokeRect(L, T, R - L, B - T);
@@ -838,7 +838,7 @@ function roundRectPath(c, x, y, w, h, r) {
     ctx.lineWidth = 1;
     ctx.strokeRect(L + 5, T + 5, R - L - 10, B - T - 10);
 
-    // 开球线、D、点位
+    // baulk line, the D, the spots
     ctx.strokeStyle = 'rgba(226, 245, 232, .38)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -855,7 +855,7 @@ function roundRectPath(c, x, y, w, h, r) {
       ctx.fill();
     }
 
-    // 袋口
+    // pockets
     const pockets = [
       { x: L, y: T }, { x: R, y: T }, { x: L, y: B }, { x: R, y: B }, { x: L, y: CY }, { x: R, y: CY },
     ];
@@ -925,7 +925,7 @@ function roundRectPath(c, x, y, w, h, r) {
     if (g.phase !== 'aim' && g.phase !== 'place') return;
     if (g.turn !== 0 && g.phase !== 'place') return;
     if (g.phase === 'place') {
-      // D 区摆球
+      // placing in the D
       ctx.save();
       ctx.fillStyle = 'rgba(224, 182, 74, .1)';
       ctx.beginPath();
@@ -947,7 +947,7 @@ function roundRectPath(c, x, y, w, h, r) {
       ctx.fillStyle = 'rgba(240, 226, 187, .9)';
       ctx.font = '600 15px "PingFang SC", system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('点击 D 区摆白球', BAI, CY + D_R + 32);
+      ctx.fillText('Click the D to place the white', BAI, CY + D_R + 32);
       return;
     }
 
@@ -976,7 +976,7 @@ function roundRectPath(c, x, y, w, h, r) {
       }
     }
 
-    // 球杆
+    // cue
     const back = BR + 12 + g.power * 62;
     const dir = info.dir;
     const sx = g.cue.x - dir.x * back;
@@ -1003,7 +1003,7 @@ function roundRectPath(c, x, y, w, h, r) {
     ctx.stroke();
     ctx.restore();
 
-    // 力度条
+    // power bar
     const px = 42;
     const py = H - 36;
     ctx.fillStyle = 'rgba(10, 16, 14, .6)';
@@ -1020,7 +1020,7 @@ function roundRectPath(c, x, y, w, h, r) {
     ctx.fillStyle = 'rgba(240, 245, 238, .8)';
     ctx.font = '11px "PingFang SC", system-ui, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('力度', px, py - 14);
+    ctx.fillText('Power', px, py - 14);
   }
 
   function draw() {
@@ -1043,28 +1043,28 @@ function roundRectPath(c, x, y, w, h, r) {
     }
     ctx.globalAlpha = 1;
 
-    // 暗角
+    // vignette
     const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.65);
     vig.addColorStop(0, 'rgba(0,0,0,0)');
     vig.addColorStop(1, 'rgba(0,0,0,.45)');
     ctx.fillStyle = vig;
     ctx.fillRect(0, 0, W, H);
 
-    // 顶部提示：轮次 / 思考
+    // top hint: whose turn / thinking
     ctx.fillStyle = 'rgba(240, 245, 238, .75)';
     ctx.font = '600 13px "PingFang SC", system-ui, sans-serif';
     ctx.textAlign = 'center';
     if (g.phase === 'ai') {
       ctx.fillStyle = 'rgba(255, 227, 138, .9)';
-      ctx.fillText(opts.npc.name + '在瞄准…', W / 2, T - 20);
+      ctx.fillText(opts.npc.name + ' is aiming…', W / 2, T - 20);
     } else if (g.phase === 'aim' || g.phase === 'place') {
       ctx.fillStyle = 'rgba(255, 227, 138, .9)';
-      ctx.fillText('轮到你了 · ' + (g.phase === 'place' ? '摆白球' : '目标：' + expectLabel()), W / 2, T - 20);
+      ctx.fillText('Your turn · ' + (g.phase === 'place' ? 'place the white' : 'target: ' + expectLabel()), W / 2, T - 20);
     }
     ctx.restore();
   }
 
-  // ---------------------------------------------------------------- 输入
+  // ---------------------------------------------------------------- Input
   function toWorld(ev) {
     const r = canvas.getBoundingClientRect();
     return {
@@ -1114,7 +1114,7 @@ function roundRectPath(c, x, y, w, h, r) {
         g.ballInHand = false;
         g.phase = 'aim';
         g.aim = Math.atan2(CY - g.cue.y, R - g.cue.x);
-        setMessage('白球摆好了，出杆吧。', 'ok');
+        setMessage('White placed. Take the shot.', 'ok');
       }
       return;
     }
@@ -1157,7 +1157,7 @@ function roundRectPath(c, x, y, w, h, r) {
 
   function restart() {
     reset();
-    setMessage('重新摆球。你先开球。');
+    setMessage('Re-racked. You break.');
     last = performance.now();
   }
 
@@ -1169,7 +1169,7 @@ function roundRectPath(c, x, y, w, h, r) {
     if (opts.onExit) opts.onExit();
   }
 
-  // ---------------------------------------------------------------- 主循环
+  // ---------------------------------------------------------------- Main loop
   function update(dt) {
     if (g.charging) {
       g.power = chargePower();

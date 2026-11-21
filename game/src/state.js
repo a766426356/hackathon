@@ -1,4 +1,4 @@
-// state.js — 状态、派生数值、存读档。纯逻辑，除了 localStorage 之外不碰 DOM。
+// state.js — state, derived values, save/load. Pure logic; touches nothing but localStorage.
 
 import { CONFIG } from '../data.js';
 import { freshCalendar } from './calendar.js';
@@ -7,7 +7,7 @@ import { lootMult } from './loot.js';
 export const SAVE_KEY = 'zjxy.save.v4';
 export const SAVE_VERSION = 4;
 
-// 每天重置的「今天用过了没」：一处定义，创建存档和翻页都用它。
+// the daily "used it today?" reset: defined once, used by both new games and day turns.
 export function freshToday() {
   return {
     talked: { lin: false, chen: false, zhou: false },
@@ -16,9 +16,9 @@ export function freshToday() {
     pingpong: false,
     piano: false,
     pray: false,
-    courses: false, // 今天的 2 节必修课结算过没有
-    zhe: false,     // 今天问过室友没有
-    gym: false,     // 今天练过没有
+    courses: false, // whether today's 2 required lectures were settled
+    zhe: false,     // whether you asked your roommate today
+    gym: false,     // whether you trained today
   };
 }
 
@@ -30,7 +30,7 @@ export function clampMood(m) {
   return clamp(Math.round(m), CONFIG.moodMin, CONFIG.moodMax);
 }
 
-// xorshift32：状态是一个数字，可以直接存进存档里
+// xorshift32: the state is a single number, so it saves straight into the file
 export function nextRandom(state) {
   let s = state.rngState >>> 0;
   s ^= s << 13; s >>>= 0;
@@ -73,7 +73,7 @@ export function createState(seed) {
     ending: null,
     collapsedOnce: false,
     log: [],
-    // 结局的人格报告靠这几个计数分轴：上课 / 交友 / 娱乐 / 自习 / 跑步 / 活动 / 夜战 / 夜读 / 躺平
+    // the ending persona report splits on these counters: class / social / play / study / run / events / night fights / night study / lying flat
     stats: {
       studies: 0, socials: 0, fights: 0, nights: 0,
       course: 0, talk: 0, play: 0, indoor: 0, field: 0, events: 0, nightStudy: 0, rest: 0,
@@ -81,7 +81,7 @@ export function createState(seed) {
   };
 }
 
-// 心境只管白天收益；战利品里的 day 类在这里放大，所以它也会间接收紧/放松知识积累
+// mood only governs daytime gains; loot of the day kind is amplified here, so it also tightens/loosens knowledge gain indirectly
 export function moodMult(s) {
   return (0.5 + s.mood * 0.01) * (1 + lootMult(s, 'day'));
 }
@@ -90,13 +90,13 @@ export function maxFriend(s) {
   return Math.max(0, ...Object.values(s.friend));
 }
 
-// 血量由体质决定，战利品的 hp 类在出口上放大
+// HP comes from physique; loot of the hp kind is amplified at the output
 export function playerMaxHp(s) {
   const base = CONFIG.battle.playerBaseHp + Math.floor(s.physique * CONFIG.hpPerPhysique);
   return Math.floor(base * (1 + lootMult(s, 'hp')));
 }
 
-// 面板用的分项：GPA 里知识贡献多少、心境贡献多少
+// panel breakdown: how much of GPA comes from knowledge, how much from mood
 export function examParts(s) {
   return {
     base: CONFIG.examBase,
@@ -121,7 +121,7 @@ export function saveGame(s) {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
-  } catch (e) { /* 隐私模式下忽略 */ }
+  } catch (e) { /* ignore in private mode */ }
 }
 
 export function loadGame() {
@@ -136,12 +136,12 @@ export function loadGame() {
     if (s.today.zhe === undefined) s.today.zhe = false;
     if (s.today.gym === undefined) s.today.gym = false;
     if (s.physique === undefined) s.physique = CONFIG.startPhysique;
-    // 旧档没有日历：补一份，过去的天会在下次翻页时被判成 missed（不扣分）
+    // old saves have no calendar: add one, past days get marked missed on the next turn (no penalty)
     if (!Array.isArray(s.calendar)) s.calendar = freshCalendar();
     if (!Array.isArray(s.loot)) s.loot = [];
     if (typeof s.lootCount !== 'number') s.lootCount = s.loot.length;
     if (s.lootHasRare === undefined) s.lootHasRare = s.loot.some((l) => l.rarity !== 'common');
-    // 旧档缺的新计数补 0，人格报告才不会算出 NaN
+    // fill new counters missing from old saves with 0, so the persona report never produces NaN
     if (s.stats) {
       for (const k of ['studies', 'socials', 'fights', 'nights', 'course', 'talk', 'play', 'indoor', 'field', 'events', 'nightStudy', 'rest']) {
         if (typeof s.stats[k] !== 'number') s.stats[k] = 0;

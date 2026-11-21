@@ -1,4 +1,4 @@
-// main.js — 启动、输入、场景与阶段状态机。游戏规则都在 rules.js / battle.js 里。
+// main.js — boot, input, scene and phase state machine. Game rules live in rules.js / battle.js.
 
 import { INTERACTABLES, CONFIG, CAMPUS, MAP_W, MAP_H, NPCS } from '../data.js';
 import {
@@ -20,35 +20,35 @@ import { openGym } from './minigames/gym.js';
 let state = null;
 let world = null;
 let battleState = null;
-let battlePct = null; // 上一帧的血条百分比，给血条动画用
+let battlePct = null; // last frame's HP bar percentage, for the bar animation
 let started = false;
 let lastTs = 0;
 
-// 现在没有室内场景了：一直在校园，进楼只弹面板
+// No interior scenes any more: always on campus, entering a building just opens a panel
 
 const canvas = document.getElementById('game');
 
-// 校园交互点 = 固定点 + 当天日历活动的出发点（一天最多一个）
+// Campus interactables = fixed spots + today's calendar departure spot (at most one a day)
 function campusSpots() {
   return state ? INTERACTABLES.concat(eventSpots(state)) : INTERACTABLES;
 }
 
 const CAMPUS_FRAME = { w: CAMPUS.w, h: CAMPUS.h, half: 0 };
 
-// 事件做完 / 翻页之后，校园上那个出发点要跟着消失或换位置
+// After an event is done or the day flips, that departure spot must vanish or move
 function refreshCampusSpots() {
   const list = campusSpots();
   world.setSpots(list);
   ui.setSpots(list, CAMPUS_FRAME);
 }
 
-// ---------------------------------------------------------------- 启动
+// ---------------------------------------------------------------- boot
 function boot() {
   ui.initUI();
   fitCanvas();
   world = createWorld(canvas);
   ui.setSpots(INTERACTABLES, CAMPUS_FRAME);
-  ui.setSceneChip('校园');
+  ui.setSceneChip('Campus');
   ui.onMarkerClick(onMarkerClick);
   document.getElementById('btn-endday').addEventListener('click', () => {
     if (!started || !state || state.phase !== 'day') return;
@@ -64,7 +64,7 @@ function boot() {
   window.addEventListener('blur', () => world.keys.clear());
 
   const hasSave = !!loadGame();
-  // 演示捷径：?demo=ending 直接看结局 + 人格报告，不用点六个晚上
+  // Demo shortcut: ?demo=ending goes straight to the ending + persona report, skipping six nights
   if (new URLSearchParams(location.search).get('demo') === 'ending') {
     demoEnding();
     requestAnimationFrame(frame);
@@ -72,8 +72,8 @@ function boot() {
   }
   requestAnimationFrame(frame);
 
-  // 开场：标题屏 → 3D 翻转。底下的校园一直在渲染，所以翻转落地时看到的
-  // 就是主页面本身，翻转接完再弹欢迎卡（introPanel）。
+  // Opening: title screen → 3D flip. The campus renders underneath the whole time, so when the flip lands
+  // you see the main screen itself; the welcome card (introPanel) follows the flip.
   showTitleScreen().then(() => {
     ui.introPanel(hasSave);
     ui.bindModal({
@@ -83,9 +83,9 @@ function boot() {
   });
 }
 
-// 只给演示 / 验收用：按一张固定的日程表跑完六天，然后停在结局页。
-// 这张表刻意排得"像一个正常玩家"——上课、玩、参加活动、跑两圈、打两场，
-// 这样人格报告的四个轴都有数据，不会全落在默认值上。
+// Demo / acceptance only: run six days on a fixed schedule, then stop on the ending page.
+// The schedule is deliberately "like a normal player": class, play, events, a few laps, two fights,
+// so all four persona axes have data and none sit at their defaults.
 function demoEnding() {
   state = createState(2049);
   state.phase = 'day';
@@ -145,11 +145,11 @@ function startNew() {
   started = true;
   ui.closeModal();
   ui.resetReportSeen();
-  rules.requiredCourses(state); // 第 1 天的两节必修课
+  rules.requiredCourses(state); // both required lectures for day 1
   refreshCampusSpots();
   renderAll();
   save();
-  ui.toast('第 1 天的两节必修课上完了，剩下 ' + CONFIG.freeAp + ' 个自由行动点。');
+  ui.toast('Day 1 required lectures done: ' + CONFIG.freeAp + ' free Action Points left.');
 }
 
 function resume() {
@@ -164,7 +164,7 @@ function resume() {
   if (state.phase === 'ending') { showEnding(); return; }
   if (state.phase === 'exam') { examNow(); return; }
   if (state.phase === 'night') {
-    // 刷新时正好停夜晚：把夜晚选择重新摆出来，避免卡在半路
+    // Reloaded while stuck on night: offer the night choice again instead of hanging
     state.phase = 'day';
     renderAll();
     openNight();
@@ -174,8 +174,8 @@ function resume() {
   if (state.ap <= 0) openNight();
 }
 
-// ---------------------------------------------------------------- 进楼
-// 校园是唯一场景：在楼门口按 E 就弹电梯面板，选层 → 房间选项 → 确认面板。
+// ---------------------------------------------------------------- entering buildings
+// Campus is the only scene: press E at a building door for the elevator panel, then floor, room, confirm.
 function fitCanvas() {
   if (canvas.width !== MAP_W || canvas.height !== MAP_H) {
     canvas.width = MAP_W;
@@ -187,7 +187,7 @@ function fitCanvas() {
 function enterBuilding(buildingId) {
   const b = buildingOf(buildingId);
   if (!b) return;
-  // 单层建筑（寝室）进门就是屋子本身，不用先看电梯
+  // Single-floor buildings (the Dormitory) open the room itself, no elevator first
   if (b.floors.length <= 1) {
     openFloor(b, b.floors[0].level);
     return;
@@ -195,7 +195,7 @@ function enterBuilding(buildingId) {
   openElevator(b, null);
 }
 
-// 电梯面板：列这栋楼的楼层
+// Elevator panel: list this building's floors
 function openElevator(building, currentLevel) {
   world.keys.clear();
   ui.elevatorPanel(building, currentLevel);
@@ -205,7 +205,7 @@ function openElevator(building, currentLevel) {
   });
 }
 
-// 某一层：把房间做成几个选项
+// One floor: turn its rooms into options
 function openFloor(building, level) {
   const floor = floorByLevel(building, level);
   if (!floor) return;
@@ -217,7 +217,7 @@ function openFloor(building, level) {
       if (!room) return;
       const why = roomBlocked(room);
       if (why) { ui.toast(why, 'warn'); return; }
-      // 不花行动点的三件事直接开面板，不弹「开始」确认
+      // The three free actions open their panel directly, no "Start" confirmation
       if (room.action === 'char') { openCharacter(true, () => openFloor(building, floor.level)); return; }
       if (room.action === 'calendar') { openCalendar(true, () => openFloor(building, floor.level)); return; }
       if (room.action === 'roomie') { afterAction(rules.roomieTalk(state), building, floor); return; }
@@ -231,7 +231,7 @@ function openFloor(building, level) {
   save();
 }
 
-// ---------------------------------------------------------------- 输入
+// ---------------------------------------------------------------- input
 function onKeyDown(e) {
   const k = e.key.toLowerCase();
 
@@ -257,7 +257,7 @@ function onMarkerClick(id) {
   const item = world.spots.find((i) => i.id === id);
   if (!item) return;
   if (!world.near || world.near.id !== id) {
-    ui.toast('先走到「' + item.name + '」旁边再互动。', 'warn');
+    ui.toast('Walk up to "' + item.name + '" first, then interact.', 'warn');
     return;
   }
   interact(item);
@@ -266,7 +266,7 @@ function onMarkerClick(id) {
 function tryInteract() {
   if (!started || !state || state.phase !== 'day') return;
   if (!world.near) {
-    ui.toast('附近没有可以互动的点，走近一点。', 'warn');
+    ui.toast('Nothing to interact with nearby. Get closer.', 'warn');
     return;
   }
   interact(world.near);
@@ -282,16 +282,16 @@ function interact(item) {
   else if (item.kind === 'board') res = rules.board(state);
   else if (item.kind === 'social') res = rules.social(state, item.npc);
   else if (item.kind === 'rest') res = rules.rest(state);
-  else res = { ok: false, msg: '这里什么也没有。' };
+  else res = { ok: false, msg: 'Nothing here.' };
 
   afterAction(res);
 }
 
-// 操场：跨栏小游戏。准备画面（铺 assets/bg/field.jpg）→ 跑 → 按结果结算，关门回校园。
-// 队友那边的「先弹一个确认面板」被并进来了：这里的第一屏就是那张确认 + 准备画面。
+// Field: Hurdles minigame. Ready screen (backed by assets/bg/field.jpg) → run → settle, then back to campus.
+// The earlier "confirm panel first" step is folded in: screen one is that confirm + ready screen.
 function openFieldRun() {
   if (!state || state.phase !== 'day') return;
-  if (state.ap <= 0) { ui.toast('今天没有行动点了。', 'warn'); return; }
+  if (state.ap <= 0) { ui.toast('No Action Points left today.', 'warn'); return; }
   world.keys.clear();
   let settled = false;
   openRun({
@@ -311,7 +311,7 @@ function openFieldRun() {
   });
 }
 
-// B1 健身房：反应小游戏，同样按结果结算
+// B1 Gym: reaction minigame, settled the same way
 function launchGym(building, floor) {
   if (!state || state.phase !== 'day') return;
   world.keys.clear();
@@ -334,25 +334,25 @@ function launchGym(building, floor) {
   });
 }
 
-// 这间房现在能不能用：不能就当场说清楚，不弹一个按不动的面板
+// Can this room be used now? Say why on the spot instead of opening a dead panel
 function roomBlocked(room) {
   const a = room.action;
-  // 钢琴不占行动点、不封门：随时能弹，只有每天第一次弹满才结算
+  // Piano costs no AP and never locks: play anytime, only the first full run of the day settles
   if (a === 'piano') return null;
-  // 不花行动点的三件事任何时候都能用
+  // The three free actions work anytime
   if (!room.ap) return null;
-  if (state.ap <= 0) return '没行动点了';
-  if (a === 'doubt' && state.today.doubt) return '今天用过了';
-  if (a === 'pingpong' && state.today.pingpong) return '今天打过了';
-  if (a === 'gym' && state.today.gym) return '今天练过了';
+  if (state.ap <= 0) return 'no Action Points';
+  if (a === 'doubt' && state.today.doubt) return 'used today';
+  if (a === 'pingpong' && state.today.pingpong) return 'played today';
+  if (a === 'gym' && state.today.gym) return 'trained today';
   if (a === 'pray') {
-    if (state.mood > CONFIG.room.pray.moodMax) return '心境高于 ' + CONFIG.room.pray.moodMax;
-    if (state.today.pray) return '今天静过了';
+    if (state.mood > CONFIG.room.pray.moodMax) return 'Mood above ' + CONFIG.room.pray.moodMax;
+    if (state.today.pray) return 'already sat today';
   }
   return null;
 }
 
-// 房间：先看清楚代价，再决定做不做
+// Room: see the cost first, then decide
 function openRoom(room, building, floor) {
   const blocked = roomBlocked(room);
   if (blocked) { ui.toast(blocked, 'warn'); return; }
@@ -381,11 +381,11 @@ function openRoom(room, building, floor) {
   });
 }
 
-// 结算完回到这一层的选项面板，接着做下一件事
+// After settling, back to this floor's options for the next action
 function afterAction(res, building, floor) {
   if (!res.ok) { ui.toast(res.msg, 'warn'); return; }
   ui.toast(res.msg);
-  refreshCampusSpots(); // 活动做完了，校园上那个出发点要消失
+  refreshCampusSpots(); // event done, so that campus departure spot must disappear
   renderAll();
   save();
   if (state.ap <= 0) {
@@ -397,8 +397,8 @@ function afterAction(res, building, floor) {
   else ui.closeModal();
 }
 
-// ---------------------------------------------------------------- 钢琴
-// 琴可以无限弹：只有每天第一次弹满 N 个音，才花 1 AP 结算心情。
+// ---------------------------------------------------------------- piano
+// Play freely: only the first full N notes each day costs 1 AP and settles Mood.
 function openPiano(room, building, floor) {
   if (!started || !state || state.phase !== 'day') return;
   world.keys.clear();
@@ -419,8 +419,8 @@ function openPiano(room, building, floor) {
   });
 }
 
-// ---------------------------------------------------------------- 球台
-// 先打完小球，再按胜负结算；中途收杆不花行动点。
+// ---------------------------------------------------------------- tables
+// Play the minigame first, settle on the result; quitting midway costs no AP.
 function openVersus(room, npcId, building, floor) {
   const npc = NPCS[npcId];
   if (!npc) return;
@@ -449,10 +449,10 @@ function openVersus(room, npcId, building, floor) {
   });
 }
 
-// ---------------------------------------------------------------- 只读面板
-// 书桌和侧栏「角色」按钮打开的是同一个面板：只读，不花行动点，不改状态。
-// force 用于「从楼层面板里点书桌」——那时弹窗本来就是开着的。
-// onClose 用来回到刚才那一层，而不是被踢回校园。
+// ---------------------------------------------------------------- read-only panels
+// The Desk and the sidebar "Character" button open the same panel: read-only, no AP, no state change.
+// force is for "clicking the Desk inside a floor panel", where a modal is already open.
+// onClose returns to that floor instead of kicking you back to campus.
 function openCharacter(force, onClose) {
   if (!state) return;
   if (!force && modalOpen()) return;
@@ -473,10 +473,10 @@ function openCalendar(force, onClose) {
   });
 }
 
-// 日历活动：先看清三条属性给多少，再决定去不去
+// Calendar events: see what the three stats pay first, then decide
 function openEvent(entry) {
   if (!entry) return;
-  if (entry.done) { ui.toast('「' + entry.title + '」今天已经去过了。', 'warn'); return; }
+  if (entry.done) { ui.toast('"' + entry.title + '" is already done today.', 'warn'); return; }
   world.keys.clear();
   ui.eventPanel(entry, state);
   ui.bindModal({
@@ -485,7 +485,7 @@ function openEvent(entry) {
   });
 }
 
-// ---------------------------------------------------------------- 夜晚
+// ---------------------------------------------------------------- night
 function openNight() {
   if (state.phase !== 'day') return;
   state.phase = 'night';
@@ -513,7 +513,7 @@ function renderBattle() {
     enemy: Math.max(0, (battleState.enemy.hp / battleState.enemy.maxHp) * 100),
     hp: Math.max(0, (battleState.playerHp / battleState.playerMaxHp) * 100),
   };
-  ui.battlePanel(state, battleState, battlePct); // 传上一帧，血条才会「掉」而不是「跳」
+  ui.battlePanel(state, battleState, battlePct); // pass the last frame so the bar drains, not jumps
   battlePct = cur;
   ui.bindModal({ card: onPlayCard, done: onBattleDone });
   ui.renderHUD(state);
@@ -522,16 +522,16 @@ function renderBattle() {
 function onPlayCard(idx) {
   if (!battleState || battleState.over) return;
   const fx = battle.playCard(state, battleState, idx);
-  // 战斗一结束就立刻结算，这样结算画面就能把掉落摆出来，不用等玩家点「收工」
+  // Settle as soon as the fight ends, so the result screen can show the drop without a "Done" click
   if (battleState.over && !battleState.settled) {
     battleState.settled = true;
     battleState.reward = rules.settleBattle(state, battleState);
   }
-  renderBattle(); // 先重建面板，抖动才作用在新节点上
+  renderBattle(); // rebuild the panel first so the shake lands on fresh nodes
   ui.hitFx(fx.dealt, fx.taken);
   if (battleState.over) {
     const win = battleState.result === 'win';
-    setTimeout(() => ui.outcomeFx(win), 260); // 等这一下的抖动播完再给结算反馈
+    setTimeout(() => ui.outcomeFx(win), 260); // let this hit's shake finish before the result feedback
   }
 }
 
@@ -555,14 +555,14 @@ function finishNight() {
   if (state.phase === 'exam') { examNow(); return; }
   state.phase = 'day';
   ui.closeModal();
-  refreshCampusSpots(); // 新的一天，活动出发点换成今天的那个
+  refreshCampusSpots(); // new day: swap in today's event departure spot
   renderAll();
   save();
-  ui.toast('第 ' + state.day + ' 天。必修两节已上，还有 ' + state.ap + ' 点自由。');
+  ui.toast('Day ' + state.day + '. Both required lectures done, ' + state.ap + ' free AP left.');
   if (state.ap <= 0) openNight();
 }
 
-// ---------------------------------------------------------------- 考试 / 结局
+// ---------------------------------------------------------------- exam / ending
 function examNow() {
   rules.runExam(state);
   save();
@@ -575,14 +575,14 @@ function showEnding() {
   ui.renderAll(state);
 }
 
-// 结局看完再点「生成我的 HKUTI 报告」：面板半透明，背后还是刚才那张校园
+// After the ending, "Generate my HKUTI report": translucent panel over the same campus
 function showPersona() {
   ui.personaPanel(state);
   ui.bindModal({ back: showEnding, restart: startNew });
   ui.renderAll(state);
 }
 
-// ---------------------------------------------------------------- 渲染循环
+// ---------------------------------------------------------------- render loop
 function renderAll() {
   ui.renderAll(state);
 }

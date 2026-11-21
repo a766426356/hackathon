@@ -1,7 +1,7 @@
-// gym.js — B1 健身房：反应小游戏。
-// 两个键平时是灰的，随机一个亮成黄色，在窗口时间内按它 → 成功一次、杠铃举一次。
-// 按错或者超时算一次失手。成功次数够了就算这组练完。
-// 中间那一幕是画出来的：小人在架子上举杠铃，两边有哑铃架和卧推凳。
+// gym.js — B1 Gym: a reflex minigame.
+// Both keys sit grey. One lights up yellow at random; press it inside the window → one rep, one lift.
+// Wrong key or too slow costs a strike. Enough clean reps and the set is done.
+// The middle scene is drawn: a lifter on the rack, dumbbell rack left, bench right.
 
 import * as ui from '../ui.js';
 import { unlockAudio, sfx } from '../audio.js';
@@ -9,8 +9,8 @@ import { unlockAudio, sfx } from '../audio.js';
 const W = 520;
 const H = 210;
 const FLOOR = H - 42;
-const WINDOW_MS = 850;   // 亮起后多久内必须按
-const STRIKES = 3;       // 失手几次算失败
+const WINDOW_MS = 850;   // how long you get once it lights
+const STRIKES = 3;       // strikes before it fails
 const KEYS = ['q', 'e'];
 
 let active = null;
@@ -32,7 +32,7 @@ export function openGym(opts = {}) {
     armed: null,
     timer: 0,
     wait: 0.9,
-    lift: 0,        // 举起动画剩余时间
+    lift: 0,        // lift animation time left
     shake: 0,
     t: 0,
     dust: [],
@@ -46,13 +46,13 @@ export function openGym(opts = {}) {
         <div class="mg-title">
           <span class="mg-icon">🏋️</span>
           <div>
-            <h2>健身房</h2>
-            <p class="sub">灯亮就按 · 举 ${need} 次算这组完成</p>
+            <h2>Gym</h2>
+            <p class="sub">Press when it lights · ${need} reps finish the set</p>
           </div>
         </div>
         <div class="gym-score">
-          <span>完成 <b id="gym-hits">0</b> / ${need}</span>
-          <span class="gym-miss">失手 <b id="gym-miss">0</b> / ${STRIKES}</span>
+          <span>Reps <b id="gym-hits">0</b> / ${need}</span>
+          <span class="gym-miss">Misses <b id="gym-miss">0</b> / ${STRIKES}</span>
         </div>
       </div>
 
@@ -61,24 +61,24 @@ export function openGym(opts = {}) {
       </div>
 
       <div class="gym-keys">
-        <button class="gkey" data-key="q"><b>Q</b><i>左</i></button>
-        <button class="gkey" data-key="e"><b>E</b><i>右</i></button>
+        <button class="gkey" data-key="q"><b>Q</b><i>Left</i></button>
+        <button class="gkey" data-key="e"><b>E</b><i>Right</i></button>
       </div>
       <div class="gym-progress"><i id="gym-bar-fill"></i></div>
 
       <div class="mg-hint">
-        <span>亮起来的那一下就按它 · 键盘 <kbd>Q</kbd> <kbd>E</kbd> 或者直接点</span>
-        <span id="gym-status" class="mg-status">先热个身。</span>
+        <span>Press whichever one lights · keys <kbd>Q</kbd> <kbd>E</kbd>, or just tap</span>
+        <span id="gym-status" class="mg-status">Warm up first.</span>
       </div>
 
       <div class="mg-overlay hidden" id="gym-overlay">
         <div class="po-card">
-          <div class="po-tag" id="gym-tag">这组结束</div>
+          <div class="po-tag" id="gym-tag">Set over</div>
           <h3 id="gym-title">—</h3>
           <p id="gym-msg"></p>
           <div class="mg-row">
-            <button class="btn primary" data-act="again">再来一组</button>
-            <button class="btn" data-act="close">走人</button>
+            <button class="btn primary" data-act="again">One more set</button>
+            <button class="btn" data-act="close">Leave</button>
           </div>
         </div>
       </div>
@@ -120,18 +120,18 @@ export function openGym(opts = {}) {
     paintKeys();
   }
 
-  // ------------------------------------------------------------ 场景
-  // 整间健身房是画出来的：天花板灯带 + 后墙大镜子 + 左边哑铃架 + 右边卧推凳 + 地胶。
-  // （外部图片源在当前环境里都被挡了，索性画一套，也更贴像素风。）
+  // ------------------------------------------------------------ Scene
+  // The whole gym is drawn: ceiling light strips + big back-wall mirror + dumbbell rack left + bench right + floor mat.
+  // (External image sources are blocked in here anyway, so it's drawn instead — and it suits the pixel look.)
   function drawRoom() {
-    // 后墙
+    // back wall
     const wall = ctx.createLinearGradient(0, 22, 0, FLOOR);
     wall.addColorStop(0, '#242d3d');
     wall.addColorStop(1, '#151b24');
     ctx.fillStyle = wall;
     ctx.fillRect(0, 22, W, FLOOR - 22);
 
-    // 墙裙
+    // wainscot
     ctx.fillStyle = 'rgba(10,15,22,0.72)';
     ctx.fillRect(0, FLOOR - 28, W, 28);
     ctx.fillStyle = 'rgba(255,255,255,0.05)';
@@ -141,12 +141,12 @@ export function openGym(opts = {}) {
     drawRack();
     drawBench();
 
-    // 地板 + 地胶
+    // floor + mat
     ctx.fillStyle = '#10161e';
     ctx.fillRect(0, FLOOR, W, H - FLOOR);
     ctx.fillStyle = 'rgba(90,104,128,0.16)';
     ctx.fillRect(0, FLOOR, W, 2);
-    // 地胶：中间一块，带接缝
+    // mat: one slab in the middle, with seams
     ctx.fillStyle = 'rgba(58,70,94,0.75)';
     ctx.fillRect(W / 2 - 150, FLOOR - 2, 300, 16);
     ctx.strokeStyle = 'rgba(255,255,255,0.06)';
@@ -158,7 +158,7 @@ export function openGym(opts = {}) {
       ctx.lineTo(gx, FLOOR + 14);
       ctx.stroke();
     }
-    // 一点白色的镁粉痕迹
+    // a bit of white chalk dust
     ctx.fillStyle = 'rgba(220,228,242,0.05)';
     ctx.beginPath();
     ctx.ellipse(W / 2 + 42, FLOOR + 8, 26, 5, 0, 0, Math.PI * 2);
@@ -168,11 +168,11 @@ export function openGym(opts = {}) {
   }
 
   function drawCeiling() {
-    // 天花板
+    // ceiling
     ctx.fillStyle = '#0d1219';
     ctx.fillRect(0, 0, W, 22);
 
-    // 三条灯带 + 光锥：光锥压在墙和器材上，整间屋子才像有顶灯
+    // three light strips + cones: the cones land on wall and gear, so the room reads as lit
     for (const lx of [92, W / 2, W - 92]) {
       ctx.fillStyle = '#ffe9b0';
       ctx.fillRect(lx - 30, 15, 60, 4);
@@ -193,7 +193,7 @@ export function openGym(opts = {}) {
       ctx.fill();
     }
 
-    // 四角压暗
+    // darken the corners
     const vig = ctx.createRadialGradient(W / 2, FLOOR * 0.55, 60, W / 2, FLOOR * 0.55, W * 0.62);
     vig.addColorStop(0, 'rgba(0,0,0,0)');
     vig.addColorStop(1, 'rgba(4,7,12,0.55)');
@@ -207,13 +207,13 @@ export function openGym(opts = {}) {
     const mw = 244;
     const mh = 92;
 
-    // 外框
+    // frame
     ctx.fillStyle = '#2b364a';
     ctx.fillRect(mx - 4, my - 4, mw + 8, mh + 8);
     ctx.fillStyle = '#1b2431';
     ctx.fillRect(mx - 2, my - 2, mw + 4, mh + 4);
 
-    // 玻璃
+    // glass
     const glass = ctx.createLinearGradient(mx, my, mx, my + mh);
     glass.addColorStop(0, 'rgba(176,200,232,0.24)');
     glass.addColorStop(0.55, 'rgba(140,166,200,0.14)');
@@ -221,11 +221,11 @@ export function openGym(opts = {}) {
     ctx.fillStyle = glass;
     ctx.fillRect(mx, my, mw, mh);
 
-    // 镜子里映出的两盏灯
+    // two lamps reflected in the mirror
     ctx.fillStyle = 'rgba(255,233,176,0.30)';
     for (const rx of [mx + 62, mx + mw - 62]) ctx.fillRect(rx - 22, my + 10, 44, 3);
 
-    // 斜向高光
+    // diagonal highlight
     ctx.fillStyle = 'rgba(255,255,255,0.055)';
     ctx.beginPath();
     ctx.moveTo(mx + 18, my + mh);
@@ -235,16 +235,16 @@ export function openGym(opts = {}) {
     ctx.closePath();
     ctx.fill();
 
-    // 镜面下沿的一条暗边
+    // dark edge along the bottom of the mirror
     ctx.fillStyle = 'rgba(10,15,22,0.35)';
     ctx.fillRect(mx, my + mh - 6, mw, 6);
   }
 
   function drawDumbbell(x, y, len) {
-    // 横杆
+    // shaft
     ctx.fillStyle = '#8d99ad';
     ctx.fillRect(x, y, len, 3);
-    // 两头的片
+    // plates on both ends
     ctx.fillStyle = '#3f4d66';
     ctx.fillRect(x - 4, y - 5, 5, 13);
     ctx.fillRect(x + len - 1, y - 5, 5, 13);
@@ -254,7 +254,7 @@ export function openGym(opts = {}) {
   }
 
   function drawRack() {
-    // 左边哑铃架：A 字架，两层，各三副
+    // left dumbbell rack: A-frame, two tiers, three pairs each
     const bx = 24;
     const top = FLOOR - 74;
     ctx.strokeStyle = '#39465c';
@@ -276,7 +276,7 @@ export function openGym(opts = {}) {
       drawDumbbell(bx + 10 + i * 25, top + 34, 16);
     }
 
-    // 地上一个壶铃
+    // a kettlebell on the floor
     ctx.fillStyle = '#3f4d66';
     ctx.beginPath();
     ctx.arc(bx + 104, FLOOR - 9, 9, 0, Math.PI * 2);
@@ -289,7 +289,7 @@ export function openGym(opts = {}) {
   }
 
   function drawBench() {
-    // 右边卧推凳
+    // right bench
     const bx = W - 132;
     const by = FLOOR - 30;
     ctx.fillStyle = '#2c3648';
@@ -298,12 +298,12 @@ export function openGym(opts = {}) {
     ctx.fillRect(bx + 4, by - 5, 90, 7);
     ctx.fillStyle = 'rgba(255,255,255,0.10)';
     ctx.fillRect(bx + 4, by - 5, 90, 2);
-    // 凳腿
+    // bench legs
     ctx.fillStyle = '#39465c';
     ctx.fillRect(bx + 12, by + 10, 5, 20);
     ctx.fillRect(bx + 80, by + 10, 5, 20);
 
-    // 杠铃片树：立柱 + 三片
+    // plate tree: post + three plates
     const px = bx + 116;
     ctx.fillStyle = '#39465c';
     ctx.fillRect(px, FLOOR - 62, 4, 62);
@@ -322,7 +322,7 @@ export function openGym(opts = {}) {
 
   function poseAmount() {
     if (g.lift <= 0) return 0;
-    // 0.30 → 0：先快速顶起，再慢慢放回
+    // 0.30 → 0: snap up fast, then lower it slow
     const p = 1 - g.lift / 0.30;
     return p < 0.42 ? p / 0.42 : 1 - (p - 0.42) / 0.58;
   }
@@ -337,38 +337,38 @@ export function openGym(opts = {}) {
     ctx.save();
     ctx.translate(jitter, 0);
 
-    // 影子
+    // shadow
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath();
     ctx.ellipse(cx, FLOOR - 2, 26 + pose * 4, 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 腿
+    // legs
     ctx.fillStyle = '#2a2a35';
     ctx.fillRect(cx - 12, hipY, 9, FLOOR - hipY - 2);
     ctx.fillRect(cx + 3, hipY, 9, FLOOR - hipY - 2);
-    // 鞋
+    // shoes
     ctx.fillStyle = '#1b1b1b';
     ctx.fillRect(cx - 14, FLOOR - 5, 13, 5);
     ctx.fillRect(cx + 2, FLOOR - 5, 13, 5);
 
-    // 躯干
+    // torso
     ctx.fillStyle = '#33456b';
     ctx.fillRect(cx - 12, shoulderY, 24, hipY - shoulderY + 2);
     ctx.fillStyle = '#3d5382';
     ctx.fillRect(cx - 12, shoulderY, 24, 5);
 
-    // 头
+    // head
     ctx.fillStyle = '#f3c9a3';
     ctx.fillRect(cx - 9, shoulderY - 20, 18, 17);
     ctx.fillStyle = '#2a2118';
     ctx.fillRect(cx - 9, shoulderY - 20, 18, 6);
-    // 眼睛：用力的时候眯着
+    // eyes: squint on the effort
     ctx.fillStyle = '#2a2118';
     ctx.fillRect(cx - 5, shoulderY - 11, 2, pose > 0.2 ? 1 : 2);
     ctx.fillRect(cx + 3, shoulderY - 11, 2, pose > 0.2 ? 1 : 2);
 
-    // 手臂：从肩膀连到杠
+    // arms: shoulders out to the bar
     ctx.strokeStyle = '#f3c9a3';
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
@@ -379,7 +379,7 @@ export function openGym(opts = {}) {
     ctx.lineTo(cx + 26, barY);
     ctx.stroke();
 
-    // 杠铃
+    // barbell
     ctx.fillStyle = '#b9c2d4';
     ctx.fillRect(cx - 74, barY - 3, 148, 6);
     ctx.fillStyle = '#8a95a8';
@@ -430,7 +430,7 @@ export function openGym(opts = {}) {
     drawDust(dt || 0);
   }
 
-  // ------------------------------------------------------------ 流程
+  // ------------------------------------------------------------ Flow
   function reset() {
     g.phase = 'idle';
     g.hits = 0;
@@ -444,7 +444,7 @@ export function openGym(opts = {}) {
     g.over = false;
     g.settled = false;
     overlay.classList.add('hidden');
-    setStatus('先热个身。');
+    setStatus('Warm up first.');
     paintHud();
   }
 
@@ -452,7 +452,7 @@ export function openGym(opts = {}) {
     g.armed = KEYS[Math.floor(Math.random() * KEYS.length)];
     g.phase = 'armed';
     g.timer = WINDOW_MS / 1000;
-    setStatus('按 ' + g.armed.toUpperCase() + '！');
+    setStatus('Press ' + g.armed.toUpperCase() + '!');
     paintHud();
     sfx('score', 0.4);
   }
@@ -465,7 +465,7 @@ export function openGym(opts = {}) {
     g.lift = 0.30;
     puff();
     sfx('pot');
-    setStatus(g.hits >= need ? '这组完成了。' : '举起来了。');
+    setStatus(g.hits >= need ? 'Set complete.' : 'That is a rep.');
     paintHud();
     if (g.hits >= need) finish(true);
   }
@@ -477,7 +477,7 @@ export function openGym(opts = {}) {
     g.wait = 0.55;
     g.shake = 0.22;
     sfx('foul');
-    setStatus(why + '，还剩 ' + Math.max(0, STRIKES - g.strikes) + ' 次机会。');
+    setStatus(why + ', ' + Math.max(0, STRIKES - g.strikes) + ' strikes left.');
     paintHud();
     if (g.strikes >= STRIKES) finish(false);
   }
@@ -493,19 +493,19 @@ export function openGym(opts = {}) {
       reward = res && res.msg ? res.msg : '';
     }
     sfx(win ? 'win' : 'lose');
-    tagEl.textContent = win ? '练完了' : '没撑住';
-    titleEl.textContent = '完成 ' + g.hits + ' / ' + need + ' · 失手 ' + g.strikes;
-    msgEl.textContent = (reward || (win ? '还行。' : '下次慢一点。')) + ' · 可以再来一组，但今天的结算已经记下了。';
+    tagEl.textContent = win ? 'Set complete' : 'Gave out';
+    titleEl.textContent = 'Reps ' + g.hits + ' / ' + need + ' · Misses ' + g.strikes;
+    msgEl.textContent = (reward || (win ? 'Not bad.' : 'Slow down next time.')) + ' · Another set is fine, but the tally for today is already booked.';
     overlay.classList.remove('hidden');
-    setStatus(win ? '练完了。' : '没撑住。');
+    setStatus(win ? 'Set complete.' : 'Gave out.');
     paintHud();
   }
 
   function press(k) {
     if (g.phase === 'over') return;
-    if (g.phase !== 'armed') return; // 没亮的时候按不算，别罚手快的人
+    if (g.phase !== 'armed') return; // pressing while unlit does not count; no need to punish fast hands
     if (k === g.armed) hit();
-    else miss('按错了');
+    else miss('Wrong key');
   }
 
   function frame(ts) {
@@ -522,7 +522,7 @@ export function openGym(opts = {}) {
       if (g.wait <= 0) arm();
     } else if (g.phase === 'armed') {
       g.timer -= dt;
-      if (g.timer <= 0) miss('慢了半拍');
+      if (g.timer <= 0) miss('Too slow');
     }
 
     render(dt);

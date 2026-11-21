@@ -1,18 +1,20 @@
-// intro.js — 开场标题屏 + 3D 翻转转场。
+// intro.js — title screen and the 3D flip into the game.
 //
-// 这一层只有 DOM 和动画，不碰 state / rules / battle 里的任何东西：
-// main.js 在 boot() 里等 showTitleScreen() resolve，之后才去弹欢迎卡。
-// 所以不管开场怎么改，游戏逻辑都不会被牵连。
+// This layer is DOM and animation only; it never touches state / rules / battle.
+// main.js awaits showTitleScreen() inside boot() and opens the welcome card only after.
+// However the opener changes, game logic stays out of it.
 //
-// 时序（一次 START 点击，约 1.05s）：
-//   0ms      标题卡从正面开始翻
-//   0→48%    绕 X 轴上仰到 94°：视线从正面变成「从上往下俯视」这张卡；
-//            同时绕 Z 顺时针拧 26°，像被一只手斜着掀过去
-//   48%      卡正好边朝屏幕。backface-visibility:hidden 让它彻底消失，
-//            底下的背景层在这一拍淡完、光闸在这一拍最亮 —— 翻过去就是校园
-//   48→100%  继续翻到 180°，Z 轴逆时针拧回 0：这就是那下反向的转
-//   之后     整层淡出并移出 DOM
-// prefers-reduced-motion 打开时跳过整段翻转，只留一次 320ms 淡出。
+// Timeline (one START click, ~1.05s):
+//   0ms       the title card starts turning
+//   0->14%    it leans back a couple of degrees first, to load the spring
+//   14->50%   tilts up around X to 94 deg: you go from facing the card to looking down
+//             at it, while twisting 26 deg clockwise around Z as if a hand tilted it away
+//   50%       the card is edge-on. backface-visibility:hidden makes it vanish, the
+//             backdrop finishes fading on this beat and the light gate peaks -- what
+//             you flip into is the campus itself
+//   50->100%  carries on to 180 deg, Z unwinds counter-clockwise back to 0: that's the reverse turn
+//   after     the whole layer fades out and leaves the DOM
+// prefers-reduced-motion skips the flip entirely and keeps a single 320ms fade.
 
 const FLIP_MS = 980;
 const OUT_MS = 320;
@@ -23,13 +25,15 @@ function prefersReduced() {
   return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
 
-// 返回 Promise，resolve 时标题屏已经从 DOM 里移除，可以安全地往上叠弹窗。
+// Returns a Promise; when it resolves the title screen is already gone from the DOM,
+// so modals can safely stack on top.
 export function showTitleScreen() {
   const root = document.createElement('div');
   root.id = 'title-screen';
   root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-label', '香港大学张江校区 · 开场');
+  root.setAttribute('aria-label', 'HKU Zhangjiang Campus · Opening');
   root.innerHTML = `
+    <div class="ts-photo"></div>
     <div class="ts-bg"></div>
     <div class="ts-grid"></div>
     <div class="ts-stage">
@@ -40,9 +44,9 @@ export function showTitleScreen() {
             <span class="ts-en">THE HKU</span>
             <span class="ts-en2">ZHANGJIANG CAMP</span>
           </h1>
-          <div class="ts-seal"><i></i><span>香港大学张江校区 · 七天</span><i></i></div>
+          <div class="ts-seal"><i></i><span>HKU Zhangjiang Campus · Seven Days</span><i></i></div>
           <button class="ts-start" type="button">START</button>
-          <div class="ts-hint">ENTER / 空格</div>
+          <div class="ts-hint">ENTER / SPACE</div>
         </div>
       </div>
     </div>
@@ -68,7 +72,8 @@ export function showTitleScreen() {
       if (document.activeElement === btn) btn.blur();
 
       root.classList.add('ts-go');
-      // 卡翻过 90° 之后就已经看不见了，这时候才开始撤整层，不会看到「半张卡」
+      // The card is already invisible past 90 deg, so only pull the whole layer down now —
+      // otherwise you'd catch it halfway through the turn.
       if (!reduce) await wait(Math.round(FLIP_MS * 0.68));
       root.classList.add('ts-leaving');
       await wait(OUT_MS);
