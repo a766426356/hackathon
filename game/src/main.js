@@ -8,18 +8,15 @@ import * as rules from './rules.js';
 import * as battle from './battle.js';
 import * as ui from './ui.js';
 import { createWorld } from './world.js';
-import { createIndoor } from './indoor.js';
-import { BUILDING_FLOORS, sceneOf } from './interiors.js';
+import { buildingOf, floorByLevel } from './interiors.js';
 
 let state = null;
 let world = null;
-let indoor = null;
 let battleState = null;
 let started = false;
 let lastTs = 0;
 
-// 'campus' = 校园大图，其它值 = 室内场景 id（如 'cds1.f3'）
-let scene = 'campus';
+// 现在没有室内场景了：一直在校园，进楼只弹面板
 let pianoState = null; // 钢琴弹到一半的连击状态
 
 const canvas = document.getElementById('game');
@@ -27,9 +24,10 @@ const canvas = document.getElementById('game');
 // ---------------------------------------------------------------- 启动
 function boot() {
   ui.initUI();
+  fitCanvas();
   world = createWorld(canvas);
-  indoor = createIndoor(canvas);
-  fitCanvas(true); // 开场就是校园方图，别让 canvas 先用 4:3 画一帧
+  ui.setSpots(INTERACTABLES, { w: CAMPUS.w, h: CAMPUS.h, half: 0 });
+  ui.setSceneChip('校园');
   ui.onMarkerClick(onMarkerClick);
   document.getElementById('btn-endday').addEventListener('click', () => {
     if (!started || !state || state.phase !== 'day') return;
@@ -37,11 +35,8 @@ function boot() {
   });
 
   window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', (e) => {
-    world.keys.delete(e.key.toLowerCase());
-    indoor.keys.delete(e.key.toLowerCase());
-  });
-  window.addEventListener('blur', () => { world.keys.clear(); indoor.keys.clear(); });
+  window.addEventListener('keyup', (e) => world.keys.delete(e.key.toLowerCase()));
+  window.addEventListener('blur', () => world.keys.clear());
 
   const hasSave = !!loadGame();
   ui.introPanel(hasSave);
@@ -67,7 +62,6 @@ function startNew() {
   pianoState = null;
   started = true;
   ui.closeModal();
-  enterScene('campus');
   renderAll();
   save();
 }
@@ -85,96 +79,58 @@ function resume() {
   if (state.phase === 'night') {
     // 刷新时正好停夜晚：把夜晚选择重新摆出来，避免卡在半路
     state.phase = 'day';
-    enterScene('campus');
     renderAll();
     openNight();
     return;
-  }
-  // 停在楼里：回到那一层、那个位置
-  if (state.scene && state.scene !== 'campus' && sceneOf(state.scene)) {
-    enterScene(state.scene, state.scenePos);
-  } else {
-    enterScene('campus');
   }
   renderAll();
   if (state.ap <= 0) openNight();
 }
 
-// ---------------------------------------------------------------- 场景
-function engine() {
-  return scene === 'campus' ? world : indoor;
-}
-
-// 校园是方图（768×768），室内是 24×15 的横图（768×480）：换场景时连画布尺寸一起换
-function fitCanvas(square) {
-  if (square) {
-    if (canvas.width !== MAP_W || canvas.height !== MAP_H) {
-      canvas.width = MAP_W;
-      canvas.height = MAP_H;
-    }
-    ui.els.scene.classList.add('square');
-  } else {
-    if (canvas.width !== 768 || canvas.height !== 480) {
-      canvas.width = 768;
-      canvas.height = 480;
-    }
-    ui.els.scene.classList.remove('square');
+// ---------------------------------------------------------------- 进楼
+// 校园是唯一场景：在楼门口按 E 就弹电梯面板，选层 → 房间选项 → 确认面板。
+function fitCanvas() {
+  if (canvas.width !== MAP_W || canvas.height !== MAP_H) {
+    canvas.width = MAP_W;
+    canvas.height = MAP_H;
   }
-}
-
-function enterScene(id, pos) {
-  if (id === 'campus') {
-    scene = 'campus';
-    fitCanvas(true);
-    ui.setSpots(INTERACTABLES, { w: CAMPUS.w, h: CAMPUS.h, half: 0 });
-    ui.setSceneChip('校园');
-  } else {
-    if (!indoor.load(id, pos)) return false;
-    scene = id;
-    fitCanvas(false);
-    ui.setSpots(indoor.spots);
-    ui.setSceneChip(indoor.scene.tag);
-  }
-  if (state) {
-    state.scene = scene;
-    state.scenePos = scene === 'campus' ? null : indoor.pos;
-    if (started) save();
-  }
-  return true;
+  ui.els.scene.classList.add('square');
 }
 
 function enterBuilding(buildingId) {
-  const b = BUILDING_FLOORS[buildingId];
+  const b = buildingOf(buildingId);
   if (!b) return;
-  if (!enterScene(b.lobby)) return;
-  ui.toast('你走进' + b.full + '。先去电梯口。');
-  setTimeout(() => {
-    if (started && state.phase === 'day' && scene === b.lobby) openElevator();
-  }, 140);
+  openElevator(b, null);
 }
 
-function leaveBuilding() {
-  enterScene('campus');
-  ui.toast('你回到校园。');
-}
-
-function openElevator() {
-  const b = BUILDING_FLOORS[indoor.scene.building];
-  if (!b) return;
-  indoor.keys.clear();
-  ui.elevatorPanel(b, scene);
+// 电梯面板：列这栋楼的楼层
+function openElevator(building, currentLevel) {
+  world.keys.clear();
+  ui.elevatorPanel(building, currentLevel);
   ui.bindModal({
-    floor: (el) => {
-      ui.closeModal();
-      goFloor(el.dataset.to);
-    },
+    floor: (el) => openFloor(building, Number(el.dataset.level)),
     cancel: () => ui.closeModal(),
   });
 }
 
-function goFloor(to) {
-  if (!to || !sceneOf(to)) return;
-  enterScene(to);
+// 某一层：把房间做成几个选项
+function openFloor(building, level) {
+  const floor = floorByLevel(building, level);
+  if (!floor) return;
+  world.keys.clear();
+  ui.floorPanel(building, floor, state, roomBlocked);
+  ui.bindModal({
+    room: (el) => {
+      const room = floor.rooms.find((r) => r.id === el.dataset.room);
+      if (!room) return;
+      const why = roomBlocked(room);
+      if (why) { ui.toast(why, 'warn'); return; }
+      if (room.action === 'piano') openPiano(room, building, floor);
+      else openRoom(room, building, floor);
+    },
+    back: () => openElevator(building, level),
+    cancel: () => ui.closeModal(),
+  });
   save();
 }
 
@@ -191,7 +147,7 @@ function onKeyDown(e) {
   const move = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
   if (modalOpen()) return;
   if (move.includes(k)) {
-    engine().keys.add(k);
+    world.keys.add(k);
     e.preventDefault();
     return;
   }
@@ -207,10 +163,9 @@ function modalOpen() {
 
 function onMarkerClick(id) {
   if (!started || !state || state.phase !== 'day') return;
-  const eng = engine();
-  const item = eng.spots.find((i) => i.id === id);
+  const item = INTERACTABLES.find((i) => i.id === id);
   if (!item) return;
-  if (!eng.near || eng.near.id !== id) {
+  if (!world.near || world.near.id !== id) {
     ui.toast('先走到「' + item.name + '」旁边再互动。', 'warn');
     return;
   }
@@ -219,23 +174,15 @@ function onMarkerClick(id) {
 
 function tryInteract() {
   if (!started || !state || state.phase !== 'day') return;
-  const eng = engine();
-  if (!eng.near) {
+  if (!world.near) {
     ui.toast('附近没有可以互动的点，走近一点。', 'warn');
     return;
   }
-  interact(eng.near);
+  interact(world.near);
 }
 
 function interact(item) {
-  switch (item.kind) {
-    case 'enter': return enterBuilding(item.building);
-    case 'elevator': return openElevator();
-    case 'leave': return leaveBuilding();
-    case 'room': return openRoom(item);
-    case 'piano': return openPiano(item);
-    default: break;
-  }
+  if (item.kind === 'enter') { enterBuilding(item.building); return; }
 
   let res;
   if (item.kind === 'study') res = rules.study(state);
@@ -249,37 +196,37 @@ function interact(item) {
 }
 
 // 这间房现在能不能用：不能就当场说清楚，不弹一个按不动的面板
-function roomBlocked(spot) {
-  if (state.ap <= 0) return '今天没有行动点了。';
-  const a = spot.action;
-  if (a === 'doubt' && state.today.doubt) return '助教今天已经被围过一轮了，明天再来。';
-  if (a === 'pingpong' && state.today.pingpong) return '今天已经打过球了，胳膊抬不起来。';
-  if (a === 'piano' && state.today.piano) return '今天已经弹过了，再弹就是扰民。';
+function roomBlocked(room) {
+  if (state.ap <= 0) return '没行动点了';
+  const a = room.action;
+  if (a === 'doubt' && state.today.doubt) return '今天用过了';
+  if (a === 'pingpong' && state.today.pingpong) return '今天打过了';
+  if (a === 'piano' && state.today.piano) return '今天弹过了';
   if (a === 'pray') {
-    if (state.mood > CONFIG.room.pray.moodMax) return '心情还没低到那一步（要 ≤ ' + CONFIG.room.pray.moodMax + '）。';
-    if (state.today.pray) return '今天已经静过一次了。';
+    if (state.mood > CONFIG.room.pray.moodMax) return '心情高于 ' + CONFIG.room.pray.moodMax;
+    if (state.today.pray) return '今天静过了';
   }
   return null;
 }
 
 // 房间：先看清楚代价，再决定做不做
-function openRoom(spot) {
-  const blocked = roomBlocked(spot);
+function openRoom(room, building, floor) {
+  const blocked = roomBlocked(room);
   if (blocked) { ui.toast(blocked, 'warn'); return; }
-  if (spot.pick) {
-    ui.friendPanel(spot, state);
+  if (room.pick) {
+    ui.friendPanel(room, state);
     ui.bindModal({
       pick: (el) => {
-        const res = spot.pick === 'snooker'
+        const res = room.pick === 'snooker'
           ? rules.snooker(state, el.dataset.npc)
           : rules.pingpong(state, el.dataset.npc);
-        afterAction(res);
+        afterAction(res, building, floor);
       },
-      cancel: () => ui.closeModal(),
+      cancel: () => openFloor(building, floor.level),
     });
     return;
   }
-  ui.roomPanel(spot, state);
+  ui.roomPanel(room, state);
   ui.bindModal({
     go: () => {
       const fn = {
@@ -287,39 +234,47 @@ function openRoom(spot) {
         doubt: rules.doubt,
         studyroom: rules.studyroom,
         pray: rules.pray,
-      }[spot.action];
+      }[room.action];
       if (!fn) { ui.closeModal(); return; }
-      afterAction(fn(state));
+      afterAction(fn(state), building, floor);
     },
-    cancel: () => ui.closeModal(),
+    cancel: () => openFloor(building, floor.level),
   });
 }
 
-function afterAction(res) {
+// 结算完回到这一层的选项面板，接着做下一件事
+function afterAction(res, building, floor) {
   if (!res.ok) { ui.toast(res.msg, 'warn'); return; }
-  ui.closeModal();
   ui.toast(res.msg);
   renderAll();
   save();
-  if (state.ap <= 0) setTimeout(() => { if (state.phase === 'day') openNight(); }, 320);
+  if (state.ap <= 0) {
+    ui.closeModal();
+    setTimeout(() => { if (state.phase === 'day') openNight(); }, 320);
+    return;
+  }
+  if (building && floor) openFloor(building, floor.level);
+  else ui.closeModal();
 }
 
 // ---------------------------------------------------------------- 钢琴
-function openPiano(spot) {
-  const blocked = roomBlocked(spot);
+function openPiano(room, building, floor) {
+  const blocked = roomBlocked(room);
   if (blocked) { ui.toast(blocked, 'warn'); return; }
-  pianoState = { spot, notes: [], done: null };
+  pianoState = { room, building, floor, notes: [], done: null };
   renderPiano();
 }
 
 function renderPiano() {
-  ui.pianoPanel(pianoState.spot, pianoState.notes, state, pianoState.done);
+  ui.pianoPanel(pianoState.room, pianoState.notes, state, pianoState.done);
   ui.bindModal({
     note: (el) => playNote(Number(el.dataset.note)),
     cancel: () => {
+      const { building, floor } = pianoState;
       pianoState = null;
-      ui.closeModal();
-      if (state.ap <= 0 && state.phase === 'day') openNight();
+      if (state.ap <= 0 && state.phase === 'day') { ui.closeModal(); openNight(); return; }
+      if (building && floor) openFloor(building, floor.level);
+      else ui.closeModal();
     },
   });
 }
@@ -344,9 +299,7 @@ function openNight() {
   if (state.phase !== 'day') return;
   state.phase = 'night';
   world.keys.clear();
-  indoor.keys.clear();
   pianoState = null;
-  enterScene('campus');
   save();
   ui.nightPanel(state);
   ui.bindModal({ study: nightStudy, fight: nightFight });
@@ -391,7 +344,6 @@ function finishNight() {
   if (state.phase === 'exam') { examNow(); return; }
   state.phase = 'day';
   ui.closeModal();
-  enterScene('campus');
   renderAll();
   save();
   if (state.ap <= 0) openNight();
@@ -419,23 +371,16 @@ function frame(ts) {
   const dt = Math.min(0.05, lastTs ? (ts - lastTs) / 1000 : 0);
   lastTs = ts;
   const active = started && state && state.phase === 'day' && !modalOpen();
-  const eng = engine();
-  eng.update(dt, active);
-  if (scene === 'campus') {
-    world.draw(state && state.phase === 'night');
-  } else {
-    indoor.draw();
-  }
-  if (scene === 'campus') ui.updateMarkers(world.project);
-  if (active) ui.setNear(eng.near);
+  world.update(dt, active);
+  world.draw(state && state.phase === 'night');
+  ui.updateMarkers(world.project);
+  if (active) ui.setNear(world.near);
   else ui.setNear(null);
   requestAnimationFrame(frame);
 }
 
 function save() {
   if (!state) return;
-  state.scene = scene;
-  state.scenePos = scene === 'campus' ? null : indoor.pos;
   saveGame(state);
 }
 

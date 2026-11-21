@@ -3,6 +3,7 @@
 import { CONFIG, INTERACTABLES, NPCS, TEXTS } from '../data.js';
 import { cardDamage } from './battle.js';
 import { moodMult } from './state.js';
+import { roomsText } from './interiors.js';
 
 export const els = {};
 
@@ -326,40 +327,72 @@ function bindElevatorBg(panel, defaultUrl) {
   });
 }
 
-export function elevatorPanel(building, currentId) {
-  // 像真电梯一样竖着排：高层在上、地下层在下，选中层亮一颗"轿厢"
-  const floors = building.floors.slice().sort((a, b) => (b.level ?? 0) - (a.level ?? 0));
+export function elevatorPanel(building, currentLevel) {
+  // 像真电梯一样竖着排：高层在上、地下层在下，当前层亮一颗"轿厢"
+  const floors = building.floors.slice().sort((a, b) => b.level - a.level);
   const plates = floors.map((f) => {
-    const here = f.id === currentId;
+    const here = f.level === currentLevel;
     const locked = !!f.locked;
-    const attr = here || locked ? 'disabled' : 'data-act="floor" data-to="' + f.id + '"';
+    const attr = locked ? 'disabled' : 'data-act="floor" data-level="' + f.level + '"';
     const bgAttr = f.bg ? ' data-bg="' + esc(f.bg) + '"' : '';
     return '<button class="plate' + (here ? ' here' : '') + (locked ? ' locked' : '') + '" ' + attr + bgAttr + '>' +
       '<span class="plate-dot"></span>' +
       '<span class="plate-num">' + esc(f.label) + '</span>' +
-      '<span class="plate-info"><b>' + esc(f.name) + '</b><i>' + esc(f.rooms) + '</i></span>' +
-      (here ? '<span class="plate-tag now">你在这</span>' : locked ? '<span class="plate-tag">未开放</span>' : '<span class="plate-tag go">→</span>') +
+      '<span class="plate-info"><b>' + esc(f.name) + '</b><i>' + esc(roomsText(f)) + '</i></span>' +
+      (locked ? '<span class="plate-tag">未开放</span>' : '<span class="plate-tag go">→</span>') +
       '</button>';
   }).join('');
   const html = `
     <div class="elev">
       <h2>${esc(building.full)} · 电梯</h2>
-      <p class="sub">楼层之间走动不花行动点。把鼠标停在某一层上，先看看那边。</p>
+      <p class="sub">选一层进去。楼层之间走动不花行动点，只有真的做一件事才花。</p>
       <div class="shaft">
         <span class="shaft-rail"></span>
         ${plates}
       </div>
-      <div class="row"><button class="btn" data-act="cancel">再逛逛</button></div>
+      <div class="row"><button class="btn" data-act="cancel">离开</button></div>
     </div>`;
   const panel = openModal(html, { cls: 'elev-panel' });
   // 先把各层背景图拉下来，鼠标移上去不用等加载
   for (const f of building.floors) {
     if (f.bg) new Image().src = f.bg;
   }
-  const here = building.floors.find((f) => f.id === currentId);
-  const defaultBg = (here && here.bg) || '';
-  bindElevatorBg(panel, defaultBg);
-  showElevatorBg(defaultBg);
+  bindElevatorBg(panel, '');
+  showElevatorBg('');
+  return panel;
+}
+
+// 一层里的房间就是几个选项：不再走地图，点哪个做哪个
+export function floorPanel(building, floor, s, blockedOf) {
+  const opts = floor.rooms.map((r) => {
+    const why = blockedOf ? blockedOf(r) : null;
+    const ap = r.ap || 0;
+    const attr = why ? 'disabled' : 'data-act="room" data-room="' + r.id + '"';
+    return '<button class="opt' + (why ? ' off' : '') + '" ' + attr + '>' +
+      '<span class="oicon">' + r.icon + '</span>' +
+      '<span class="obody"><b>' + esc(r.name) + '</b><i>' + esc(r.effect) + '</i>' +
+      '<em>' + esc(r.tagline || '') + '</em></span>' +
+      '<span class="otag">' + (why ? esc(why) : ap + ' 点') + '</span>' +
+      '</button>';
+  }).join('');
+  const html = `
+    <div class="elev floor-panel">
+      <div class="fhead">
+        <span class="flabel">${esc(floor.label)}</span>
+        <div>
+          <h2>${esc(building.full)} · ${esc(floor.name)}</h2>
+          <p class="sub">今天还剩 ${s.ap} 点行动点。选一件事做。</p>
+        </div>
+      </div>
+      <div class="opts">${opts || '<p class="sub">这一层还没有能做的事。</p>'}</div>
+      <div class="row">
+        <button class="btn" data-act="back">换个楼层</button>
+        <button class="btn" data-act="cancel">离开</button>
+      </div>
+    </div>`;
+  const panel = openModal(html, { cls: 'elev-panel' });
+  bindElevatorBg(panel, floor.bg || '');
+  showElevatorBg(floor.bg || '');
   return panel;
 }
 
