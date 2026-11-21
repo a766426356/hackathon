@@ -200,20 +200,22 @@ export function closeModal() {
   els.modal.innerHTML = '';
 }
 
-// 开场屏翻转落地之后的欢迎卡：先给身份（角色扮演），再给玩法。
+// 开场屏翻转落地之后的欢迎卡：先把「你是谁、来干嘛」说清楚，再给玩法和操作。
+// 文案分三层，别混在一起说：身份（body）、怎么玩（TEXTS.intro）、结算（body.note）。
 export function introPanel(hasSave) {
   const html = `
     <div class="intro">
-      <div class="tag">欢迎来到张江</div>
-      <h1>${esc(CONFIG.schoolName)}</h1>
-      <p class="sub">你的身份：这里的一名新生 · 只有七天</p>
-      <p class="body">欢迎你，访客。这七天你不是来参观的——你是这里的学生：白天上课、打球、跑圈，
-        晚上要么留着灯继续啃书，要么出门打一场。第七天期末考，考完你会拿到一张成绩单，
-        和一份由你这七天的行为写出来的人格报告。</p>
+      <div class="tag">张江校区 · 七天体验</div>
+      <h1>欢迎来到${esc(CONFIG.schoolName)}</h1>
+      <p class="sub">给访客的一次校园生活模拟</p>
+      <p class="body">接下来七天，你以一名新生的身份在这里生活：上课、自习、交朋友，
+        把平时路过却没进去过的门推开看看——我们想让你先替自己过一遍，再决定往后的日子怎么过。</p>
       <p class="body dim">${esc(TEXTS.intro)}</p>
+      <p class="body note">第七天是期末考。考完你会拿到一张成绩单，和一份把这七天写出来的人格报告。
+        不用怕走错，这里没有标准答案。</p>
       <ul class="rules">${TEXTS.introRules.map((r) => '<li>' + esc(r) + '</li>').join('')}</ul>
       <div class="row">
-        <button class="btn primary" data-act="start">入学 · 从第 1 天开始</button>
+        <button class="btn primary" data-act="start">开始这七天</button>
         ${hasSave ? '<button class="btn" data-act="resume">继续上次</button>' : ''}
       </div>
     </div>`;
