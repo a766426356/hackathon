@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>张江学园 · 七天</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%231b202b'/%3E%3Crect x='3' y='3' width='10' height='10' fill='%23e0b64a'/%3E%3C/svg%3E" />
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="hud-group">
+      <span class="chip day">第 <b id="hud-day">1</b> / 7 天</span>
+      <span class="chip where" id="hud-scene">校园</span>
+      <span class="chip ap" id="hud-ap">行动点 ●●●</span>
+    </div>
+    <div class="hud-group">
+      <span class="chip know">知识 <b id="hud-know">0</b></span>
+      <span class="chip mood">心情 <b id="hud-mood">60</b></span>
+      <span class="chip deck">牌组 <b id="hud-deck">0</b></span>
+      <span class="chip friend" id="hud-friend"></span>
+    </div>
+  </header>
+
+  <main id="stage">
+    <div id="scene">
+      <canvas id="game" width="768" height="480"></canvas>
+      <div id="labels"></div>
+      <div id="prompt" class="hidden">按 E 交互</div>
+      <div id="toast" class="hidden"></div>
+    </div>
+    <aside id="side">
+      <h3>手记</h3>
+      <ol id="log"></ol>
+      <div class="side-deck">
+        <h4>牌组 <span class="muted">— 白天记下的笔记</span></h4>
+        <ul id="deck"></ul>
+      </div>
+      <div class="side-foot">
+        <button id="btn-endday" class="btn small">结束白天 →</button>
+      </div>
+    </aside>
+  </main>
+
+  <div id="modal-root" class="hidden">
+    <div id="modal-backdrop"></div>
+    <div id="modal" class="panel"></div>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
