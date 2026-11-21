@@ -35,7 +35,8 @@ const ROOMS = {
     effect: '和一位朋友打一局：赢心情 +' + R.snooker.mood + ' / 友谊 +' + R.snooker.friend + '，输了也有少量（TA 今天还没和你聊过才行）',
   },
   piano: {
-    id: 'piano', name: '钢琴', icon: '🎹', action: 'piano', ap: 1, freeEntry: true,
+    id: 'piano', name: '钢琴', icon: '🎹', action: 'piano', ap: 1,
+    bg: 'assets/bg/wenyu-piano.jpg', freeEntry: true,
     tagline: '三个八度 · 无限弹',
     desc: '一架立式钢琴，琴盖是开的。没人管，你可以弹。',
     effect: '免费、随便弹；每天第一次弹满 ' + R.piano.notes + ' 个音：心情 +' + R.piano.mood + '（之后不再结算）',

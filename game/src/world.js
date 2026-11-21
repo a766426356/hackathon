@@ -11,6 +11,7 @@ const ZOOM = CAMPUS.zoom;
 const VIEW_W = MAP_W / ZOOM;
 const VIEW_H = MAP_H / ZOOM;
 const PLAYER_SCALE = CAMPUS.playerScale;
+const LEAD = 16; // 镜头朝向前瞻的像素数
 
 // 把行走矩形换到画布坐标系，只算一次
 const WALK = WALKABLE.map((r) => ({
@@ -46,6 +47,7 @@ export function createWorld(canvas) {
   let t = 0;
   // 镜头中心：平滑跟到玩家身上，并夹在图的边界内
   const cam = { x: player.x, y: player.y };
+  const lead = { x: 0, y: 0 }; // 镜头前瞻：朝哪走就先往哪偏一点
 
   function clampCam() {
     cam.x = Math.max(VIEW_W / 2, Math.min(MAP_W - VIEW_W / 2, cam.x));
@@ -92,10 +94,16 @@ export function createWorld(canvas) {
     player.x = Math.max(8, Math.min(MAP_W - 8, player.x));
     player.y = Math.max(8, Math.min(MAP_H - 8, player.y));
 
-    // 镜头缓缓跟过去，急停急转时不会晕
-    const follow = Math.min(1, dt * 10);
-    cam.x += (player.x - cam.x) * follow;
-    cam.y += (player.y - cam.y) * follow;
+    // 镜头跟得慢一点：先慢慢飘向玩家朝的那一侧（前瞻），再追上玩家，走起来有"镜头在追人"的手感
+    const leadX = player.dir === 'left' ? -LEAD : player.dir === 'right' ? LEAD : 0;
+    const leadY = player.dir === 'up' ? -LEAD * 0.7 : player.dir === 'down' ? LEAD * 0.7 : 0;
+    const leadK = Math.min(1, dt * 2.4);
+    lead.x += (leadX - lead.x) * leadK;
+    lead.y += (leadY - lead.y) * leadK;
+
+    const follow = Math.min(1, dt * 4.2); // 原来是 10，慢下来才有延迟感
+    cam.x += (player.x + lead.x - cam.x) * follow;
+    cam.y += (player.y + lead.y - cam.y) * follow;
     clampCam();
 
     near = null;
@@ -148,7 +156,7 @@ export function createWorld(canvas) {
       ctx.fillText('校园图载入中…', 24, 40);
     }
     drawMarkers();
-    drawPlayerSprite(ctx, player, PLAYER_SCALE);
+    drawPlayerSprite(ctx, player, PLAYER_SCALE, t);
 
     ctx.restore();
 
@@ -177,8 +185,9 @@ export function createWorld(canvas) {
   };
 }
 
-// 室内和室外共用同一个小人：换场景时不换画风，玩家不会觉得自己换了个人。
-export function drawPlayerSprite(ctx, player, scale = 1) {
+// 玩家小人：像素风，站着不动时有呼吸 + 眨眼 + 轻微晃身；走路时手臂和腿摆起来。
+// drawPlayerSprite(ctx, player, scale, time) —— time 是场景时钟，用来驱动待机动画。
+export function drawPlayerSprite(ctx, player, scale = 1, time = 0) {
   const px = Math.round(player.x);
   const py = Math.round(player.y);
   if (scale !== 1) {
@@ -187,35 +196,92 @@ export function drawPlayerSprite(ctx, player, scale = 1) {
     ctx.scale(scale, scale);
     ctx.translate(-px, -py);
   }
-  const bob = player.moving ? Math.sin(player.walk) * 1.5 : 0;
 
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  const walking = player.moving;
+  // 走路：腿和手臂跟着 walk 相位摆；待机：呼吸起伏 + 每 3.4 秒眨一次眼
+  const swing = walking ? Math.sin(player.walk) : 0;
+  const breathe = walking ? Math.sin(player.walk) * 1.5 : Math.sin(time * 1.9) * 0.9;
+  const sway = walking ? 0 : Math.sin(time * 1.1) * 0.7; // 站立时身体轻轻晃
+  const blink = !walking && time % 3.4 < 0.13;
+  const bob = breathe;
+
+  // 影子：待机时随呼吸微微缩放，看着像在"喘气"
+  const shadowR = walking ? 9 : 8.4 + Math.sin(time * 1.9) * 0.5;
+  ctx.fillStyle = 'rgba(0,0,0,0.24)';
   ctx.beginPath();
-  ctx.ellipse(px, py + 2, 9, 4, 0, 0, Math.PI * 2);
+  ctx.ellipse(px, py + 2, shadowR, 4, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  const step = player.moving ? Math.sin(player.walk) * 3 : 0;
+  // 腿：走路时前后交替，待机时并拢
+  const legA = py - 8 + Math.max(0, swing * 3) * (walking ? 1 : 0);
+  const legB = py - 8 + Math.max(0, -swing * 3) * (walking ? 1 : 0);
   ctx.fillStyle = '#2a2a35';
-  ctx.fillRect(px - 6, py - 8 + Math.max(0, step), 5, 8);
-  ctx.fillRect(px + 1, py - 8 + Math.max(0, -step), 5, 8);
+  ctx.fillRect(px - 6, legA, 5, 8);
+  ctx.fillRect(px + 1, legB, 5, 8);
+  // 鞋
+  ctx.fillStyle = '#15151c';
+  ctx.fillRect(px - 6, legA + 7, 5, 2);
+  ctx.fillRect(px + 1, legB + 7, 5, 2);
 
+  const bodyY = py - 20 + bob;
+  const bodyX = px + sway;
+
+  // 手臂：先画在身体后面，摆幅小一点
+  ctx.fillStyle = '#2b3a5c';
+  const armA = walking ? swing * 2.5 : Math.sin(time * 1.9 + 0.6) * 0.6;
+  ctx.fillRect(bodyX - 9, bodyY + 2 - armA, 2, 8);
+  ctx.fillRect(bodyX + 7, bodyY + 2 + armA, 2, 8);
+
+  // 校服 / 身体
   ctx.fillStyle = '#33456b';
-  ctx.fillRect(px - 7, py - 20 + bob, 14, 13);
+  ctx.fillRect(bodyX - 7, bodyY, 14, 13);
+  // 身体暗部（右侧）
+  ctx.fillStyle = '#2a3a5c';
+  ctx.fillRect(bodyX + 4, bodyY, 3, 13);
+  // 白领口 + 领带
   ctx.fillStyle = '#f2f2f6';
-  ctx.fillRect(px - 3, py - 20 + bob, 6, 4);
-
-  ctx.fillStyle = '#f3c9a3';
-  ctx.fillRect(px - 6, py - 31 + bob, 12, 11);
-  ctx.fillStyle = '#2a2118';
-  ctx.fillRect(px - 6, py - 31 + bob, 12, 4);
-
-  if (player.dir !== 'up') {
-    ctx.fillStyle = '#2a2118';
-    const ox = player.dir === 'left' ? -2 : player.dir === 'right' ? 2 : 0;
-    ctx.fillRect(px - 3 + ox, py - 26 + bob, 2, 2);
-    ctx.fillRect(px + 2 + ox, py - 26 + bob, 2, 2);
-  }
+  ctx.fillRect(bodyX - 4, bodyY, 8, 4);
+  ctx.fillStyle = '#8c3b45';
+  ctx.fillRect(bodyX - 1, bodyY + 3, 2, 6);
+  // 下摆一条深线
   ctx.fillStyle = '#1b1b1b';
-  ctx.fillRect(px - 7, py - 20 + bob, 14, 1);
+  ctx.fillRect(bodyX - 7, bodyY + 12, 14, 1);
+
+  // 头
+  const headY = py - 31 + bob;
+  const headX = px + sway;
+  ctx.fillStyle = '#f3c9a3';
+  ctx.fillRect(headX - 6, headY, 12, 11);
+  // 头发：上面一块 + 两侧鬓角 + 一撮高光
+  ctx.fillStyle = '#2a2118';
+  ctx.fillRect(headX - 6, headY, 12, 4);
+  ctx.fillRect(headX - 6, headY + 4, 2, 3);
+  ctx.fillRect(headX + 4, headY + 4, 2, 3);
+  ctx.fillStyle = '#3d3025';
+  ctx.fillRect(headX - 4, headY + 1, 6, 1);
+
+  // 脸：眨眼时眼睛压成一条线；朝上走只露后脑勺，不画眼睛
+  if (player.dir !== 'up') {
+    const ox = player.dir === 'left' ? -2 : player.dir === 'right' ? 2 : 0;
+    ctx.fillStyle = '#2a2118';
+    if (blink) {
+      ctx.fillRect(headX - 3 + ox, headY + 7, 2, 1);
+      ctx.fillRect(headX + 2 + ox, headY + 7, 2, 1);
+    } else {
+      ctx.fillRect(headX - 3 + ox, headY + 6, 2, 2);
+      ctx.fillRect(headX + 2 + ox, headY + 6, 2, 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(headX - 3 + ox, headY + 6, 1, 1);
+      ctx.fillRect(headX + 2 + ox, headY + 6, 1, 1);
+    }
+    // 腮红一点点，像素小人看起来不至于太硬
+    ctx.fillStyle = 'rgba(226,140,120,0.45)';
+    ctx.fillRect(headX - 5 + ox, headY + 8, 2, 1);
+    ctx.fillRect(headX + 3 + ox, headY + 8, 2, 1);
+    // 嘴：走路时张开一点
+    ctx.fillStyle = '#8a5c48';
+    ctx.fillRect(headX - 1 + ox, headY + 9, 2, walking ? 2 : 1);
+  }
+
   if (scale !== 1) ctx.restore();
 }
