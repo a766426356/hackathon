@@ -2,7 +2,7 @@
 
 import { CONFIG, INTERACTABLES, NPCS, TEXTS } from '../data.js';
 import { cardDamage } from './battle.js';
-import { moodMult } from './state.js';
+import { moodMult, examParts, examGpa, playerMaxHp } from './state.js';
 
 export const els = {};
 
@@ -81,9 +81,15 @@ export function setNear(item) {
 
 export function renderHUD(s) {
   els.hudDay.textContent = String(Math.min(s.day, s.maxDay));
+  // 5 点 = 2 节必修（每天开头已自动上完）+ 3 点自由
+  const req = CONFIG.requiredCourses;
+  const free = CONFIG.totalAp - req;
   const dots = [];
-  for (let i = 0; i < CONFIG.startAp; i++) dots.push('<i class="' + (i < s.ap ? 'on' : '') + '"></i>');
+  for (let i = 0; i < req; i++) dots.push('<i class="req"></i>');
+  for (let i = 0; i < free; i++) dots.push('<i class="' + (i < s.ap ? 'on' : '') + '"></i>');
   els.hudAp.innerHTML = '行动点 <span class="ap-dots">' + dots.join('') + '</span>';
+  els.hudAp.title = '每天 ' + CONFIG.totalAp + ' 点：' + req + ' 节必修大课（已自动上完）+ ' +
+    free + ' 点自由支配' + (s.ap < free ? '（崩过一次，今天自由点减少）' : '');
   els.hudKnow.textContent = String(s.knowledge);
   els.hudMood.textContent = String(s.mood);
   els.hudMood.parentElement.classList.toggle('low', s.mood <= 25);
@@ -97,8 +103,14 @@ export function renderHUD(s) {
   els.endDay.disabled = s.phase !== 'day';
 }
 
+// 牌组里每张牌都挂上「它今晚打多少」，属性涨了能立刻看见
 export function renderDeck(s) {
-  const items = s.deck.map((c) => '<li>' + esc(c.name) + ' <b>' + c.power + '</b></li>');
+  const items = s.deck.map((c) => {
+    const dmg = cardDamage(s, { kind: 'attack', power: c.power });
+    return '<li title="' + esc(c.name + '：power ' + c.power + ' × (0.8 + 知识 ' + s.knowledge +
+      '/100) = ' + dmg + ' 伤害') + '">' + esc(c.name) + ' <b>' + c.power + '</b>' +
+      '<em class="dmg">' + dmg + '</em></li>';
+  });
   if (s.supportUnlocked) items.push('<li class="support">好友支援</li>');
   els.deck.innerHTML = items.length
     ? items.join('')
@@ -169,7 +181,7 @@ export function nightPanel(s) {
         <button class="choice" data-act="study">
           <span class="ct">${TEXTS.nightStudy}</span>
           <span class="cd">${TEXTS.nightStudyDesc}</span>
-          <span class="cnum">知识 +${Math.round(CONFIG.nightStudyGain * moodMult(s))} · 心情 −${CONFIG.nightStudyMoodCost}</span>
+          <span class="cnum">知识 +${Math.ceil(CONFIG.nightStudyGain * moodMult(s))} · 心情 −${CONFIG.nightStudyMoodCost}</span>
         </button>
         <button class="choice" data-act="fight">
           <span class="ct">${TEXTS.nightFight}</span>
@@ -232,7 +244,7 @@ export function endingPanel(s) {
       <table class="stats">
         <tr><th>GPA</th><td class="big">${s.gpa.toFixed(2)}</td></tr>
         <tr><th>期末知识</th><td>${s.knowledge}</td></tr>
-        <tr><th>心情</th><td>${s.mood}</td></tr>
+        <tr><th>心境 / 体质</th><td>${s.mood} / ${s.physique}</td></tr>
         <tr><th>牌组</th><td>${s.deck.length} 张 / 总威力 ${total}</td></tr>
         <tr><th>夜战胜场</th><td>${s.battleWins}</td></tr>
         <tr><th>友谊</th><td>${Object.keys(NPCS).map((id) => NPCS[id].name + ' ' + s.friend[id]).join(' · ')}</td></tr>
@@ -242,6 +254,98 @@ export function endingPanel(s) {
       </div>
     </div>`;
   return openModal(html, { cls: 'ending-panel' });
+}
+
+// ---------------------------------------------------------------- 角色属性面板
+// 上面三格是「今晚用得上的属性」，下面是「第 7 天结算的指标」。
+// 每格悬停展开算式：这个数字到底换成了多少伤害 / 多少血。
+export function characterPanel(s) {
+  const kMult = 0.8 + s.knowledge / 100;
+  const samplePower = s.deck.length ? Math.max(...s.deck.map((c) => c.power)) : 10;
+  const sampleDmg = cardDamage(s, { kind: 'attack', power: samplePower });
+  const nextDmg = cardDamage({ ...s, knowledge: s.knowledge + CONFIG.studyGain }, { kind: 'attack', power: samplePower });
+  const hp = playerMaxHp(s);
+  const nextHp = CONFIG.battle.playerBaseHp +
+    Math.floor((s.physique + CONFIG.fieldPhysique) * CONFIG.hpPerPhysique);
+  const mMult = moodMult(s);
+  const gainNow = Math.ceil(CONFIG.studyGain * mMult);
+  const gainLow = Math.ceil(CONFIG.studyGain * (0.5 + 40 * 0.01));
+  const g = examParts(s);
+  const gpa = examGpa(s);
+  const hits = Math.floor(hp / 6); // 一般怪 atk 5–7，按 6 算能扛几下
+
+  const tip = (lines) => '<div class="ctip">' + lines.map((l) => '<p>' + l + '</p>').join('') + '</div>';
+
+  const todayBits = [];
+  todayBits.push(s.today.courses
+    ? '必修 ' + CONFIG.requiredCourses + ' 节 · 已上完'
+    : '必修 ' + CONFIG.requiredCourses + ' 节 · 还没上');
+  todayBits.push('自由行动点 ' + s.ap + ' / ' + CONFIG.freeAp);
+  if (!s.today.board) todayBits.push('公告板 空着');
+  if (!s.today.doubt) todayBits.push('答疑角 可去');
+  if (!s.today.pingpong) todayBits.push('乒乓球 可打');
+  if (!s.today.piano) todayBits.push('钢琴 可弹');
+  if (s.mood <= CONFIG.room.pray.moodMax && !s.today.pray) todayBits.push('祷告室 进得去');
+
+  const html = `
+    <div class="char">
+      <h2>角色</h2>
+      <p class="sub">三个属性各管一件事，悬停看换算</p>
+
+      <div class="cstats">
+        <div class="cstat know">
+          <span class="csn">知识</span>
+          <span class="csv">${s.knowledge}</span>
+          <span class="cse">伤害 ×${kMult.toFixed(2)}</span>
+          ${tip([
+            '<b>夜战伤害</b>　power × (0.8 + 知识/100)',
+            '最强的一张牌 power ' + samplePower + ' → <b>' + sampleDmg + ' 伤害</b>',
+            '再上一节课（+' + CONFIG.studyGain + '）→ <b>' + nextDmg + ' 伤害</b>',
+            'GPA 贡献　3 × ' + s.knowledge + ' / ' + CONFIG.examKnowledgeDiv + ' = <b>+' + g.knowledge.toFixed(2) + '</b>',
+          ])}
+        </div>
+
+        <div class="cstat mood">
+          <span class="csn">心境</span>
+          <span class="csv">${s.mood}</span>
+          <span class="cse">白天收益 ×${mMult.toFixed(2)}</span>
+          ${tip([
+            '<b>只影响白天，不进夜战</b>　倍率 = 0.5 + 心境/100（向上取整）',
+            '现在：一节大课 ' + CONFIG.studyGain + ' → <b>' + gainNow + ' 知识</b>',
+            '心境掉到 40：→ <b>' + gainLow + ' 知识</b>（少 ' + (gainNow - gainLow) + '）',
+            '归零会崩一次，第二天只剩 ' + CONFIG.collapseAp + ' 个自由点',
+          ])}
+        </div>
+
+        <div class="cstat phys">
+          <span class="csn">体质</span>
+          <span class="csv">${s.physique}</span>
+          <span class="cse">血量 ${hp}</span>
+          ${tip([
+            '<b>血量上限</b>　' + CONFIG.battle.playerBaseHp + ' + ⌊体质 × ' + CONFIG.hpPerPhysique + '⌋',
+            '现在：' + CONFIG.battle.playerBaseHp + ' + ⌊' + s.physique + ' × ' + CONFIG.hpPerPhysique + '⌋ = <b>' + hp + '</b>',
+            '跑一次操场（+' + CONFIG.fieldPhysique + '）→ <b>' + nextHp + ' HP</b>（+' + (nextHp - hp) + '）',
+            '按敌人 atk 6 算，现在能扛 <b>' + hits + ' 下</b>',
+          ])}
+        </div>
+      </div>
+
+      <h3 class="csec">第 7 天结算</h3>
+      <table class="stats">
+        <tr><th>预估 GPA</th><td class="big">${gpa.toFixed(2)}</td></tr>
+        <tr><th>　基础 / 知识 / 心境</th><td class="muted">${g.base.toFixed(2)} + ${g.knowledge.toFixed(2)} + ${g.mood.toFixed(2)}</td></tr>
+        <tr><th>夜战胜场</th><td>${s.battleWins}（学神要 ≥ ${CONFIG.endingGreatWins}）</td></tr>
+        <tr><th>牌组</th><td>${s.deck.length} 张 · 总威力 ${s.deck.reduce((n, c) => n + c.power, 0)}</td></tr>
+        <tr><th>友谊</th><td>${Object.keys(NPCS).map((id) =>
+          NPCS[id].name + ' ' + s.friend[id] + (s.friend[id] >= CONFIG.friendSupportAt ? '·支援' : '')).join(' · ')}</td></tr>
+      </table>
+
+      <h3 class="csec">今天还能做什么</h3>
+      <ul class="clist">${todayBits.map((b) => '<li>' + esc(b) + '</li>').join('')}</ul>
+
+      <div class="row"><button class="btn" data-act="close">合上</button></div>
+    </div>`;
+  return openModal(html, { cls: 'char-panel' });
 }
 
 // 用 onclick 覆盖而不是 addEventListener：每次重绘弹窗都重新绑定，不会叠加

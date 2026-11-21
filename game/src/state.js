@@ -2,8 +2,8 @@
 
 import { CONFIG } from '../data.js';
 
-export const SAVE_KEY = 'zjxy.save.v3';
-export const SAVE_VERSION = 3;
+export const SAVE_KEY = 'zjxy.save.v4';
+export const SAVE_VERSION = 4;
 
 // 每天重置的「今天用过了没」：一处定义，创建存档和翻页都用它。
 export function freshToday() {
@@ -14,6 +14,7 @@ export function freshToday() {
     pingpong: false,
     piano: false,
     pray: false,
+    courses: false, // 今天的 2 节必修课结算过没有
   };
 }
 
@@ -48,9 +49,10 @@ export function createState(seed) {
     day: 1,
     maxDay: CONFIG.maxDay,
     phase: 'day', // day | night | exam | ending
-    ap: CONFIG.startAp,
+    ap: CONFIG.freeAp,
     mood: CONFIG.startMood,
     knowledge: 0,
+    physique: CONFIG.startPhysique,
     friend: { lin: 0, chen: 0, zhou: 0 },
     deck: [],
     supportUnlocked: false,
@@ -75,16 +77,23 @@ export function maxFriend(s) {
   return Math.max(0, ...Object.values(s.friend));
 }
 
+// 血量只由体质决定：知识管伤害、心境管白天收益，三件事互不重叠
 export function playerMaxHp(s) {
-  return CONFIG.battle.playerBaseHp +
-    Math.floor(s.knowledge / CONFIG.battle.hpPerKnowledge) +
-    Math.floor(s.mood / CONFIG.battle.hpPerMood);
+  return CONFIG.battle.playerBaseHp + Math.floor(s.physique * CONFIG.hpPerPhysique);
+}
+
+// 面板用的分项：GPA 里知识贡献多少、心境贡献多少
+export function examParts(s) {
+  return {
+    base: CONFIG.examBase,
+    knowledge: 3 * (s.knowledge / CONFIG.examKnowledgeDiv),
+    mood: ((s.mood - 50) / 100) * CONFIG.examMoodScale,
+  };
 }
 
 export function examGpa(s) {
-  const raw = CONFIG.examBase +
-    3 * (s.knowledge / CONFIG.examKnowledgeDiv) +
-    ((s.mood - 50) / 100) * CONFIG.examMoodScale;
+  const p = examParts(s);
+  const raw = p.base + p.knowledge + p.mood;
   return Math.round(clamp(raw, 0, CONFIG.gpaMax) * 100) / 100;
 }
 
@@ -109,6 +118,8 @@ export function loadGame() {
     const s = JSON.parse(raw);
     if (!s || s.version !== SAVE_VERSION) return null;
     if (!s.today) s.today = freshToday();
+    if (s.today.courses === undefined) s.today.courses = false;
+    if (s.physique === undefined) s.physique = CONFIG.startPhysique;
     if (!s.scene) s.scene = 'campus';
     return s;
   } catch (e) {

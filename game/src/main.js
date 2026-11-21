@@ -34,6 +34,14 @@ function boot() {
     if (!started || !state || state.phase !== 'day') return;
     openNight();
   });
+  document.getElementById('btn-char').addEventListener('click', () => {
+    if (!started || !state) return;
+    if (modalOpen()) return;
+    world.keys.clear();
+    indoor.keys.clear();
+    ui.characterPanel(state);
+    ui.bindModal({ close: () => ui.closeModal() });
+  });
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', (e) => {
@@ -66,8 +74,10 @@ function startNew() {
   pianoState = null;
   started = true;
   ui.closeModal();
+  rules.requiredCourses(state); // 第 1 天的两节必修课
   enterScene('campus');
   renderAll();
+  ui.toast('第 1 天的两节必修课上完了，剩下 ' + CONFIG.freeAp + ' 个自由行动点。');
   save();
 }
 

@@ -38,12 +38,28 @@ function gainCard(s) {
 }
 
 // ---------------------------------------------------------------- 白天行动
+// 每天 2 节必修大课：不占自由行动点，两节合成一页完整笔记（所以牌组不会因为天数翻倍而爆掉）
+export function requiredCourses(s) {
+  if (s.today.courses) return no('今天的必修课已经上完了。');
+  s.today.courses = true;
+  const n = CONFIG.requiredCourses;
+  const gain = CONFIG.requiredCourseGain * n;
+  addKnowledge(s, gain);
+  s.mood = clampMood(s.mood - CONFIG.requiredCourseMoodCost * n);
+  s.stats.studies += n;
+  const cardMsg = gainCard(s);
+  const msg = '必修的两节课上完了：知识 +' + gain + '，心情 −' +
+    CONFIG.requiredCourseMoodCost * n + '。' + cardMsg;
+  hhLog(s, msg, 'study');
+  return ok(msg);
+}
+
 export function study(s) {
   if (!hasAp(s)) return no('今天没有行动点了。');
   spendAp(s);
   const focus = s.focus;
   s.focus = false;
-  const gain = Math.round(CONFIG.studyGain * moodMult(s) * (focus ? CONFIG.studyFocusMult : 1));
+  const gain = Math.ceil(CONFIG.studyGain * moodMult(s) * (focus ? CONFIG.studyFocusMult : 1));
   addKnowledge(s, gain);
   s.mood = clampMood(s.mood - CONFIG.studyMoodCost);
   s.stats.studies += 1;
@@ -78,7 +94,7 @@ export function social(s, npcId) {
   if (s.today.talked[npcId]) return no('今天已经和' + npc.name + '聊过了，再说就尬了。');
   spendAp(s);
   s.today.talked[npcId] = true;
-  const gain = Math.round(CONFIG.socialGain * moodMult(s));
+  const gain = Math.ceil(CONFIG.socialGain * moodMult(s));
   s.friend[npcId] = clamp(s.friend[npcId] + gain, 0, 100);
   // 社交带来的快乐是递减的：心情越高，加成越少
   const moodUp = Math.max(2, Math.round(CONFIG.socialMood * (1 - s.mood / 120)));
@@ -95,9 +111,11 @@ export function field(s) {
   if (!hasAp(s)) return no('今天没有行动点了。');
   spendAp(s);
   s.mood = clampMood(s.mood + CONFIG.fieldMood);
+  s.physique = clamp(s.physique + CONFIG.fieldPhysique, 0, CONFIG.physiqueCap);
   s.focus = true;
-  const msg = '在操场跑了两圈：心情 +' + CONFIG.fieldMood + '，获得「专注」（下次自习 ×' +
-    CONFIG.studyFocusMult + '）。';
+  const msg = '在操场跑了两圈：心情 +' + CONFIG.fieldMood + '，体质 +' + CONFIG.fieldPhysique +
+    '（血量上限 ' + (CONFIG.battle.playerBaseHp + Math.floor(s.physique * CONFIG.hpPerPhysique)) +
+    '），获得「专注」（下次自习 ×' + CONFIG.studyFocusMult + '）。';
   hhLog(s, msg, 'field');
   return ok(msg);
 }
@@ -237,7 +255,7 @@ export function pray(s) {
 // ---------------------------------------------------------------- 夜晚
 export function nightStudy(s) {
   if (s.phase !== 'night') return no('现在不是晚上。');
-  const gain = Math.round(CONFIG.nightStudyGain * moodMult(s));
+  const gain = Math.ceil(CONFIG.nightStudyGain * moodMult(s));
   addKnowledge(s, gain);
   s.mood = clampMood(s.mood - CONFIG.nightStudyMoodCost);
   s.stats.nights += 1;
@@ -271,20 +289,21 @@ export function endDay(s) {
   s.today = freshToday();
   s.scene = 'campus';
   s.scenePos = null;
-  s.ap = CONFIG.startAp;
+  s.ap = CONFIG.freeAp;
   s.focus = false;
 
   if (collapsed) {
     s.collapsedOnce = true;
     s.mood = CONFIG.collapseMood;
     s.ap = CONFIG.collapseAp;
-    hhLog(s, '心情见底，你崩了一次：第二天只剩 ' + CONFIG.collapseAp + ' 个行动点。', 'warn');
+    hhLog(s, '心情见底，你崩了一次：第二天只剩 ' + CONFIG.collapseAp + ' 个自由行动点。', 'warn');
   }
 
   if (s.day >= s.maxDay) {
     s.phase = 'exam';
   } else {
     s.phase = 'day';
+    requiredCourses(s); // 新的一天：先替玩家把两节必修课上了
   }
   return collapsed;
 }

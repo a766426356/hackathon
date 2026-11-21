@@ -3,14 +3,27 @@
 export const CONFIG = {
   schoolName: '张江学园',
   maxDay: 7, // 第 7 天考试
-  startAp: 3,
+
+  // 每天 5 个行动点 = 2 节必修大课（每天开头自动结算，不占自由点）+ 3 点自由支配
+  requiredCourses: 2,
+  freeAp: 3,
+  totalAp: 5,
+
   startMood: 60,
   moodMin: 0,
   moodMax: 100,
 
+  // 三属性各只管一件事：知识 → 战斗伤害；心境 → 白天收益倍率；体质 → 血量
+  startPhysique: 6,
+  hpPerPhysique: 1.2,
+  physiqueCap: 60,
+
   studyGain: 7,
   studyMoodCost: 4,
   studyFocusMult: 1.5,
+  // 必修课给固定的一小份（不受心境影响）：必修不是选择，不该拿它奖励高心情
+  requiredCourseGain: 3,
+  requiredCourseMoodCost: 2,
   deckCap: 8,
 
   socialGain: 12,
@@ -18,6 +31,7 @@ export const CONFIG = {
   friendSupportAt: 40,
 
   fieldMood: 12,
+  fieldPhysique: 4,
   restMood: 12,
   boardKnowledge: 4,
   boardFriend: 5,
@@ -35,7 +49,7 @@ export const CONFIG = {
   collapseAp: 1,
 
   examBase: 1.0,
-  examKnowledgeDiv: 130,
+  examKnowledgeDiv: 170,
   examMoodScale: 0.5,
   gpaMax: 4.3,
 
@@ -48,8 +62,6 @@ export const CONFIG = {
     handSize: 3,
     enemyHp: 38,
     playerBaseHp: 30,
-    hpPerKnowledge: 6,
-    hpPerMood: 8,
     ddlRound: 3,
     ddlMult: 2,
     fillerPower: 7,
@@ -170,15 +182,16 @@ export const ENEMIES = [
 
 // ---------------------------------------------------------------- 文案
 export const TEXTS = {
-  intro: '张江学园的第七天是期末。白天你有三个行动点：进楼上课、找人打球、去操场跑两圈。' +
-    '走进 CDS-1 或文娱楼，先到电梯厅，再选楼层——楼层之间走动不花行动点，' +
-    '只有真的做一件事才花。晚上只能选一件事：继续深造，或者去打一只占位怪物。' +
-    '你记下的每一行笔记，都会变成晚上能打出去的牌。',
+  intro: '张江学园的第七天是期末。每天两节大课是必上的，除此之外你还有三个行动点，' +
+    '可以进楼上课、找人打球、去操场跑两圈。走进 CDS-1 或文娱楼，先到电梯厅，再选楼层' +
+    '——楼层之间走动不花行动点，只有真的做一件事才花。晚上只能选一件事：继续深造，' +
+    '或者去打一只占位怪物。你记下的每一行笔记，都会变成晚上能打出去的牌。',
   introRules: [
     'WASD / 方向键走路，E 或空格交互，也可以直接点标签。',
+    '每天 5 个行动点：2 节必修大课自动结算，剩下 3 点自己分配。',
+    '三属性各管一件事：知识 → 夜战伤害；心境 → 白天收益；体质 → 血量上限。',
     '进楼先到电梯厅，电梯面板上标着每层有什么；层间移动 0 行动点。',
-    '房间会先弹确认面板：看清代价再点「开始」。',
-    '每天 3 点行动点，用完自动进入夜晚。心情是乘数，同时决定学习收益和战斗伤害。',
+    '房间会先弹确认面板：看清代价再点「开始」。点右侧「角色」看自己的属性换算。',
   ],
   nightTitle: '夜晚',
   nightStudy: '宿舍深造',

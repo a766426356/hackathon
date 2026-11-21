@@ -12,6 +12,7 @@ const LIMIT = 600;
 function checkInvariants(s, tag) {
   assert.ok(s.mood >= 0 && s.mood <= 100, tag + ': mood 越界 ' + s.mood);
   assert.ok(s.knowledge >= 0 && s.knowledge <= 150, tag + ': knowledge 越界 ' + s.knowledge);
+  assert.ok(s.physique >= 0 && s.physique <= CONFIG.physiqueCap, tag + ': physique 越界 ' + s.physique);
   assert.ok(Number.isFinite(s.knowledge) && Number.isFinite(s.mood), tag + ': NaN');
   assert.ok(s.deck.length <= CONFIG.deckCap, tag + ': 牌组超上限 ' + s.deck.length);
   assert.ok(s.day >= 1 && s.day <= s.maxDay, tag + ': day 越界 ' + s.day);
@@ -22,12 +23,13 @@ function checkInvariants(s, tag) {
 
 function dayActions(s, strategy) {
   // strategy: 'study' 只学习 / 'mixed' 学习+社交+操场 / 'social' 只社交 / 'lazy' 白天躺平
+  // 「第一件事」判定用 freeAp：必修课不占自由点，所以自由点满格就是一天刚开始
   const npcs = ['lin', 'chen', 'zhou'];
   let guard = 0;
   while (s.phase === 'day' && s.ap > 0 && guard++ < 20) {
     if (strategy === 'smart') {
       if (s.mood < 45) rules.field(s);
-      else if (s.day % 2 === 0 && s.ap === CONFIG.startAp) rules.social(s, 'lin');
+      else if (s.day % 2 === 0 && s.ap === CONFIG.freeAp) rules.social(s, 'lin');
       else rules.study(s);
     } else if (strategy === 'lazy') {
       rules.rest(s);
@@ -44,7 +46,7 @@ function dayActions(s, strategy) {
       if (!s.today.piano) rules.piano(s, 4);
       else if (!s.today.pingpong) rules.pingpong(s, 'chen');
       else rules.studyroom(s);
-    } else if (strategy === 'mixed' && s.day % 2 === 0 && s.ap === CONFIG.startAp) {
+    } else if (strategy === 'mixed' && s.day % 2 === 0 && s.ap === CONFIG.freeAp) {
       rules.social(s, 'lin');
     } else if (strategy === 'mixed' && s.ap === 1 && s.mood < 45) {
       rules.field(s);
@@ -78,6 +80,8 @@ function night(s, strategy) {
 export function playOne(seed, strategy) {
   const s = createState(seed);
   s.phase = 'day';
+  rules.requiredCourses(s); // 第 1 天的两节必修课（之后每天由 endDay 自动补）
+  assert.ok(s.today.courses, '第 1 天必修课没有结算');
   let steps = 0;
   while (s.phase !== 'ending' && steps++ < LIMIT) {
     if (s.phase === 'day') {
