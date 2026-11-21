@@ -8,6 +8,7 @@ import { entriesOf, placeOf, effectLine } from './calendar.js';
 import { lootTotals, lootStack, lootEffectText, pct as pctText } from './loot.js';
 import { buildPersona } from './persona.js';
 import { sfx } from './audio.js';
+import { localize } from './i18n.js';
 
 export const els = {};
 
@@ -33,6 +34,7 @@ export function initUI() {
   els.hudScene = document.getElementById('hud-scene');
   els.flash = document.getElementById('flash');
   buildLabels();
+  localize(document.body); // static markup in index.html carries the same English copy
 }
 
 // Interactables of the current scene: the campus uses INTERACTABLES (pixel coords), a building uses that floor's spots (grid coords)
@@ -105,6 +107,7 @@ export function setNear(item) {
   if (itemAt) {
     els.prompt.textContent = 'E · ' + itemAt.name + ' — ' + (itemAt.hint || 'push the door open');
     els.prompt.classList.remove('hidden');
+    localize(els.prompt);
   } else {
     els.prompt.classList.add('hidden');
   }
@@ -118,7 +121,7 @@ export function renderHUD(s) {
   const dots = [];
   for (let i = 0; i < req; i++) dots.push('<i class="req"></i>');
   for (let i = 0; i < free; i++) dots.push('<i class="' + (i < s.ap ? 'on' : '') + '"></i>');
-  els.hudAp.innerHTML = 'AP <span class="ap-dots">' + dots.join('') + '</span>';
+  els.hudAp.innerHTML = '<i class="lbl" data-zh="行动点">AP</i> <span class="ap-dots">' + dots.join('') + '</span>';
   els.hudAp.title = 'Each day ' + CONFIG.totalAp + ' AP: ' + req + ' required lectures (auto-attended) + ' +
     free + ' flexible' + (s.ap < free ? ' (collapsed once, fewer free AP today)' : '');
   els.hudKnow.textContent = String(s.knowledge);
@@ -152,6 +155,7 @@ export function renderAll(s) {
   renderHUD(s);
   renderLog(s);
   renderDeck(s);
+  localize(document.body);
 }
 
 export function renderLog(s) {
@@ -169,6 +173,7 @@ let toastTimer = 0;
 export function toast(msg, kind) {
   els.toast.innerHTML = escapeHtml(msg);
   els.toast.className = 'show ' + (kind || '');
+  localize(els.toast);
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { els.toast.className = 'hidden'; }, 2600);
 }
@@ -185,6 +190,7 @@ export function openModal(html, opts = {}) {
   els.modal.className = 'panel ' + (opts.cls || '');
   els.modal.innerHTML = html;
   els.modalRoot.classList.remove('hidden');
+  localize(els.modal);
   return els.modal;
 }
 

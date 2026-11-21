@@ -16,6 +16,8 @@
 //   after     the whole layer fades out and leaves the DOM
 // prefers-reduced-motion skips the flip entirely and keeps a single 320ms fade.
 
+import { toggleLang, langLabel, localize } from './i18n.js';
+
 const FLIP_MS = 980;
 const OUT_MS = 320;
 
@@ -50,8 +52,17 @@ export function showTitleScreen() {
         </div>
       </div>
     </div>
-    <div class="ts-gate"></div>`;
+    <div class="ts-gate"></div>
+    <button class="ts-lang" type="button"></button>`;
   document.body.appendChild(root);
+
+  const langBtn = root.querySelector('.ts-lang');
+  langBtn.textContent = langLabel();
+  langBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleLang();
+  });
+  localize(root);
 
   return new Promise((resolve) => {
     const btn = root.querySelector('.ts-start');

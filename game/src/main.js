@@ -8,6 +8,7 @@ import * as rules from './rules.js';
 import * as battle from './battle.js';
 import * as ui from './ui.js';
 import { showTitleScreen } from './intro.js';
+import { toggleLang, langLabel } from './i18n.js';
 import { createWorld } from './world.js';
 import { buildingOf, floorByLevel } from './interiors.js';
 import { eventSpots } from './calendar.js';
@@ -58,6 +59,17 @@ function boot() {
     if (!started || !state) return;
     openCharacter();
   });
+
+  // Language switch. setLang writes localStorage and reloads, so every render path
+  // runs once in the new language and nothing can be left half-translated.
+  const langBtn = document.getElementById('btn-lang');
+  if (langBtn) {
+    langBtn.textContent = langLabel();
+    langBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleLang();
+    });
+  }
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', (e) => world.keys.delete(e.key.toLowerCase()));

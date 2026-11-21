@@ -11,15 +11,16 @@
 <div id="app">
   <header id="hud">
     <div class="hud-group">
-      <span class="chip day">Day <b id="hud-day">1</b> / 7</span>
+      <span class="chip day"><i class="lbl" data-zh="第">Day</i> <b id="hud-day">1</b><i class="lbl" data-zh=" / 7 天"> / 7</i></span>
       <span class="chip where" id="hud-scene">Campus</span>
       <span class="chip ap" id="hud-ap">AP ●●●</span>
     </div>
     <div class="hud-group">
-      <span class="chip know">Knowledge <b id="hud-know">0</b></span>
-      <span class="chip mood">Mood <b id="hud-mood">60</b></span>
-      <span class="chip deck">Deck <b id="hud-deck">0</b></span>
+      <span class="chip know"><i class="lbl" data-zh="知识">Knowledge</i> <b id="hud-know">0</b></span>
+      <span class="chip mood"><i class="lbl" data-zh="心境">Mood</i> <b id="hud-mood">60</b></span>
+      <span class="chip deck"><i class="lbl" data-zh="牌组">Deck</i> <b id="hud-deck">0</b></span>
       <span class="chip friend" id="hud-friend"></span>
+      <button class="chip lang" id="btn-lang" type="button" title="Switch language / 切换语言">中文</button>
     </div>
   </header>
 
@@ -31,15 +32,15 @@
       <div id="toast" class="hidden"></div>
     </div>
     <aside id="side">
-      <h3>Journal</h3>
+      <h3 data-zh="手记">Journal</h3>
       <ol id="log"></ol>
       <div class="side-deck">
-        <h4>Deck <span class="muted">— notes taken in daylight</span></h4>
+        <h4><i class="lbl" data-zh="牌组">Deck</i> <span class="muted" data-zh="— 白天记下的笔记">— notes taken in daylight</span></h4>
         <ul id="deck"></ul>
       </div>
       <div class="side-foot">
-        <button id="btn-char" class="btn small">Character</button>
-        <button id="btn-endday" class="btn small">End Day →</button>
+        <button id="btn-char" class="btn small" data-zh="角色">Character</button>
+        <button id="btn-endday" class="btn small" data-zh="结束白天 →">End Day →</button>
       </div>
     </aside>
   </main>
