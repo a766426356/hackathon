@@ -1,9 +1,11 @@
 // rules.js — 行动结算 / 夜晚推进 / 考试。纯函数，可在 node 里直接跑（tests/sim.mjs 依赖）。
 
-import { CONFIG, TOPICS, NPCS } from '../data.js';
+import { CONFIG, TOPICS, NPCS, ROOMMATE, LOOT, LOOT_WEIGHT } from '../data.js';
 import {
-  clamp, clampMood, moodMult, maxFriend, examGpa, endingOf, nextRandom, hhLog, freshToday,
+  clamp, clampMood, moodMult, maxFriend, examGpa, endingOf, nextRandom, hhLog, freshToday, playerMaxHp,
 } from './state.js';
+import { activeEntry, expirePast, effectLine, placeOf } from './calendar.js';
+import { lootEffectText, lootCapped } from './loot.js';
 
 const KNOWN_CAP = 150;
 
@@ -38,12 +40,28 @@ function gainCard(s) {
 }
 
 // ---------------------------------------------------------------- 白天行动
+// 每天 2 节必修大课：不占自由行动点，两节合成一页完整笔记（所以牌组不会因为天数翻倍而爆掉）
+export function requiredCourses(s) {
+  if (s.today.courses) return no('今天的必修课已经上完了。');
+  s.today.courses = true;
+  const n = CONFIG.requiredCourses;
+  const gain = CONFIG.requiredCourseGain * n;
+  addKnowledge(s, gain);
+  s.mood = clampMood(s.mood - CONFIG.requiredCourseMoodCost * n);
+  s.stats.studies += n;
+  const cardMsg = gainCard(s);
+  const msg = '必修的两节课上完了：知识 +' + gain + '，心境 −' +
+    CONFIG.requiredCourseMoodCost * n + '。' + cardMsg;
+  hhLog(s, msg, 'study');
+  return ok(msg);
+}
+
 export function study(s) {
   if (!hasAp(s)) return no('今天没有行动点了。');
   spendAp(s);
   const focus = s.focus;
   s.focus = false;
-  const gain = Math.round(CONFIG.studyGain * moodMult(s) * (focus ? CONFIG.studyFocusMult : 1));
+  const gain = Math.ceil(CONFIG.studyGain * moodMult(s) * (focus ? CONFIG.studyFocusMult : 1));
   addKnowledge(s, gain);
   s.mood = clampMood(s.mood - CONFIG.studyMoodCost);
   s.stats.studies += 1;
@@ -78,7 +96,7 @@ export function social(s, npcId) {
   if (s.today.talked[npcId]) return no('今天已经和' + npc.name + '聊过了，再说就尬了。');
   spendAp(s);
   s.today.talked[npcId] = true;
-  const gain = Math.round(CONFIG.socialGain * moodMult(s));
+  const gain = Math.ceil(CONFIG.socialGain * moodMult(s));
   s.friend[npcId] = clamp(s.friend[npcId] + gain, 0, 100);
   // 社交带来的快乐是递减的：心情越高，加成越少
   const moodUp = Math.max(2, Math.round(CONFIG.socialMood * (1 - s.mood / 120)));
@@ -95,9 +113,10 @@ export function field(s) {
   if (!hasAp(s)) return no('今天没有行动点了。');
   spendAp(s);
   s.mood = clampMood(s.mood + CONFIG.fieldMood);
+  s.physique = clamp(s.physique + CONFIG.fieldPhysique, 0, CONFIG.physiqueCap);
   s.focus = true;
-  const msg = '在体育场跑了两圈：心情 +' + CONFIG.fieldMood + '，获得「专注」（下次自习 ×' +
-    CONFIG.studyFocusMult + '）。';
+  const msg = '在体育场跑了两圈：心境 +' + CONFIG.fieldMood + '，体质 +' + CONFIG.fieldPhysique +
+    '（血量上限 ' + playerMaxHp(s) + '），获得「专注」（下次自习 ×' + CONFIG.studyFocusMult + '）。';
   hhLog(s, msg, 'field');
   return ok(msg);
 }
@@ -106,8 +125,38 @@ export function rest(s) {
   if (!hasAp(s)) return no('今天没有行动点了。');
   s.ap = 0;
   s.mood = clampMood(s.mood + CONFIG.restMood);
-  const msg = '回宿舍躺下了：心情 +' + CONFIG.restMood + '，今天到此为止。';
+  const msg = '躺到床上：心境 +' + CONFIG.restMood + '，今天到此为止。';
   hhLog(s, msg, 'rest');
+  return ok(msg);
+}
+
+// 寝室的床就是原来的 rest，只是换了个地方
+export const bed = rest;
+
+// 室友：不产数值、不进友谊条，只根据你现在的状态说一句有用的话。
+// 刻意不用 nextRandom —— 情报不应该改动随机序列，否则同 seed 复现会被它影响。
+function roomieTip(s) {
+  const ev = activeEntry(s);
+  if (ev) {
+    const p = placeOf(ev);
+    return '今天有「' + ev.title + '」，在' + (p ? p.name : '校园') + '。' +
+      effectLine(ev) + '，要 ' + ev.ap + ' 点。';
+  }
+  if (s.day >= s.maxDay - 1) return '明天就期末了。今晚别硬撑，打不过就选深造。';
+  if (!s.deck.length) return '你牌组是空的。去 CDS-1 三楼坐一节课，至少有一张能打的。';
+  if (playerMaxHp(s) < 42) return '你今天太脆了，' + playerMaxHp(s) + ' 点血。体育场跑两圈能长体质，血量跟着涨。';
+  if (s.mood < 30) return '你脸色不对。文娱楼三楼的祷告室，心境低到那一步才进得去。';
+  if (examGpa(s) >= CONFIG.endingGreat && s.battleWins >= CONFIG.endingGreatWins) return '分数和胜场都够了，剩下几天稳住就行。';
+  if (s.mood < 50) return '心境这么低，学也是白学。先去文娱楼弹个琴，或者打两局。';
+  return '想晚上抗揍就去体育场，想分数就进楼。别都想要，一天只有三点。';
+}
+
+export function roomieTalk(s) {
+  if (s.phase !== 'day') return no('现在不是说话的时候。');
+  if (s.today.zhe) return no(ROOMMATE.name + '已经戴上耳机了，别吵他。');
+  s.today.zhe = true;
+  const msg = ROOMMATE.name + '：' + roomieTip(s);
+  hhLog(s, msg, 'info');
   return ok(msg);
 }
 
@@ -244,16 +293,62 @@ export function pray(s) {
   return ok(msg);
 }
 
+// ---------------------------------------------------------------- 日历活动
+// 活动不是在房间里做的：当天校园上多出一个出发点，走到那里才出发。
+// 每个活动的三条属性配比不一样，幅度也不一样 —— 面板负责把它们写清楚。
+export function doEvent(s, entry) {
+  if (!entry) return no('今天日程上是空的。');
+  if (entry.done) return no('「' + entry.title + '」已经去过了。');
+  if (entry.missed) return no('「' + entry.title + '」已经过期了。');
+  if (entry.day !== s.day) return no('不是今天的事。');
+  if (s.phase !== 'day') return no('现在不是白天。');
+  if (s.ap < entry.ap) return no('行动点不够，「' + entry.title + '」要 ' + entry.ap + ' 点。');
+  s.ap -= entry.ap;
+  entry.done = true;
+
+  addKnowledge(s, entry.know);
+  if (entry.mood) s.mood = clampMood(s.mood + entry.mood);
+  if (entry.physique) s.physique = clamp(s.physique + entry.physique, 0, CONFIG.physiqueCap);
+  s.stats.socials += 1;
+
+  const msg = '「' + entry.title + '」：' + effectLine(entry) + '。';
+  hhLog(s, msg, 'event');
+  return ok(msg);
+}
+
 // ---------------------------------------------------------------- 夜晚
 export function nightStudy(s) {
   if (s.phase !== 'night') return no('现在不是晚上。');
-  const gain = Math.round(CONFIG.nightStudyGain * moodMult(s));
+  const gain = Math.ceil(CONFIG.nightStudyGain * moodMult(s));
   addKnowledge(s, gain);
   s.mood = clampMood(s.mood - CONFIG.nightStudyMoodCost);
   s.stats.nights += 1;
-  const msg = '在宿舍台灯下继续啃书：知识 +' + gain + '，心情 −' + CONFIG.nightStudyMoodCost + '。';
+  const msg = '在宿舍台灯下继续啃书：知识 +' + gain + '，心境 −' + CONFIG.nightStudyMoodCost + '。';
   hhLog(s, msg, 'night');
   return ok(msg);
+}
+
+// 打赢就随机掉一件。前三次掉落里必有一件稀有以上 ——
+// 一局只有 6 次机会，方差必须压住，否则运气差的人整局都在捡普通货。
+export function rollLoot(s) {
+  const needRare = s.lootCount === 2 && !s.lootHasRare;
+  const pool = needRare ? LOOT.filter((l) => l.rarity !== 'common') : LOOT;
+  const weights = pool.map((l) => LOOT_WEIGHT[l.rarity] || 1);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = nextRandom(s) * total;
+  let picked = pool[pool.length - 1];
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i];
+    if (r <= 0) { picked = pool[i]; break; }
+  }
+  const item = {
+    id: picked.id, name: picked.name, kind: picked.kind,
+    value: picked.value, rarity: picked.rarity,
+  };
+  s.loot.push(item);
+  s.lootCount += 1;
+  if (picked.rarity !== 'common') s.lootHasRare = true;
+  return item;
 }
 
 export function settleBattle(s, battle) {
@@ -262,13 +357,16 @@ export function settleBattle(s, battle) {
     s.battleWins += 1;
     s.mood = clampMood(s.mood + CONFIG.winMood);
     addKnowledge(s, CONFIG.winKnowledge);
-    const msg = '赢了。心情 +' + CONFIG.winMood + '，实战总结让知识 +' + CONFIG.winKnowledge + '。';
+    const item = rollLoot(s);
+    const capped = lootCapped(s, item.kind) ? '（这一类已经到顶了）' : '';
+    const msg = '赢了。心境 +' + CONFIG.winMood + '，实战总结让知识 +' + CONFIG.winKnowledge +
+      '。掉了一件「' + item.name + '」：' + lootEffectText(item) + capped + '。';
     hhLog(s, msg, 'win');
-    return ok(msg);
+    return { ok: true, msg, loot: item };
   }
   s.mood = clampMood(s.mood - CONFIG.loseMood);
   addKnowledge(s, -CONFIG.loseKnowledge);
-  const msg = '输了。心情 −' + CONFIG.loseMood + '，知识 −' + CONFIG.loseKnowledge + '。';
+  const msg = '输了。心境 −' + CONFIG.loseMood + '，知识 −' + CONFIG.loseKnowledge + '。';
   hhLog(s, msg, 'lose');
   return ok(msg);
 }
@@ -279,22 +377,26 @@ export function endDay(s) {
   const collapsed = s.mood <= CONFIG.moodMin;
   s.day += 1;
   s.today = freshToday();
-  s.scene = 'campus';
-  s.scenePos = null;
-  s.ap = CONFIG.startAp;
+  s.ap = CONFIG.freeAp;
   s.focus = false;
 
   if (collapsed) {
     s.collapsedOnce = true;
     s.mood = CONFIG.collapseMood;
     s.ap = CONFIG.collapseAp;
-    hhLog(s, '心情见底，你崩了一次：第二天只剩 ' + CONFIG.collapseAp + ' 个行动点。', 'warn');
+    hhLog(s, '心境见底，你崩了一次：第二天只剩 ' + CONFIG.collapseAp + ' 个自由行动点。', 'warn');
+  }
+
+  // 昨天没去的事，今天就划掉了。只记一笔，不扣分（罚分留给 ddl）。
+  for (const e of expirePast(s)) {
+    hhLog(s, '错过了「' + e.title + '」，日程上划掉了一条。', 'warn');
   }
 
   if (s.day >= s.maxDay) {
     s.phase = 'exam';
   } else {
     s.phase = 'day';
+    requiredCourses(s); // 新的一天：先替玩家把两节必修课上了
   }
   return collapsed;
 }

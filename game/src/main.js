@@ -9,6 +9,7 @@ import * as battle from './battle.js';
 import * as ui from './ui.js';
 import { createWorld } from './world.js';
 import { buildingOf, floorByLevel } from './interiors.js';
+import { eventSpots } from './calendar.js';
 import { openPiano as openPianoGame } from './minigames/piano.js';
 import { openPong } from './minigames/pong.js';
 import { openSnooker } from './minigames/snooker.js';
@@ -16,6 +17,7 @@ import { openSnooker } from './minigames/snooker.js';
 let state = null;
 let world = null;
 let battleState = null;
+let battlePct = null; // 上一帧的血条百分比，给血条动画用
 let started = false;
 let lastTs = 0;
 
@@ -23,17 +25,35 @@ let lastTs = 0;
 
 const canvas = document.getElementById('game');
 
+// 校园交互点 = 固定点 + 当天日历活动的出发点（一天最多一个）
+function campusSpots() {
+  return state ? INTERACTABLES.concat(eventSpots(state)) : INTERACTABLES;
+}
+
+const CAMPUS_FRAME = { w: CAMPUS.w, h: CAMPUS.h, half: 0 };
+
+// 事件做完 / 翻页之后，校园上那个出发点要跟着消失或换位置
+function refreshCampusSpots() {
+  const list = campusSpots();
+  world.setSpots(list);
+  ui.setSpots(list, CAMPUS_FRAME);
+}
+
 // ---------------------------------------------------------------- 启动
 function boot() {
   ui.initUI();
   fitCanvas();
   world = createWorld(canvas);
-  ui.setSpots(INTERACTABLES, { w: CAMPUS.w, h: CAMPUS.h, half: 0 });
+  ui.setSpots(INTERACTABLES, CAMPUS_FRAME);
   ui.setSceneChip('校园');
   ui.onMarkerClick(onMarkerClick);
   document.getElementById('btn-endday').addEventListener('click', () => {
     if (!started || !state || state.phase !== 'day') return;
     openNight();
+  });
+  document.getElementById('btn-char').addEventListener('click', () => {
+    if (!started || !state) return;
+    openCharacter();
   });
 
   window.addEventListener('keydown', onKeyDown);
@@ -61,10 +81,14 @@ function startNew() {
   clearSave();
   state = createState(seedFromUrl());
   battleState = null;
+  battlePct = null;
   started = true;
   ui.closeModal();
+  rules.requiredCourses(state); // 第 1 天的两节必修课
+  refreshCampusSpots();
   renderAll();
   save();
+  ui.toast('第 1 天的两节必修课上完了，剩下 ' + CONFIG.freeAp + ' 个自由行动点。');
 }
 
 function resume() {
@@ -72,8 +96,10 @@ function resume() {
   if (!s) { startNew(); return; }
   state = s;
   battleState = null;
+  battlePct = null;
   started = true;
   ui.closeModal();
+  refreshCampusSpots();
   if (state.phase === 'ending') { showEnding(); return; }
   if (state.phase === 'exam') { examNow(); return; }
   if (state.phase === 'night') {
@@ -100,6 +126,11 @@ function fitCanvas() {
 function enterBuilding(buildingId) {
   const b = buildingOf(buildingId);
   if (!b) return;
+  // 单层建筑（寝室）进门就是屋子本身，不用先看电梯
+  if (b.floors.length <= 1) {
+    openFloor(b, b.floors[0].level);
+    return;
+  }
   openElevator(b, null);
 }
 
@@ -125,6 +156,10 @@ function openFloor(building, level) {
       if (!room) return;
       const why = roomBlocked(room);
       if (why) { ui.toast(why, 'warn'); return; }
+      // 不花行动点的三件事直接开面板，不弹「开始」确认
+      if (room.action === 'char') { openCharacter(true, () => openFloor(building, floor.level)); return; }
+      if (room.action === 'calendar') { openCalendar(true, () => openFloor(building, floor.level)); return; }
+      if (room.action === 'roomie') { afterAction(rules.roomieTalk(state), building, floor); return; }
       if (room.action === 'piano') openPiano(room, building, floor);
       else openRoom(room, building, floor);
     },
@@ -157,7 +192,7 @@ function modalOpen() {
 
 function onMarkerClick(id) {
   if (!started || !state || state.phase !== 'day') return;
-  const item = INTERACTABLES.find((i) => i.id === id);
+  const item = world.spots.find((i) => i.id === id);
   if (!item) return;
   if (!world.near || world.near.id !== id) {
     ui.toast('先走到「' + item.name + '」旁边再互动。', 'warn');
@@ -177,6 +212,7 @@ function tryInteract() {
 
 function interact(item) {
   if (item.kind === 'enter') { enterBuilding(item.building); return; }
+  if (item.kind === 'event') { openEvent(item.entry); return; }
 
   let res;
   if (item.kind === 'study') res = rules.study(state);
@@ -194,11 +230,13 @@ function roomBlocked(room) {
   const a = room.action;
   // 钢琴不占行动点、不封门：随时能弹，只有每天第一次弹满才结算
   if (a === 'piano') return null;
+  // 不花行动点的三件事任何时候都能用
+  if (!room.ap) return null;
   if (state.ap <= 0) return '没行动点了';
   if (a === 'doubt' && state.today.doubt) return '今天用过了';
   if (a === 'pingpong' && state.today.pingpong) return '今天打过了';
   if (a === 'pray') {
-    if (state.mood > CONFIG.room.pray.moodMax) return '心情高于 ' + CONFIG.room.pray.moodMax;
+    if (state.mood > CONFIG.room.pray.moodMax) return '心境高于 ' + CONFIG.room.pray.moodMax;
     if (state.today.pray) return '今天静过了';
   }
   return null;
@@ -224,6 +262,7 @@ function openRoom(room, building, floor) {
         doubt: rules.doubt,
         studyroom: rules.studyroom,
         pray: rules.pray,
+        bed: rules.bed,
       }[room.action];
       if (!fn) { ui.closeModal(); return; }
       afterAction(fn(state), building, floor);
@@ -236,6 +275,7 @@ function openRoom(room, building, floor) {
 function afterAction(res, building, floor) {
   if (!res.ok) { ui.toast(res.msg, 'warn'); return; }
   ui.toast(res.msg);
+  refreshCampusSpots(); // 活动做完了，校园上那个出发点要消失
   renderAll();
   save();
   if (state.ap <= 0) {
@@ -299,6 +339,42 @@ function openVersus(room, npcId, building, floor) {
   });
 }
 
+// ---------------------------------------------------------------- 只读面板
+// 书桌和侧栏「角色」按钮打开的是同一个面板：只读，不花行动点，不改状态。
+// force 用于「从楼层面板里点书桌」——那时弹窗本来就是开着的。
+// onClose 用来回到刚才那一层，而不是被踢回校园。
+function openCharacter(force, onClose) {
+  if (!state) return;
+  if (!force && modalOpen()) return;
+  world.keys.clear();
+  ui.characterPanel(state);
+  ui.bindModal({
+    close: () => { ui.closeModal(); if (onClose) onClose(); },
+  });
+}
+
+function openCalendar(force, onClose) {
+  if (!state) return;
+  if (!force && modalOpen()) return;
+  world.keys.clear();
+  ui.calendarPanel(state);
+  ui.bindModal({
+    close: () => { ui.closeModal(); if (onClose) onClose(); },
+  });
+}
+
+// 日历活动：先看清三条属性给多少，再决定去不去
+function openEvent(entry) {
+  if (!entry) return;
+  if (entry.done) { ui.toast('「' + entry.title + '」今天已经去过了。', 'warn'); return; }
+  world.keys.clear();
+  ui.eventPanel(entry, state);
+  ui.bindModal({
+    go: () => afterAction(rules.doEvent(state, entry)),
+    cancel: () => ui.closeModal(),
+  });
+}
+
 // ---------------------------------------------------------------- 夜晚
 function openNight() {
   if (state.phase !== 'day') return;
@@ -318,26 +394,47 @@ function nightStudy() {
 
 function nightFight() {
   battleState = battle.startBattle(state);
+  battlePct = null;
   renderBattle();
 }
 
 function renderBattle() {
-  ui.battlePanel(state, battleState);
+  const cur = {
+    enemy: Math.max(0, (battleState.enemy.hp / battleState.enemy.maxHp) * 100),
+    hp: Math.max(0, (battleState.playerHp / battleState.playerMaxHp) * 100),
+  };
+  ui.battlePanel(state, battleState, battlePct); // 传上一帧，血条才会「掉」而不是「跳」
+  battlePct = cur;
   ui.bindModal({ card: onPlayCard, done: onBattleDone });
   ui.renderHUD(state);
 }
 
 function onPlayCard(idx) {
   if (!battleState || battleState.over) return;
-  battle.playCard(state, battleState, idx);
-  renderBattle();
+  const fx = battle.playCard(state, battleState, idx);
+  // 战斗一结束就立刻结算，这样结算画面就能把掉落摆出来，不用等玩家点「收工」
+  if (battleState.over && !battleState.settled) {
+    battleState.settled = true;
+    battleState.reward = rules.settleBattle(state, battleState);
+  }
+  renderBattle(); // 先重建面板，抖动才作用在新节点上
+  ui.hitFx(fx.dealt, fx.taken);
+  if (battleState.over) {
+    const win = battleState.result === 'win';
+    setTimeout(() => ui.outcomeFx(win), 260); // 等这一下的抖动播完再给结算反馈
+  }
 }
 
 function onBattleDone() {
   if (!battleState) return;
-  const res = rules.settleBattle(state, battleState);
+  if (!battleState.settled) {
+    battleState.settled = true;
+    battleState.reward = rules.settleBattle(state, battleState);
+  }
+  const res = battleState.reward;
   ui.toast(res.msg, battleState.result === 'win' ? 'win' : 'warn');
   battleState = null;
+  battlePct = null;
   ui.renderAll(state);
   finishNight();
 }
@@ -348,8 +445,10 @@ function finishNight() {
   if (state.phase === 'exam') { examNow(); return; }
   state.phase = 'day';
   ui.closeModal();
+  refreshCampusSpots(); // 新的一天，活动出发点换成今天的那个
   renderAll();
   save();
+  ui.toast('第 ' + state.day + ' 天。必修两节已上，还有 ' + state.ap + ' 点自由。');
   if (state.ap <= 0) openNight();
 }
 

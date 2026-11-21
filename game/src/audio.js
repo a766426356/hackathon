@@ -278,6 +278,15 @@ export function sfx(kind, value) {
     case 'foul':
       sfxOsc('sawtooth', 190, 0.24, 0.09, 110);
       break;
+    // 夜战：命中一下，挨打再补一声闷响
+    case 'hit':
+      sfxOsc('square', 240, 0.11, 0.15, 70);
+      sfxOsc('triangle', 120, 0.16, 0.10, 60);
+      if (value) sfxOsc('sawtooth', 90, 0.24, 0.13, 40);
+      break;
+    case 'hurt':
+      sfxOsc('sawtooth', 100, 0.3, 0.14, 42);
+      break;
     case 'win':
       [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => sfxOsc('triangle', f, 0.28, 0.09, f), i * 110));
       break;

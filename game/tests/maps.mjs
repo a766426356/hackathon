@@ -60,9 +60,13 @@ for (const r of WALKABLE) {
 }
 
 // ---------------------------------------------------------------- 楼层 / 房间
+// 房间要么落到 rules 里的一个函数，要么是「只读面板」（书桌 / 日历墙 / 室友），
+// 后者必须 0 AP —— 看东西不该花行动点。
 const ACTION_FN = {
-  course: 1, doubt: 1, pingpong: 1, snooker: 1, piano: 1, studyroom: 1, pray: 1,
+  course: 'course', doubt: 'doubt', pingpong: 'pingpong', snooker: 'snooker',
+  piano: 'piano', studyroom: 'studyroom', pray: 'pray', bed: 'bed',
 };
+const UI_ACTION = { char: 1, calendar: 1, roomie: 1 };
 let roomCount = 0;
 
 for (const [id, b] of Object.entries(BUILDING_FLOORS)) {
@@ -79,10 +83,16 @@ for (const [id, b] of Object.entries(BUILDING_FLOORS)) {
     if (!f.rooms.length) fail(id + ' ' + f.label + '：开放楼层却没有房间');
     for (const r of f.rooms) {
       roomCount++;
-      if (!ACTION_FN[r.action]) fail(id + ' ' + f.label + ' / ' + r.name + '：action「' + r.action + '」没有对应规则');
-      else if (typeof rules[r.action] !== 'function') fail('rules.' + r.action + ' 不是函数');
+      if (UI_ACTION[r.action]) {
+        if (r.ap !== 0) fail(id + ' / ' + r.name + '：只读面板不该花行动点（' + r.ap + '）');
+      } else if (!ACTION_FN[r.action]) {
+        fail(id + ' ' + f.label + ' / ' + r.name + '：action「' + r.action + '」没有对应规则');
+      } else if (typeof rules[ACTION_FN[r.action]] !== 'function') {
+        fail('rules.' + ACTION_FN[r.action] + ' 不是函数');
+      } else if (!(r.ap > 0)) {
+        fail(id + ' / ' + r.name + '：AP 成本异常');
+      }
       if (!r.effect) fail(id + ' / ' + r.name + '：没有写清收益');
-      if (!(r.ap > 0)) fail(id + ' / ' + r.name + '：AP 成本异常');
     }
   }
   // 竖排电梯靠 level 排序，至少要有一层在地上

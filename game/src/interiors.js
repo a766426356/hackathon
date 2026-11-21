@@ -54,6 +54,32 @@ const ROOMS = {
     desc: '一排长椅，窗上有彩色的玻璃。没有神像，只有安静。',
     effect: '心情 +' + R.pray.mood + '，但只有心情 ≤ ' + R.pray.moodMax + ' 时才进得去（每天 1 次）',
   },
+
+  // ---- 寝室：不花行动点的三件事 + 一张床 ----
+  desk: {
+    id: 'desk', name: '书桌', icon: '🪑', action: 'char', ap: 0,
+    tagline: '看属性换算，不花时间',
+    desc: '台灯、摊开的笔记本、一张写满又划掉的计划。',
+    effect: '角色面板：三个属性各自换算成多少伤害 / 多少血，战利品加成也在里面',
+  },
+  wall: {
+    id: 'wall', name: '日历墙', icon: '📅', action: 'calendar', ap: 0,
+    tagline: '学期还剩几天',
+    desc: '墙上钉着一张手写的学期表，某几天被人圈了出来。',
+    effect: '7 天时间轴：今天有什么活动、第 7 天期末考',
+  },
+  roomie: {
+    id: 'roomie', name: '室友 哲', icon: '🧑', action: 'roomie', ap: 0,
+    tagline: '问一句今天该干什么',
+    desc: '他基本一直在，戴着耳机，桌上堆着别人的书。',
+    effect: '每天一句判断：今天有活动会直接报给你，其余时候按你的状态说话（不产数值）',
+  },
+  bed: {
+    id: 'bed', name: '床', icon: '🛏️', action: 'bed', ap: 1,
+    tagline: '躺下，今天到此为止',
+    desc: '被子没叠。窗外的光刚好落在枕头边上。',
+    effect: '心情 +' + (R.bed ? R.bed.mood : 12) + '，立刻结束白天进入夜晚',
+  },
 };
 
 // 楼 → 楼层（level 越大越高，可正可负）→ 这一层有哪些房间
@@ -100,6 +126,19 @@ export const BUILDING_FLOORS = {
         level: 1, label: '1F', name: '活动层',
         rooms: [ROOMS.pingpong, ROOMS.snooker, ROOMS.piano],
         bg: 'assets/elevator-test/wenyu-f1.jpg',
+      },
+    ],
+  },
+
+  // 寝室：单层楼，进门就是一间屋子。三件不花时间的事 + 一张床。
+  dorm: {
+    id: 'dorm',
+    name: '宿舍',
+    full: '2# 宿舍',
+    floors: [
+      {
+        level: 1, label: '1F', name: '寝室',
+        rooms: [ROOMS.desk, ROOMS.wall, ROOMS.roomie, ROOMS.bed],
       },
     ],
   },

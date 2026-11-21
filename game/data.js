@@ -3,14 +3,27 @@
 export const CONFIG = {
   schoolName: '张江学园',
   maxDay: 7, // 第 7 天考试
-  startAp: 3,
+
+  // 每天 5 个行动点 = 2 节必修大课（每天开头自动结算，不占自由点）+ 3 点自由支配
+  requiredCourses: 2,
+  freeAp: 3,
+  totalAp: 5,
+
   startMood: 60,
   moodMin: 0,
   moodMax: 100,
 
+  // 三属性各只管一件事：知识 → 战斗伤害；心境 → 白天收益倍率；体质 → 血量
+  startPhysique: 6,
+  hpPerPhysique: 1.2,
+  physiqueCap: 60,
+
   studyGain: 7,
   studyMoodCost: 4,
   studyFocusMult: 1.5,
+  // 必修课给固定的一小份（不受心境影响）：必修不是选择，不该拿它奖励高心情
+  requiredCourseGain: 3,
+  requiredCourseMoodCost: 2,
   deckCap: 8,
 
   socialGain: 12,
@@ -18,6 +31,7 @@ export const CONFIG = {
   friendSupportAt: 40,
 
   fieldMood: 12,
+  fieldPhysique: 4,
   restMood: 12,
   boardKnowledge: 4,
   boardFriend: 5,
@@ -35,7 +49,7 @@ export const CONFIG = {
   collapseAp: 1,
 
   examBase: 1.0,
-  examKnowledgeDiv: 130,
+  examKnowledgeDiv: 170,
   examMoodScale: 0.5,
   gpaMax: 4.3,
 
@@ -47,14 +61,18 @@ export const CONFIG = {
     rounds: 4,
     handSize: 3,
     enemyHp: 38,
+    enemyHpPerNight: 12,   // 第 N 夜 = enemyHp + (N-1) × 这个数
+    enemyAtkPerNight: 1,
     playerBaseHp: 30,
-    hpPerKnowledge: 6,
-    hpPerMood: 8,
     ddlRound: 3,
     ddlMult: 2,
     fillerPower: 7,
     supportHeal: 8,
   },
+
+  // 战利品只放大「出口」，不改属性本身，所以不会顶穿 GPA。
+  // 同一类加成各自封顶，避免 6 场下来滚成天文数字。
+  lootCap: 0.6,
 
   // 房间数值：一处定义，interiors.js 的说明文案和 rules.js 的结算都读这里
   room: {
@@ -64,6 +82,10 @@ export const CONFIG = {
     piano:     { mood: 12, notes: 16 },
     studyroom: { know: 5, mood: -2 },
     pray:      { mood: 15, moodMax: 45 },
+    bed:       { mood: 12 },
+    roomie:    { any: 0 },
+    desk:      { any: 0 },
+    wall:      { any: 0 },
   },
 };
 
@@ -113,8 +135,79 @@ export const INTERACTABLES = [
   { id: 'lin', name: '林', icon: '☕', kind: 'social', npc: 'lin', x: 592, y: 548, hint: '聊天：友谊 +、心情 +' },
   { id: 'chen', name: '陈', icon: '🎭', kind: 'social', npc: 'chen', x: 445, y: 700, hint: '聊天：友谊 +、心情 +' },
   { id: 'zhou', name: '周', icon: '🎧', kind: 'social', npc: 'zhou', x: 505, y: 790, hint: '聊天：友谊 +、心情 +' },
-  { id: 'dorm', name: '宿舍', icon: '🛏️', kind: 'rest', x: 300, y: 840, labelBelow: true, hint: '2#：休息，直接结束白天' },
+  { id: 'dorm', name: '宿舍', icon: '🛏️', kind: 'enter', building: 'dorm', x: 300, y: 840, labelBelow: true, hint: '2#：进寝室（床 / 书桌 / 日历墙 / 室友）' },
 ];
+
+// 室友：常驻寝室，不挂友谊条，只给「今天该干什么」的判断。
+export const ROOMMATE = { id: 'zhe', name: '哲', place: '寝室', color: '#b8a0d9' };
+
+// ---------------------------------------------------------------- 日历活动
+// 活动不在房间里，而在校园的一个「出发点」上：当天走到那里按 E 才能出发。
+// 坐标沿用校园图的图片坐标系（1024×1024），并且刻意离固定交互点远一点。
+export const EVENT_PLACES = {
+  club:  { x: 420, y: 780, name: '广场西侧' },
+  field: { x: 590, y: 150, name: '体育场' },
+  wenyu: { x: 820, y: 440, name: '文娱楼门口' },
+  cds1:  { x: 820, y: 680, name: 'CDS-1 门口' },
+  gate:  { x: 975, y: 700, name: '芳春路南口' },
+};
+
+// 7 天里排 5 场，第 1 天留空当教学日。错过只记一笔，不扣分（罚分留给 ddl）。
+export const EVENTS = [
+  {
+    id: 'ev.club', day: 2, kind: 'event', title: '社团招新', place: 'club', host: 'chen', ap: 1,
+    know: 0, mood: 8, physique: 6,
+    desc: '陈在楼下支了张桌子，海报还是手写的。「就填个名字，」他说，「不来也行。」',
+  },
+  {
+    id: 'ev.run', day: 3, kind: 'event', title: '夜跑团', place: 'field', host: 'zhou', ap: 1,
+    know: 0, mood: 4, physique: 10,
+    desc: '周拉你绕体育场跑圈，跑到第三圈他就不说话了。',
+  },
+  {
+    id: 'ev.read', day: 4, kind: 'event', title: '读书会', place: 'wenyu', host: 'lin', ap: 1,
+    know: 6, mood: 6, physique: 0,
+    desc: '林带了手冲和两本旧书，一共只来了三个人。',
+  },
+  {
+    id: 'ev.team', day: 5, kind: 'event', title: '校队集训', place: 'field', host: 'chen', ap: 2,
+    know: 0, mood: -5, physique: 18,
+    desc: '陈把训练表拍在桌上：今天两小时，跑完再谈别的。',
+  },
+  {
+    id: 'ev.visit', day: 6, kind: 'event', title: '公司走访', place: 'gate', host: null, ap: 2,
+    know: 10, mood: -6, physique: 0,
+    desc: '跟着名单出去一趟，回来时天已经黑了，手里多了一沓没人要的资料。',
+  },
+];
+
+// ---------------------------------------------------------------- 战利品
+// 只放大出口：damage 让牌打得更疼、hp 让血量更厚、day 让白天收益更高。
+export const LOOT = [
+  { id: 'loot.tail',  name: '拖延兽的尾巴',   rarity: 'common',    kind: 'damage', value: 0.08,
+    desc: '你把它拽下来的时候，它还在说「明天再说」。' },
+  { id: 'loot.shoe',  name: '旧运动鞋',       rarity: 'common',    kind: 'hp',     value: 0.10,
+    desc: '鞋底磨平了，但还合脚。' },
+  { id: 'loot.lamp',  name: '宿舍台灯',       rarity: 'common',    kind: 'day',    value: 0.08,
+    desc: '灯罩有点歪，光刚好落在书页上。' },
+
+  { id: 'loot.page',  name: '撕掉的第一页',   rarity: 'rare',      kind: 'damage', value: 0.18,
+    desc: '那页纸上写着「算了」，你把它撕了。' },
+  { id: 'loot.mask',  name: '冒名的面具',     rarity: 'rare',      kind: 'hp',     value: 0.20,
+    desc: '戴上它，那个声音小了一点。' },
+  { id: 'loot.plan',  name: '内卷王的计划表', rarity: 'rare',      kind: 'day',    value: 0.15,
+    desc: '别人的时间表。你抄了一半就撕了。' },
+
+  { id: 'loot.hunt',  name: '猎人的直觉',     rarity: 'legendary', kind: 'damage', value: 0.25,
+    desc: '你开始能听见它们出手前的呼吸。' },
+  { id: 'loot.jersey', name: '校队队服',      rarity: 'legendary', kind: 'hp',     value: 0.25,
+    desc: '号码是别人挑剩的，但你穿得刚好。' },
+  { id: 'loot.clock', name: '别人的闹钟',     rarity: 'legendary', kind: 'day',    value: 0.20,
+    desc: '它每天响得比你早一个小时，你也就跟着起来了。' },
+];
+
+export const LOOT_WEIGHT = { common: 60, rare: 30, legendary: 10 };
+export const LOOT_KIND = { damage: '夜战伤害', hp: '血量上限', day: '白天收益' };
 
 // ---------------------------------------------------------------- NPC / 卡 / 敌人
 export const NPCS = {
