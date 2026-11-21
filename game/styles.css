@@ -929,51 +929,47 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
   letter-spacing: 1px;
   color: #8793a8;
 }
+.run-start { margin-top: 16px; padding: 9px 30px; letter-spacing: 4px; }
+
+/* 3-2-1 发令 */
+.run-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgba(5, 9, 14, .38);
+}
+.run-count span {
+  font-size: 110px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--gold-2);
+  text-shadow: 0 8px 40px rgba(0, 0, 0, .7);
+}
+.run-count.pop span { animation: countPop .6s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes countPop {
+  0% { opacity: 0; transform: scale(1.7); }
+  45% { opacity: 1; transform: scale(1); }
+  100% { opacity: .85; transform: scale(.94); }
+}
 
 /* ---------------------------------------------------------------- B1：健身房 */
 .gym-panel { width: min(560px, 95vw); }
 .gym-stage {
-  position: relative;
   margin-top: 14px;
-  padding: 18px 16px 14px;
   border-radius: 8px;
-  background:
-    radial-gradient(circle at 50% -10%, rgba(224, 182, 74, .10), transparent 60%),
-    linear-gradient(180deg, #1d2433, #131923);
+  overflow: hidden;
   border: 1px solid #2c3648;
+  background: #121821;
 }
-.gym-lift {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  height: 104px;
-  transition: transform .16s cubic-bezier(.2, 1.4, .4, 1);
-  transform: translateY(0);
-}
-.gym-lift.up { transform: translateY(-26px); }
-.gym-bar {
-  width: min(46%, 190px);
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #b9c2d4, #6f7b90);
-  box-shadow: 0 2px 0 #4a5468;
-}
-.gym-plate {
-  width: 26px;
-  height: 52px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #4b5b78, #2a3344);
-  border: 1px solid #5d6f96;
-}
-.gym-plate.l { margin-right: -2px; }
-.gym-plate.r { margin-left: -2px; }
+#gym-canvas { display: block; width: 100%; height: auto; }
 
 .gym-keys {
   display: flex;
   gap: 14px;
   justify-content: center;
-  margin: 6px 0 14px;
+  margin: 12px 0 12px;
 }
 .gkey {
   width: 96px;

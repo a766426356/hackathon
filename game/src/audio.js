@@ -287,6 +287,16 @@ export function sfx(kind, value) {
     case 'hurt':
       sfxOsc('sawtooth', 100, 0.3, 0.14, 42);
       break;
+    // 发令：一声短促的爆响
+    case 'gun':
+      sfxOsc('square', 900, 0.05, 0.16, 180);
+      sfxOsc('sawtooth', 240, 0.12, 0.12, 60);
+      setTimeout(() => sfxOsc('triangle', 1400, 0.18, 0.05, 600), 30);
+      break;
+    // 倒计时的一下
+    case 'tick':
+      sfxOsc('triangle', 620, 0.07, 0.09, 620);
+      break;
     case 'win':
       [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => sfxOsc('triangle', f, 0.28, 0.09, f), i * 110));
       break;
