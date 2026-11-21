@@ -76,9 +76,16 @@ function boot() {
   window.addEventListener('blur', () => world.keys.clear());
 
   const hasSave = !!loadGame();
+  const demo = new URLSearchParams(location.search).get('demo');
   // Demo shortcut: ?demo=ending goes straight to the ending + persona report, skipping six nights
-  if (new URLSearchParams(location.search).get('demo') === 'ending') {
+  if (demo === 'ending') {
     demoEnding();
+    requestAnimationFrame(frame);
+    return;
+  }
+  // ?demo=day6: skip the opener entirely and land on day 6 with the first five days already played
+  if (demo === 'day6') {
+    demoDay6();
     requestAnimationFrame(frame);
     return;
   }
@@ -140,6 +147,58 @@ function demoEnding() {
   ui.renderAll(state);
   showEnding();
   save();
+}
+
+// Demo shortcut: ?demo=day6 skips the opener and lands straight on day 6.
+// Days 1–5 are auto-played with a good-but-plausible schedule, so the journal already
+// has a week of history, all four persona axes carry data, and the run is on track for
+// the "great" ending (GPA 3.60 / 3 wins) if the player finishes day 6 well.
+//
+// Numbers were tuned by simulating the schedule offline: knowledge 131 / mood 35 at the
+// start of day 6 is what gets past endingGreat (3.4) even after a moody night.
+function demoDay6() {
+  state = createState(2049);
+  state.phase = 'day';
+  rules.requiredCourses(state);
+
+  const act = (fn) => { if (state.ap > 0) fn(); };
+  const event = (id) => {
+    const e = state.calendar.find((x) => x.id === id && !x.done && !x.missed);
+    if (e && e.day === state.day) rules.doEvent(state, e);
+  };
+  const nightFight = () => {
+    const b = battle.startBattle(state);
+    let guard = 0;
+    while (!b.over && guard++ < 20) battle.playCard(state, b, 0);
+    rules.settleBattle(state, b);
+  };
+
+  const plan = {
+    1: () => { act(() => rules.study(state)); act(() => rules.study(state)); act(() => rules.field(state)); },
+    2: () => { act(() => rules.study(state)); act(() => rules.study(state)); act(() => event('ev.club')); },
+    3: () => { act(() => rules.study(state)); act(() => rules.study(state)); act(() => event('ev.run')); },
+    4: () => { act(() => rules.study(state)); act(() => event('ev.read')); act(() => rules.field(state)); },
+    5: () => { act(() => rules.study(state)); act(() => rules.study(state)); act(() => rules.social(state, 'lin')); },
+  };
+  const nights = { 1: 'study', 2: 'study', 3: 'fight', 4: 'study', 5: 'fight' };
+
+  while (state.day <= 5) {
+    const d = state.day;
+    plan[d]();
+    state.ap = 0;
+    state.phase = 'night';
+    if (nights[d] === 'fight') nightFight();
+    else rules.nightStudy(state);
+    rules.endDay(state); // walks into day 6, refreshes AP, runs the required lectures
+  }
+
+  state.phase = 'day';
+  started = true;
+  ui.resetReportSeen();
+  refreshCampusSpots();
+  renderAll();
+  save();
+  ui.toast('Day 6. One night left — play today out, then the exam and your report.');
 }
 
 function seedFromUrl() {
