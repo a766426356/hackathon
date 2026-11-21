@@ -710,7 +710,10 @@ export function roomPanel(spot, s) {
         <button class="btn" data-act="cancel">算了</button>
       </div>
     </div>`;
-  return openModal(html, { cls: 'room-panel' });
+  const panel = openModal(html, { cls: 'room-panel' });
+  // 有设定图的房间/地点：确认面板也用同一张底图（没设就不动，保留上一层悬停留下的那张）
+  if (spot.bg) showPanelBg(spot.bg);
+  return panel;
 }
 
 export function friendPanel(spot, s) {

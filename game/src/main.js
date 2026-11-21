@@ -218,11 +218,23 @@ function interact(item) {
   if (item.kind === 'study') res = rules.study(state);
   else if (item.kind === 'board') res = rules.board(state);
   else if (item.kind === 'social') res = rules.social(state, item.npc);
-  else if (item.kind === 'field') res = rules.field(state);
+  else if (item.kind === 'field') { openField(item); return; }
   else if (item.kind === 'rest') res = rules.rest(state);
   else res = { ok: false, msg: '这里什么也没有。' };
 
   afterAction(res);
+}
+
+// 体育场：和其他地点一样先看一眼再跑，顺便把设定图当底图铺上
+function openField(item) {
+  if (!started || !state || state.phase !== 'day') return;
+  if (state.ap <= 0) { ui.toast('今天没有行动点了。', 'warn'); return; }
+  world.keys.clear();
+  ui.roomPanel(item, state);
+  ui.bindModal({
+    go: () => afterAction(rules.field(state)),
+    cancel: () => ui.closeModal(),
+  });
 }
 
 // 这间房现在能不能用：不能就当场说清楚，不弹一个按不动的面板

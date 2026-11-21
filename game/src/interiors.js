@@ -23,6 +23,7 @@ const ROOMS = {
   },
   pingpong: {
     id: 'pingpong', name: '乒乓球台', icon: '🏓', action: 'pingpong', ap: 1, pick: 'pingpong',
+    bg: 'assets/bg/wenyu-pingpong.jpg',
     tagline: '和 classic Pong 一样，先到 7 分',
     desc: '台子空着，边上扔着两副拍子和一筒球。想打就得找人。',
     effect: '和一位朋友打一局：赢心情 +' + R.pingpong.mood + ' / 友谊 +' + R.pingpong.friend + '，输了也有少量（每天 1 次）',
@@ -50,6 +51,7 @@ const ROOMS = {
   },
   pray: {
     id: 'pray', name: '祷告室', icon: '🕯️', action: 'pray', ap: 1,
+    bg: 'assets/bg/wenyu-pray.jpg',
     tagline: '心情低的时候进来坐坐',
     desc: '一排长椅，窗上有彩色的玻璃。没有神像，只有安静。',
     effect: '心情 +' + R.pray.mood + '，但只有心情 ≤ ' + R.pray.moodMax + ' 时才进得去（每天 1 次）',

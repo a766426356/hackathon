@@ -128,7 +128,15 @@ export const SPAWN = { x: 520, y: 520 };
 // ---------------------------------------------------------------- 交互点
 // 坐标同样是图片坐标；只做三处「能进去/能用」：体育场、文娱楼（5#）、CDS-1。
 export const INTERACTABLES = [
-  { id: 'field', name: '体育场', icon: '🏃', kind: 'field', x: 612, y: 250, hint: '跑两圈：心情 +，获得「专注」' },
+  {
+    id: 'field', name: '体育场', icon: '🏃', kind: 'field', x: 612, y: 250,
+    bg: 'assets/bg/field.jpg',
+    desc: '傍晚的操场，跑道上没什么人，风把球网吹得轻轻晃。',
+    effect: '跑两圈：心情 +' + CONFIG.fieldMood + '，体质 +' + CONFIG.fieldPhysique +
+      '（换血量上限），获得「专注」（下次自习 ×' + CONFIG.studyFocusMult + '）',
+    ap: 1,
+    hint: '跑两圈：心情 +，获得「专注」',
+  },
   { id: 'wenyu', name: '文娱楼', icon: '🎱', kind: 'enter', building: 'wenyu', x: 745, y: 405, labelBelow: true, hint: '5#：乒乓球 / 斯诺克 / 钢琴 / 自习室 / 祷告室' },
   { id: 'cds1', name: 'CDS-1', icon: '🏫', kind: 'enter', building: 'cds1', x: 745, y: 668, labelBelow: true, hint: '教学楼层 3F：大课教室 / 答疑角' },
   { id: 'board', name: '公告板', icon: '📋', kind: 'board', x: 520, y: 640, hint: '当日日程：小量知识 + 一段友谊' },
