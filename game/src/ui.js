@@ -157,6 +157,13 @@ export function toast(msg, kind) {
 }
 
 // ---------------------------------------------------------------- 弹窗
+let modalCleanup = null;
+
+// 小游戏模块在打开弹窗时注册清理函数：关窗时停掉动画 / 键盘 / 音频
+export function setModalCleanup(fn) {
+  modalCleanup = typeof fn === 'function' ? fn : null;
+}
+
 export function openModal(html, opts = {}) {
   els.modal.className = 'panel ' + (opts.cls || '');
   els.modal.innerHTML = html;
@@ -165,6 +172,11 @@ export function openModal(html, opts = {}) {
 }
 
 export function closeModal() {
+  const fn = modalCleanup;
+  modalCleanup = null;
+  if (fn) {
+    try { fn(); } catch (e) { /* 清理失败也别卡住关窗 */ }
+  }
   els.modalRoot.classList.add('hidden');
   els.modalRoot.classList.remove('has-bg');
   if (els.modalBg) els.modalBg.classList.add('hidden');
@@ -289,10 +301,10 @@ export function bindModal(actionMap) {
 
 // ---------------------------------------------------------------- 室内：电梯 / 房间 / 选人 / 钢琴
 
-// 电梯厅背景：鼠标停到某层上时，把底部背景换成这一层的设定图（CSS 里再加模糊和遮罩）。
+// 面板背景：鼠标停到某一层/某个房间上时，把底图换成它对应的设定图（CSS 里再加模糊和遮罩）。
 let bgIndex = 0;
 
-function showElevatorBg(url) {
+function showPanelBg(url) {
   if (!els.modalBg || !els.bgLayers.length) return;
   if (!url) {
     els.modalRoot.classList.remove('has-bg');
@@ -311,19 +323,19 @@ function showElevatorBg(url) {
   bgIndex ^= 1;
 }
 
-// 用 mouseover 代理整列楼层：在楼层之间移动不会闪回默认背景
-function bindElevatorBg(panel, defaultUrl) {
-  const list = panel.querySelector('.shaft');
+// 用 mouseover 代理整个列表：在楼层牌/房间选项之间移动不会闪回默认背景
+function bindHoverBg(panel, defaultUrl) {
+  const list = panel.querySelector('.shaft, .opts');
   if (!list) return;
   const hover = (ev) => {
-    const flo = ev.target instanceof Element && ev.target.closest('.plate[data-bg]');
-    if (flo) showElevatorBg(flo.dataset.bg);
+    const flo = ev.target instanceof Element && ev.target.closest('.plate[data-bg], .opt[data-bg]');
+    if (flo) showPanelBg(flo.dataset.bg);
   };
   list.addEventListener('mouseover', hover);
-  list.addEventListener('mouseleave', () => showElevatorBg(defaultUrl));
+  list.addEventListener('mouseleave', () => showPanelBg(defaultUrl));
   list.addEventListener('focusin', hover);
   list.addEventListener('focusout', (ev) => {
-    if (!list.contains(ev.relatedTarget)) showElevatorBg(defaultUrl);
+    if (!list.contains(ev.relatedTarget)) showPanelBg(defaultUrl);
   });
 }
 
@@ -357,8 +369,9 @@ export function elevatorPanel(building, currentLevel) {
   for (const f of building.floors) {
     if (f.bg) new Image().src = f.bg;
   }
-  bindElevatorBg(panel, '');
-  showElevatorBg('');
+  const defaultBg = building.bg || '';
+  bindHoverBg(panel, defaultBg);
+  showPanelBg(defaultBg);
   return panel;
 }
 
@@ -368,11 +381,13 @@ export function floorPanel(building, floor, s, blockedOf) {
     const why = blockedOf ? blockedOf(r) : null;
     const ap = r.ap || 0;
     const attr = why ? 'disabled' : 'data-act="room" data-room="' + r.id + '"';
-    return '<button class="opt' + (why ? ' off' : '') + '" ' + attr + '>' +
+    const bgAttr = r.bg ? ' data-bg="' + esc(r.bg) + '"' : '';
+    const tag = why ? esc(why) : r.freeEntry ? '免费' : ap + ' 点';
+    return '<button class="opt' + (why ? ' off' : '') + '" ' + attr + bgAttr + '>' +
       '<span class="oicon">' + r.icon + '</span>' +
       '<span class="obody"><b>' + esc(r.name) + '</b><i>' + esc(r.effect) + '</i>' +
       '<em>' + esc(r.tagline || '') + '</em></span>' +
-      '<span class="otag">' + (why ? esc(why) : ap + ' 点') + '</span>' +
+      '<span class="otag">' + tag + '</span>' +
       '</button>';
   }).join('');
   const html = `
@@ -391,8 +406,13 @@ export function floorPanel(building, floor, s, blockedOf) {
       </div>
     </div>`;
   const panel = openModal(html, { cls: 'elev-panel' });
-  bindElevatorBg(panel, floor.bg || '');
-  showElevatorBg(floor.bg || '');
+  // 先把房间底图拉下来，悬停不用等
+  for (const r of floor.rooms) {
+    if (r.bg) new Image().src = r.bg;
+  }
+  const defaultBg = floor.bg || (building.bg || '');
+  bindHoverBg(panel, defaultBg);
+  showPanelBg(defaultBg);
   return panel;
 }
 
@@ -448,61 +468,4 @@ export function friendPanel(spot, s) {
       <div class="row"><button class="btn" data-act="cancel">算了</button></div>
     </div>`;
   return openModal(html, { cls: 'room-panel' });
-}
-
-const PIANO_KEYS = ['do', 're', 'mi', 'fa', 'so', 'la', 'si', 'do'];
-
-// 钢琴：真的能弹。弹够 CONFIG.room.piano.notes 个音才结算。
-export function pianoPanel(spot, played, s, doneMsg) {
-  const need = CONFIG.room.piano.notes;
-  const keys = PIANO_KEYS.map((k, i) =>
-    '<button class="pkey' + (i === 7 ? ' hi' : '') + '" data-act="note" data-note="' + i + '">' +
-    '<span>' + k + '</span><i>' + (i + 1) + '</i></button>').join('');
-  const dots = PIANO_KEYS.map((_, i) => '<i class="' + (i < played.length ? 'on' : '') + '"></i>').join('');
-
-  if (doneMsg) {
-    const html = `
-      <div class="room">
-        <div class="rhead"><span class="ricon">🎹</span><div><h2>钢琴</h2>
-          <p class="sub">最后一个音还在空气里。</p></div></div>
-        <p class="reffect">${esc(doneMsg)}</p>
-        <div class="row"><button class="btn primary" data-act="cancel">合上琴盖</button></div>
-      </div>`;
-    return openModal(html, { cls: 'room-panel' });
-  }
-
-  const html = `
-    <div class="room">
-      <div class="rhead"><span class="ricon">🎹</span><div><h2>钢琴</h2>
-        <p class="sub">${esc(spot.desc || '')}</p></div></div>
-      <p class="rcost">点琴键，或者按键盘 1–8。弹够 ${need} 个音就结算（已弹 ${played.length} / ${need}）</p>
-      <div class="piano">${keys}</div>
-      <div class="pdots">${dots}</div>
-      <div class="row"><button class="btn" data-act="cancel">不弹了</button></div>
-    </div>`;
-  return openModal(html, { cls: 'room-panel piano-panel' });
-}
-
-let actx = null;
-const TONES = [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25];
-
-export function playTone(i) {
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    if (!actx) actx = new AC();
-    if (actx.state === 'suspended') actx.resume();
-    const t0 = actx.currentTime;
-    const osc = actx.createOscillator();
-    const gain = actx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = TONES[i % TONES.length];
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.linearRampToValueAtTime(0.16, t0 + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.0);
-    osc.connect(gain);
-    gain.connect(actx.destination);
-    osc.start(t0);
-    osc.stop(t0 + 1.05);
-  } catch (e) { /* 音频被拦就静音，照样能弹 */ }
 }

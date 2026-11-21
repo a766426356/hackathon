@@ -170,52 +170,62 @@ export function doubt(s) {
   return ok(msg);
 }
 
-// 1F 乒乓球：不挑人，谁来都能打
-export function pingpong(s, npcId) {
+// 1F 乒乓球：真打一局，按小球结果结算
+export function pingpong(s, npcId, outcome = 'win') {
   const npc = NPCS[npcId];
   if (!npc) return no('这里没有人。');
   const bad = inDay(s);
   if (bad) return bad;
   if (s.today.pingpong) return no('今天已经打过球了，胳膊抬不起来。');
+  const win = outcome === 'win';
+  const draw = outcome === 'draw';
+  const mood = win ? R.pingpong.mood : draw ? R.pingpong.drawMood : R.pingpong.loseMood;
+  const friend = win ? R.pingpong.friend : draw ? R.pingpong.drawFriend : R.pingpong.loseFriend;
   spendAp(s);
   s.today.pingpong = true;
-  s.mood = clampMood(s.mood + R.pingpong.mood);
-  const unlocked = bumpFriend(s, npcId, R.pingpong.friend);
+  s.mood = clampMood(s.mood + mood);
+  const unlocked = bumpFriend(s, npcId, friend);
   s.stats.socials += 1;
-  const msg = '和' + npc.name + '打了两局：心情 +' + R.pingpong.mood + '，友谊 +' + R.pingpong.friend +
-    '（' + s.friend[npcId] + '）。' + (unlocked ? ' · 解锁支援卡。' : '');
+  const label = win ? '你赢了' : draw ? '打平了' : '你输了';
+  const msg = '和' + npc.name + '打了一局乒乓球（' + label + '）：心情 +' + mood +
+    '，友谊 +' + friend + '（' + s.friend[npcId] + '）。' + (unlocked ? ' · 解锁支援卡。' : '');
   hhLog(s, msg, 'social');
   return ok(msg);
 }
 
-// 1F 斯诺克：更亲近，但对方今天得还没跟你聊过
-export function snooker(s, npcId) {
+// 1F 斯诺克：真打一局，更亲近，但对方今天得还没跟你聊过
+export function snooker(s, npcId, outcome = 'win') {
   const npc = NPCS[npcId];
   if (!npc) return no('这里没有人。');
   const bad = inDay(s);
   if (bad) return bad;
   if (s.today.talked[npcId]) return no(npc.name + '今天已经跟你聊过了，一局球也说不出更多东西。');
+  const win = outcome === 'win';
+  const draw = outcome === 'draw';
+  const mood = win ? R.snooker.mood : draw ? R.snooker.drawMood : R.snooker.loseMood;
+  const friend = win ? R.snooker.friend : draw ? R.snooker.drawFriend : R.snooker.loseFriend;
   spendAp(s);
   s.today.talked[npcId] = true;
-  s.mood = clampMood(s.mood + R.snooker.mood);
-  const unlocked = bumpFriend(s, npcId, R.snooker.friend);
+  s.mood = clampMood(s.mood + mood);
+  const unlocked = bumpFriend(s, npcId, friend);
   s.stats.socials += 1;
-  const msg = '和' + npc.name + '打了一局斯诺克：心情 +' + R.snooker.mood + '，友谊 +' + R.snooker.friend +
-    '（' + s.friend[npcId] + '）。' + (unlocked ? ' · 解锁支援卡。' : '');
+  const label = win ? '你赢了' : draw ? '打平了' : '你输了';
+  const msg = '和' + npc.name + '打了一局斯诺克（' + label + '）：心情 +' + mood +
+    '，友谊 +' + friend + '（' + s.friend[npcId] + '）。' + (unlocked ? ' · 解锁支援卡。' : '');
   hhLog(s, msg, 'social');
   return ok(msg);
 }
 
-// 1F 钢琴：真的弹，弹够几个音才结算
+// 1F 钢琴：可以无限弹，只有每天第一次弹满才结算
 export function piano(s, notes) {
-  const bad = inDay(s);
-  if (bad) return bad;
-  if (s.today.piano) return no('今天已经弹过了，再弹就成扰民了。');
+  if (s.phase !== 'day') return no('现在不是白天。');
+  if (s.today.piano) return no('今天已经弹尽兴了，继续随便弹。');
+  if (!hasAp(s)) return no('今天没有行动点了。琴可以随便弹，但不算今天的收获。');
   spendAp(s);
   s.today.piano = true;
   s.mood = clampMood(s.mood + R.piano.mood);
   const played = notes || R.piano.notes;
-  const msg = '你在钢琴前按了 ' + played + ' 个音：心情 +' + R.piano.mood + '。';
+  const msg = '你在钢琴前弹了 ' + played + ' 个音：心情 +' + R.piano.mood + '。';
   hhLog(s, msg, 'social');
   return ok(msg);
 }

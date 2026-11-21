@@ -23,24 +23,26 @@ const ROOMS = {
   },
   pingpong: {
     id: 'pingpong', name: '乒乓球台', icon: '🏓', action: 'pingpong', ap: 1, pick: 'pingpong',
-    tagline: '找个人打两局',
+    tagline: '和 classic Pong 一样，先到 7 分',
     desc: '台子空着，边上扔着两副拍子和一筒球。想打就得找人。',
-    effect: '心情 +' + R.pingpong.mood + '，选一位朋友：友谊 +' + R.pingpong.friend + '（每天 1 次）',
+    effect: '和一位朋友打一局：赢心情 +' + R.pingpong.mood + ' / 友谊 +' + R.pingpong.friend + '，输了也有少量（每天 1 次）',
   },
   snooker: {
     id: 'snooker', name: '斯诺克台', icon: '🎱', action: 'snooker', ap: 1, pick: 'snooker',
-    tagline: '约一局，聊点真的',
+    bg: 'assets/bg/wenyu-snooker.jpg',
+    tagline: '6 红 6 彩，一局定胜负',
     desc: '绿呢台面，灯压得很低。这地方适合边打球边说点平时不说的话。',
-    effect: '心情 +' + R.snooker.mood + '，选一位朋友：友谊 +' + R.snooker.friend + '（TA 今天还没和你聊过才行）',
+    effect: '和一位朋友打一局：赢心情 +' + R.snooker.mood + ' / 友谊 +' + R.snooker.friend + '，输了也有少量（TA 今天还没和你聊过才行）',
   },
   piano: {
-    id: 'piano', name: '钢琴', icon: '🎹', action: 'piano', ap: 1,
-    tagline: '弹几个音',
+    id: 'piano', name: '钢琴', icon: '🎹', action: 'piano', ap: 1, freeEntry: true,
+    tagline: '三个八度 · 无限弹',
     desc: '一架立式钢琴，琴盖是开的。没人管，你可以弹。',
-    effect: '弹够 ' + R.piano.notes + ' 个音：心情 +' + R.piano.mood + '（每天 1 次）',
+    effect: '免费、随便弹；每天第一次弹满 ' + R.piano.notes + ' 个音：心情 +' + R.piano.mood + '（之后不再结算）',
   },
   studyroom: {
     id: 'studyroom', name: '自习室', icon: '📖', action: 'studyroom', ap: 1,
+    bg: 'assets/bg/wenyu-study.jpg',
     tagline: '安静记一点，但写不成卡',
     desc: '长桌一路排到窗边，安静得能听见空调。',
     effect: '知识 +' + R.studyroom.know + '，心情 ' + sgn(R.studyroom.mood) + '，不产出笔记卡',
@@ -59,6 +61,7 @@ export const BUILDING_FLOORS = {
     id: 'cds1',
     name: 'CDS-1',
     full: 'CDS-1 主教学楼',
+    bg: 'assets/bg/cds1-lobby.jpg', // 打开电梯面板时就铺这张大堂图
     floors: [
       {
         level: 5, label: '5F', name: 'lab 层', locked: true,
@@ -90,7 +93,7 @@ export const BUILDING_FLOORS = {
       {
         level: 2, label: '2F', name: '自习层',
         rooms: [ROOMS.studyroom],
-        bg: 'assets/elevator-test/wenyu-f2.jpg',
+        bg: 'assets/bg/wenyu-study.jpg',
       },
       {
         level: 1, label: '1F', name: '活动层',

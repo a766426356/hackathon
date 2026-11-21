@@ -629,22 +629,6 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
 .pick .pf { font-size: 11px; color: #9fb4d6; }
 .pick .pnote { font-size: 10.5px; color: #86909f; }
 
-.piano { display: flex; gap: 3px; margin: 14px 0 10px; }
-.pkey {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  height: 96px; padding-bottom: 8px; gap: 4px;
-  font: inherit; color: #20242e; background: linear-gradient(#fdfdff, #dfe3ec);
-  border: 1px solid #9aa3b6; border-radius: 0 0 5px 5px; cursor: pointer;
-  transition: transform .06s, background .06s;
-}
-.pkey:active { transform: translateY(2px); background: linear-gradient(#fff8e2, #e8e2cc); }
-.pkey.hi { background: linear-gradient(#fff6d8, #e6dcb4); }
-.pkey span { font-size: 11px; color: #4a5163; }
-.pkey i { font-size: 10px; color: #8b93a4; font-style: normal; }
-.pdots { display: flex; gap: 6px; margin-bottom: 8px; }
-.pdots i { width: 8px; height: 8px; border-radius: 50%; background: #3a4458; display: inline-block; }
-.pdots i.on { background: var(--gold); box-shadow: 0 0 6px rgba(224, 182, 74, .6); }
-
 /* 校园是一张方图：场景框在校园场景里改成 1:1 */
 #scene.square { width: min(100%, calc(100vh - 168px)); }
 
@@ -697,3 +681,241 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
 }
 .opt.off .otag { color: #8b96a9; border-color: #3d475c; }
 .row { display: flex; gap: 8px; }
+
+/* ================================================================ 小游戏（钢琴 / 乒乓 / 斯诺克） */
+#modal.mg-panel {
+  width: min(96vw, 1040px);
+  max-height: 96vh;
+  padding: 18px 20px 16px;
+  background: #161b24;
+  border-color: #3d4659;
+}
+#modal.snooker-panel { width: min(96vw, 860px); }
+#modal.pong-panel { width: min(96vw, 860px); }
+#modal.piano-panel { width: min(96vw, 1080px); }
+
+.mg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.mg-title { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.mg-icon { font-size: 30px; line-height: 1; margin-top: 2px; }
+.mg-title h2 { margin: 0 0 3px; font-size: 20px; letter-spacing: .5px; }
+.mg-title .sub { margin: 0; font-size: 11.5px; color: #8f9bb3; }
+.mg-meters { display: flex; gap: 18px; flex: 0 0 auto; }
+.mg-meter { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.mg-meter b { font-size: 24px; color: var(--gold-2); font-variant-numeric: tabular-nums; }
+.mg-meter span { margin-top: 4px; font-size: 10px; color: #8793a8; }
+
+.mg-status { font-size: 11.5px; line-height: 1.5; color: #9fb0c8; }
+.mg-status.ok { color: #9ee3a1; }
+.mg-status.warn { color: #f0a0a0; }
+.mg-status.muted { color: #7e8aa0; }
+.mg-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.mg-hint {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 20px;
+  margin-top: 10px; font-size: 11px; line-height: 1.65; color: #8793a8;
+}
+.mg-hint kbd, .piano-hint kbd {
+  display: inline-block; padding: 0 5px; margin: 0 1px;
+  font: inherit; font-size: 10.5px; line-height: 16px;
+  color: #d5ddeb; background: #252e3e;
+  border: 1px solid #4b586f; border-bottom-width: 2px; border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------- 钢琴 */
+.piano-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 12px;
+}
+.piano-pedal {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  font-size: 10.5px; color: #8d99ae;
+  border: 1px solid #3b475e; border-radius: 10px;
+  transition: color .1s, border-color .1s, background .1s;
+}
+.piano-pedal.on {
+  color: #ffe38a; border-color: rgba(224, 182, 74, .65);
+  background: rgba(224, 182, 74, .12);
+  box-shadow: 0 0 10px rgba(224, 182, 74, .18);
+}
+.piano-progress {
+  height: 4px; margin: 9px 0 12px;
+  background: #0d121a; border-radius: 3px; overflow: hidden;
+}
+.piano-progress i {
+  display: block; width: 0; height: 100%;
+  background: linear-gradient(90deg, #a87b24, #ffe38a);
+  transition: width .12s ease-out;
+}
+.piano-body {
+  padding: 14px 14px 18px;
+  background: linear-gradient(180deg, #442a15 0%, #2a190c 45%, #1a0f07 100%);
+  border: 1px solid #6b4527;
+  border-radius: 9px;
+  box-shadow: inset 0 2px 0 rgba(255, 226, 176, .1), 0 14px 34px rgba(0, 0, 0, .45);
+}
+.piano-body::before {
+  content: ''; display: block; height: 12px; margin: -6px 8px 9px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #7a4d28, #3a2412);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 176, .18);
+}
+.piano-keys {
+  position: relative;
+  display: flex;
+  height: clamp(150px, 26vh, 220px);
+  background: #08090c;
+  border-radius: 4px;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+}
+.piano-keys .pkey {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.piano-keys .pkey.white {
+  flex: 1 1 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  height: 100%;
+  margin-right: 1px;
+  padding-bottom: 8px;
+  border: 0;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, #fdfdff 0%, #f1f2f6 70%, #d9dce4 100%);
+  box-shadow: inset 0 -4px 0 #b6bac5, inset 0 2px 0 #fff;
+  transition: background .04s, transform .04s;
+}
+.piano-keys .pkey.white:last-child { margin-right: 0; }
+.piano-keys .pkey.white span { font-size: 9px; color: #8b93a4; pointer-events: none; }
+.piano-keys .pkey.white.c-note span { color: #b58b2a; font-weight: 700; }
+.piano-keys .pkey.black {
+  position: absolute;
+  top: 0;
+  height: 62%;
+  z-index: 2;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 7px;
+  border: 0;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(180deg, #343945 0%, #14171d 68%, #050608 100%);
+  box-shadow: inset 0 -3px 0 #000, inset 0 1px 0 #59606e, 0 3px 5px rgba(0, 0, 0, .62);
+  transform: translateX(-50%);
+  transition: background .04s, transform .04s;
+}
+.piano-keys .pkey.black span { font-size: 8px; color: #8e97a8; pointer-events: none; }
+.piano-keys .pkey.white.on {
+  background: linear-gradient(180deg, #fff8e4, #eee4c6 78%, #ded0a5);
+  transform: translateY(2px);
+  box-shadow: inset 0 -2px 0 #c7b98d, inset 0 2px 0 #fff;
+}
+.piano-keys .pkey.black.on {
+  background: linear-gradient(180deg, #4a422d 0%, #211d12 70%, #0b0a06 100%);
+  transform: translateX(-50%) translateY(2px);
+}
+.piano-hint {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 20px;
+  margin-top: 11px; font-size: 11px; line-height: 1.65; color: #8793a8;
+}
+
+/* ---------------------------------------------------------------- 球台公共 */
+.pong-scoreline { display: flex; align-items: baseline; gap: 12px; flex: 0 0 auto; }
+.pong-scoreline .ps { font-size: 11px; color: #97a3b8; white-space: nowrap; }
+.pong-scoreline .ps b { margin: 0 3px; font-size: 28px; color: var(--gold-2); font-variant-numeric: tabular-nums; }
+.pong-scoreline .ps.foe b { color: #9fd0f0; }
+.pong-scoreline .ps.sep { color: #5f6b81; font-size: 22px; }
+
+.pong-stage, .sn-stage {
+  position: relative;
+  margin-top: 12px;
+  overflow: hidden;
+  background: #08111a;
+  border: 1px solid #3a475c;
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .5);
+}
+#pong-canvas, #sn-canvas { display: block; width: 100%; height: auto; }
+
+.mg-overlay {
+  position: absolute; inset: 0; z-index: 5;
+  display: grid; place-items: center;
+  padding: 16px;
+  background: rgba(5, 9, 14, .72);
+  backdrop-filter: blur(3px);
+}
+.po-card {
+  width: min(92%, 430px);
+  padding: 20px 22px;
+  text-align: center;
+  background: linear-gradient(180deg, #202a3a, #141a24);
+  border: 1px solid #4b5b78;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .55);
+  animation: panelIn .18s ease-out;
+}
+.po-card h3 { margin: 2px 0 8px; font-size: 32px; color: var(--gold-2); letter-spacing: 1px; }
+.po-card p { margin: 0 0 4px; font-size: 12px; line-height: 1.7; color: #b8c4d8; }
+.po-card .mg-row { justify-content: center; }
+.po-tag {
+  display: inline-block; padding: 2px 9px;
+  font-size: 10.5px; letter-spacing: 1.5px; color: #1a1508;
+  background: var(--gold); border-radius: 3px;
+}
+
+/* ---------------------------------------------------------------- 斯诺克 */
+.sn-scoreline { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.sn-score {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 66px; padding: 4px 10px;
+  background: #202838; border: 1px solid #3b475e; border-radius: 7px;
+}
+.sn-score b { font-size: 26px; line-height: 1.1; color: var(--gold-2); font-variant-numeric: tabular-nums; }
+.sn-score.foe b { color: #9fd0f0; }
+.sn-score em { margin-top: 2px; font-style: normal; font-size: 10.5px; color: #97a3b8; }
+.sn-turn {
+  padding: 3px 10px; font-size: 10.5px; border-radius: 10px;
+  border: 1px solid #3b475e; color: #8793a8;
+}
+.sn-turn.you { color: #ffe38a; border-color: rgba(224, 182, 74, .55); background: rgba(224, 182, 74, .1); }
+.sn-turn.foe { color: #9fd0f0; border-color: rgba(120, 170, 220, .45); background: rgba(120, 170, 220, .08); }
+.sn-subline {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px;
+  margin-top: 11px; font-size: 11.5px; color: #97a3b8;
+}
+.sn-subline b { color: #dfe5f2; font-variant-numeric: tabular-nums; }
+.sn-subline .mg-status { margin-left: auto; }
+
+@media (max-width: 760px) {
+  #modal.mg-panel { padding: 14px 12px 14px; }
+  .mg-head { flex-wrap: wrap; gap: 10px; }
+  .mg-icon { font-size: 24px; }
+  .mg-title h2 { font-size: 17px; }
+  .mg-meters { gap: 12px; }
+  .mg-meter b { font-size: 20px; }
+  .piano-body { padding: 9px 8px 12px; }
+  .piano-keys .pkey span { display: none; }
+  .piano-hint span:nth-child(2) { display: none; }
+  .piano-toolbar { align-items: flex-start; }
+  .pong-scoreline .ps b { font-size: 22px; }
+  .sn-scoreline { gap: 8px; }
+  .sn-score { min-width: 56px; padding: 3px 8px; }
+  .sn-score b { font-size: 22px; }
+  .sn-subline { font-size: 10.5px; }
+  .sn-subline .mg-status { margin-left: 0; flex-basis: 100%; }
+  .mg-hint span:nth-child(2) { display: none; }
+}
+
+
+/* 矮窗口（笔记本 / 浏览器带书签栏）：优先保证球台和按钮都在视野里 */
+@media (max-height: 820px) {
+  #modal.mg-panel { padding-top: 12px; padding-bottom: 10px; }
+  .mg-title .sub { display: none; }
+  .mg-hint { display: none; }
+  .mg-row { margin-top: 8px; }
+  .sn-subline { margin-top: 6px; }
+  .piano-toolbar { margin-top: 8px; }
+}

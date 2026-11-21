@@ -1,6 +1,6 @@
 // main.js — 启动、输入、场景与阶段状态机。游戏规则都在 rules.js / battle.js 里。
 
-import { INTERACTABLES, CONFIG, CAMPUS, MAP_W, MAP_H } from '../data.js';
+import { INTERACTABLES, CONFIG, CAMPUS, MAP_W, MAP_H, NPCS } from '../data.js';
 import {
   createState, loadGame, saveGame, clearSave,
 } from './state.js';
@@ -9,6 +9,9 @@ import * as battle from './battle.js';
 import * as ui from './ui.js';
 import { createWorld } from './world.js';
 import { buildingOf, floorByLevel } from './interiors.js';
+import { openPiano as openPianoGame } from './minigames/piano.js';
+import { openPong } from './minigames/pong.js';
+import { openSnooker } from './minigames/snooker.js';
 
 let state = null;
 let world = null;
@@ -17,7 +20,6 @@ let started = false;
 let lastTs = 0;
 
 // 现在没有室内场景了：一直在校园，进楼只弹面板
-let pianoState = null; // 钢琴弹到一半的连击状态
 
 const canvas = document.getElementById('game');
 
@@ -59,7 +61,6 @@ function startNew() {
   clearSave();
   state = createState(seedFromUrl());
   battleState = null;
-  pianoState = null;
   started = true;
   ui.closeModal();
   renderAll();
@@ -71,7 +72,6 @@ function resume() {
   if (!s) { startNew(); return; }
   state = s;
   battleState = null;
-  pianoState = null;
   started = true;
   ui.closeModal();
   if (state.phase === 'ending') { showEnding(); return; }
@@ -138,12 +138,6 @@ function openFloor(building, level) {
 function onKeyDown(e) {
   const k = e.key.toLowerCase();
 
-  // 琴键优先：1–8 直接对应 do–do
-  if (pianoState && !ui.els.modalRoot.classList.contains('hidden')) {
-    const n = Number(e.key);
-    if (n >= 1 && n <= 8) { e.preventDefault(); playNote(n - 1); return; }
-  }
-
   const move = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
   if (modalOpen()) return;
   if (move.includes(k)) {
@@ -197,11 +191,12 @@ function interact(item) {
 
 // 这间房现在能不能用：不能就当场说清楚，不弹一个按不动的面板
 function roomBlocked(room) {
-  if (state.ap <= 0) return '没行动点了';
   const a = room.action;
+  // 钢琴不占行动点、不封门：随时能弹，只有每天第一次弹满才结算
+  if (a === 'piano') return null;
+  if (state.ap <= 0) return '没行动点了';
   if (a === 'doubt' && state.today.doubt) return '今天用过了';
   if (a === 'pingpong' && state.today.pingpong) return '今天打过了';
-  if (a === 'piano' && state.today.piano) return '今天弹过了';
   if (a === 'pray') {
     if (state.mood > CONFIG.room.pray.moodMax) return '心情高于 ' + CONFIG.room.pray.moodMax;
     if (state.today.pray) return '今天静过了';
@@ -216,12 +211,7 @@ function openRoom(room, building, floor) {
   if (room.pick) {
     ui.friendPanel(room, state);
     ui.bindModal({
-      pick: (el) => {
-        const res = room.pick === 'snooker'
-          ? rules.snooker(state, el.dataset.npc)
-          : rules.pingpong(state, el.dataset.npc);
-        afterAction(res, building, floor);
-      },
+      pick: (el) => openVersus(room, el.dataset.npc, building, floor),
       cancel: () => openFloor(building, floor.level),
     });
     return;
@@ -258,40 +248,55 @@ function afterAction(res, building, floor) {
 }
 
 // ---------------------------------------------------------------- 钢琴
+// 琴可以无限弹：只有每天第一次弹满 N 个音，才花 1 AP 结算心情。
 function openPiano(room, building, floor) {
-  const blocked = roomBlocked(room);
-  if (blocked) { ui.toast(blocked, 'warn'); return; }
-  pianoState = { room, building, floor, notes: [], done: null };
-  renderPiano();
-}
-
-function renderPiano() {
-  ui.pianoPanel(pianoState.room, pianoState.notes, state, pianoState.done);
-  ui.bindModal({
-    note: (el) => playNote(Number(el.dataset.note)),
-    cancel: () => {
-      const { building, floor } = pianoState;
-      pianoState = null;
-      if (state.ap <= 0 && state.phase === 'day') { ui.closeModal(); openNight(); return; }
-      if (building && floor) openFloor(building, floor.level);
-      else ui.closeModal();
+  if (!started || !state || state.phase !== 'day') return;
+  world.keys.clear();
+  const canReward = !state.today.piano && state.ap > 0;
+  openPianoGame({
+    state,
+    notes: CONFIG.room.piano.notes,
+    canReward,
+    onReward: (notes) => {
+      const res = rules.piano(state, notes);
+      if (res.ok) { renderAll(); save(); }
+      return res;
+    },
+    onExit: () => {
+      if (state.ap <= 0 && state.phase === 'day') { openNight(); return; }
+      openFloor(building, floor.level);
     },
   });
 }
 
-function playNote(i) {
-  if (!pianoState || pianoState.done) return;
-  ui.playTone(i);
-  pianoState.notes.push(i);
-  const need = CONFIG.room.piano.notes;
-  if (pianoState.notes.length >= need) {
-    const res = rules.piano(state, pianoState.notes.length);
-    pianoState.done = res.msg;
-    if (res.ok) { renderAll(); save(); }
-    renderPiano();
-    return;
-  }
-  renderPiano();
+// ---------------------------------------------------------------- 球台
+// 先打完小球，再按胜负结算；中途收杆不花行动点。
+function openVersus(room, npcId, building, floor) {
+  const npc = NPCS[npcId];
+  if (!npc) return;
+  ui.closeModal();
+  world.keys.clear();
+  let settled = false;
+  const launch = room.pick === 'snooker' ? openSnooker : openPong;
+  launch({
+    state,
+    npc,
+    onFinish: (outcome) => {
+      if (settled) return null;
+      settled = true;
+      const res = room.pick === 'snooker'
+        ? rules.snooker(state, npcId, outcome)
+        : rules.pingpong(state, npcId, outcome);
+      if (res.ok) { renderAll(); save(); }
+      return res;
+    },
+    onExit: () => {
+      renderAll();
+      save();
+      if (state.ap <= 0 && state.phase === 'day') { openNight(); return; }
+      openFloor(building, floor.level);
+    },
+  });
 }
 
 // ---------------------------------------------------------------- 夜晚
@@ -299,7 +304,6 @@ function openNight() {
   if (state.phase !== 'day') return;
   state.phase = 'night';
   world.keys.clear();
-  pianoState = null;
   save();
   ui.nightPanel(state);
   ui.bindModal({ study: nightStudy, fight: nightFight });

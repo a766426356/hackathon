@@ -59,9 +59,9 @@ export const CONFIG = {
   // 房间数值：一处定义，interiors.js 的说明文案和 rules.js 的结算都读这里
   room: {
     doubt:     { know: 2, mood: -1, friend: 5 },
-    pingpong:  { mood: 9, friend: 6 },
-    snooker:   { mood: 8, friend: 8 },
-    piano:     { mood: 12, notes: 4 },
+    pingpong:  { mood: 9, friend: 6, loseMood: 3, loseFriend: 2, drawMood: 6, drawFriend: 4 },
+    snooker:   { mood: 8, friend: 8, loseMood: 3, loseFriend: 3, drawMood: 5, drawFriend: 5 },
+    piano:     { mood: 12, notes: 16 },
     studyroom: { know: 5, mood: -2 },
     pray:      { mood: 15, moodMax: 45 },
   },
