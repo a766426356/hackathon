@@ -1,9 +1,11 @@
 // state.js — 状态、派生数值、存读档。纯逻辑，除了 localStorage 之外不碰 DOM。
 
 import { CONFIG } from '../data.js';
+import { freshCalendar } from './calendar.js';
+import { lootMult } from './loot.js';
 
-export const SAVE_KEY = 'zjxy.save.v3';
-export const SAVE_VERSION = 3;
+export const SAVE_KEY = 'zjxy.save.v4';
+export const SAVE_VERSION = 4;
 
 // 每天重置的「今天用过了没」：一处定义，创建存档和翻页都用它。
 export function freshToday() {
@@ -14,6 +16,8 @@ export function freshToday() {
     pingpong: false,
     piano: false,
     pray: false,
+    courses: false, // 今天的 2 节必修课结算过没有
+    zhe: false,     // 今天问过室友没有
   };
 }
 
@@ -48,15 +52,20 @@ export function createState(seed) {
     day: 1,
     maxDay: CONFIG.maxDay,
     phase: 'day', // day | night | exam | ending
-    ap: CONFIG.startAp,
+    ap: CONFIG.freeAp,
     mood: CONFIG.startMood,
     knowledge: 0,
+    physique: CONFIG.startPhysique,
     friend: { lin: 0, chen: 0, zhou: 0 },
     deck: [],
     supportUnlocked: false,
     focus: false,
     battleWins: 0,
+    loot: [],
+    lootCount: 0,
+    lootHasRare: false,
     today: freshToday(),
+    calendar: freshCalendar(),
     scene: 'campus',
     scenePos: null,
     gpa: null,
@@ -67,24 +76,33 @@ export function createState(seed) {
   };
 }
 
+// 心境只管白天收益；战利品里的 day 类在这里放大，所以它也会间接收紧/放松知识积累
 export function moodMult(s) {
-  return 0.5 + s.mood * 0.01;
+  return (0.5 + s.mood * 0.01) * (1 + lootMult(s, 'day'));
 }
 
 export function maxFriend(s) {
   return Math.max(0, ...Object.values(s.friend));
 }
 
+// 血量由体质决定，战利品的 hp 类在出口上放大
 export function playerMaxHp(s) {
-  return CONFIG.battle.playerBaseHp +
-    Math.floor(s.knowledge / CONFIG.battle.hpPerKnowledge) +
-    Math.floor(s.mood / CONFIG.battle.hpPerMood);
+  const base = CONFIG.battle.playerBaseHp + Math.floor(s.physique * CONFIG.hpPerPhysique);
+  return Math.floor(base * (1 + lootMult(s, 'hp')));
+}
+
+// 面板用的分项：GPA 里知识贡献多少、心境贡献多少
+export function examParts(s) {
+  return {
+    base: CONFIG.examBase,
+    knowledge: 3 * (s.knowledge / CONFIG.examKnowledgeDiv),
+    mood: ((s.mood - 50) / 100) * CONFIG.examMoodScale,
+  };
 }
 
 export function examGpa(s) {
-  const raw = CONFIG.examBase +
-    3 * (s.knowledge / CONFIG.examKnowledgeDiv) +
-    ((s.mood - 50) / 100) * CONFIG.examMoodScale;
+  const p = examParts(s);
+  const raw = p.base + p.knowledge + p.mood;
   return Math.round(clamp(raw, 0, CONFIG.gpaMax) * 100) / 100;
 }
 
@@ -109,6 +127,14 @@ export function loadGame() {
     const s = JSON.parse(raw);
     if (!s || s.version !== SAVE_VERSION) return null;
     if (!s.today) s.today = freshToday();
+    if (s.today.courses === undefined) s.today.courses = false;
+    if (s.today.zhe === undefined) s.today.zhe = false;
+    if (s.physique === undefined) s.physique = CONFIG.startPhysique;
+    // 旧档没有日历：补一份，过去的天会在下次翻页时被判成 missed（不扣分）
+    if (!Array.isArray(s.calendar)) s.calendar = freshCalendar();
+    if (!Array.isArray(s.loot)) s.loot = [];
+    if (typeof s.lootCount !== 'number') s.lootCount = s.loot.length;
+    if (s.lootHasRare === undefined) s.lootHasRare = s.loot.some((l) => l.rarity !== 'common');
     if (!s.scene) s.scene = 'campus';
     return s;
   } catch (e) {

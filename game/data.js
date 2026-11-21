@@ -3,14 +3,27 @@
 export const CONFIG = {
   schoolName: '张江学园',
   maxDay: 7, // 第 7 天考试
-  startAp: 3,
+
+  // 每天 5 个行动点 = 2 节必修大课（每天开头自动结算，不占自由点）+ 3 点自由支配
+  requiredCourses: 2,
+  freeAp: 3,
+  totalAp: 5,
+
   startMood: 60,
   moodMin: 0,
   moodMax: 100,
 
+  // 三属性各只管一件事：知识 → 战斗伤害；心境 → 白天收益倍率；体质 → 血量
+  startPhysique: 6,
+  hpPerPhysique: 1.2,
+  physiqueCap: 60,
+
   studyGain: 7,
   studyMoodCost: 4,
   studyFocusMult: 1.5,
+  // 必修课给固定的一小份（不受心境影响）：必修不是选择，不该拿它奖励高心情
+  requiredCourseGain: 3,
+  requiredCourseMoodCost: 2,
   deckCap: 8,
 
   socialGain: 12,
@@ -18,6 +31,7 @@ export const CONFIG = {
   friendSupportAt: 40,
 
   fieldMood: 12,
+  fieldPhysique: 4,
   restMood: 12,
   boardKnowledge: 4,
   boardFriend: 5,
@@ -35,7 +49,7 @@ export const CONFIG = {
   collapseAp: 1,
 
   examBase: 1.0,
-  examKnowledgeDiv: 130,
+  examKnowledgeDiv: 170,
   examMoodScale: 0.5,
   gpaMax: 4.3,
 
@@ -47,21 +61,25 @@ export const CONFIG = {
     rounds: 4,
     handSize: 3,
     enemyHp: 38,
+    enemyHpPerNight: 12,   // 第 N 夜 = enemyHp + (N-1) × 这个数
+    enemyAtkPerNight: 1,
     playerBaseHp: 30,
-    hpPerKnowledge: 6,
-    hpPerMood: 8,
     ddlRound: 3,
     ddlMult: 2,
     fillerPower: 7,
     supportHeal: 8,
   },
 
+  // 战利品只放大「出口」，不改属性本身，所以不会顶穿 GPA。
+  // 同一类加成各自封顶，避免 6 场下来滚成天文数字。
+  lootCap: 0.6,
+
   // 房间数值：一处定义，interiors.js 的说明文案和 rules.js 的结算都读这里
   room: {
     doubt:     { know: 2, mood: -1, friend: 5 },
-    pingpong:  { mood: 9, friend: 6, loseMood: 3, loseFriend: 2, drawMood: 6, drawFriend: 4 },
-    snooker:   { mood: 8, friend: 8, loseMood: 3, loseFriend: 3, drawMood: 5, drawFriend: 5 },
-    piano:     { mood: 12, notes: 16 },
+    pingpong:  { mood: 9, friend: 6 },
+    snooker:   { mood: 8, friend: 8 },
+    piano:     { mood: 12, notes: 4 },
     studyroom: { know: 5, mood: -2 },
     pray:      { mood: 15, moodMax: 45 },
   },
@@ -69,8 +87,7 @@ export const CONFIG = {
 
 // ---------------------------------------------------------------- 校园（一张画好的大图）
 // 图片是 1024×1024，画布按 768×768 等比显示（S = 768/1024 = 0.75）。
-// 碰撞不再是格子，而是一组「可以走的矩形」：道路、广场、走廊、场馆前的台阶。
-// 这样只要改这几个矩形就能改可行走范围，不用跟着图重新描一遍地砖。
+// 碰撞不是格子，而是一组「可以走的矩形」：道路、广场、走廊、场馆前的台阶。
 export const CAMPUS = {
   src: 'assets/campus.jpg',
   w: 1024,
@@ -100,20 +117,65 @@ export const WALKABLE = [
   { id: 'courtApron', x: 85, y: 70, w: 330, h: 75 },   // 球场前的步道
 ];
 
-
 export const SPAWN = { x: 520, y: 520 };
 
 // ---------------------------------------------------------------- 交互点
-// 坐标同样是图片坐标；只做三处「能进去/能用」：体育场、文娱楼（5#）、CDS-1。
+// 坐标同样是图片坐标；能进去的三处：体育场（室外）、文娱楼（5#）、CDS-1，外加寝室。
 export const INTERACTABLES = [
-  { id: 'field', name: '体育场', icon: '🏃', kind: 'field', x: 612, y: 250, hint: '跑两圈：心情 +，获得「专注」' },
+  { id: 'field', name: '体育场', icon: '🏃', kind: 'field', x: 612, y: 250, hint: '跑两圈：心情 +，体质 +，获得「专注」' },
   { id: 'wenyu', name: '文娱楼', icon: '🎱', kind: 'enter', building: 'wenyu', x: 745, y: 405, labelBelow: true, hint: '5#：乒乓球 / 斯诺克 / 钢琴 / 自习室 / 祷告室' },
   { id: 'cds1', name: 'CDS-1', icon: '🏫', kind: 'enter', building: 'cds1', x: 745, y: 668, labelBelow: true, hint: '教学楼层 3F：大课教室 / 答疑角' },
+  { id: 'dorm', name: '寝室', icon: '🛏️', kind: 'enter', building: 'dorm', x: 300, y: 840, labelBelow: true, hint: '2#：床 / 书桌 / 日历墙 / 室友' },
   { id: 'board', name: '公告板', icon: '📋', kind: 'board', x: 520, y: 640, hint: '当日日程：小量知识 + 一段友谊' },
   { id: 'lin', name: '林', icon: '☕', kind: 'social', npc: 'lin', x: 592, y: 548, hint: '聊天：友谊 +、心情 +' },
   { id: 'chen', name: '陈', icon: '🎭', kind: 'social', npc: 'chen', x: 445, y: 700, hint: '聊天：友谊 +、心情 +' },
   { id: 'zhou', name: '周', icon: '🎧', kind: 'social', npc: 'zhou', x: 505, y: 790, hint: '聊天：友谊 +、心情 +' },
-  { id: 'dorm', name: '宿舍', icon: '🛏️', kind: 'rest', x: 300, y: 840, labelBelow: true, hint: '2#：休息，直接结束白天' },
+];
+
+// 室友：常驻寝室，不挂友谊条，只给「今天该干什么」的判断。
+// 单独放，不进 NPCS —— NPCS 的每个 key 都对应一条 friend 数值。
+export const ROOMMATE = { id: 'zhe', name: '哲', place: '寝室', color: '#b8a0d9' };
+
+// ---------------------------------------------------------------- 日历活动
+// 活动不在房间里，而在校园的一个「出发点」上：当天走到那里按 E 才能出发。
+// 每个活动给的东西不一样、幅度也不同 —— 出发前的面板会把三条属性的增减直接写出来。
+// 坐标刻意和现有交互点隔开两格以上：走近时光圈会自动选最近的一个，
+// 两个点挨太近（旧版的操场/文娱楼门口）会出现「明明站在活动点旁边却选不中」。
+export const EVENT_PLACES = {
+  club:  { x: 420, y: 580, name: '社团楼门口' },
+  field: { x: 700, y: 100, name: '操场' },
+  wenyu: { x: 860, y: 440, name: '文娱楼门口' },
+  cds1:  { x: 640, y: 690, name: 'CDS-1 门口' },
+  gate:  { x: 512, y: 890, name: '校门' },
+};
+
+// 7 天里排 5 场，第 1 天留空当教学日。错过只记一笔，不扣分（罚分留给 ddl）。
+export const EVENTS = [
+  {
+    id: 'ev.club', day: 2, kind: 'event', title: '社团招新', place: 'club', host: 'chen', ap: 1,
+    know: 0, mood: 8, physique: 6,
+    desc: '陈在楼下支了张桌子，海报还是手写的。「就填个名字，」他说，「不来也行。」',
+  },
+  {
+    id: 'ev.run', day: 3, kind: 'event', title: '夜跑团', place: 'field', host: 'zhou', ap: 1,
+    know: 0, mood: 4, physique: 10,
+    desc: '周拉你绕操场跑圈，跑到第三圈他就不说话了。',
+  },
+  {
+    id: 'ev.read', day: 4, kind: 'event', title: '读书会', place: 'wenyu', host: 'lin', ap: 1,
+    know: 6, mood: 6, physique: 0,
+    desc: '林带了手冲和两本旧书，一共只来了三个人。',
+  },
+  {
+    id: 'ev.team', day: 5, kind: 'event', title: '校队集训', place: 'field', host: 'chen', ap: 2,
+    know: 0, mood: -5, physique: 18,
+    desc: '陈把训练表拍在桌上：今天两小时，跑完再谈别的。',
+  },
+  {
+    id: 'ev.visit', day: 6, kind: 'event', title: '公司走访', place: 'gate', host: null, ap: 2,
+    know: 10, mood: -6, physique: 0,
+    desc: '跟着名单出去一趟，回来时天已经黑了，手里多了一沓没人要的资料。',
+  },
 ];
 
 // ---------------------------------------------------------------- NPC / 卡 / 敌人
@@ -150,17 +212,52 @@ export const ENEMIES = [
   { id: 'juan',  name: '内卷王',   atk: 7, moodCost: 2, desc: '别人都在跑，你凭什么停。' },
 ];
 
+// ---------------------------------------------------------------- 战利品
+// 只放大出口：damage 让牌打得更疼、hp 让血量更厚、day 让白天收益更高。
+// 属性本身（知识 / 心境 / 体质）一点都不动，所以 examGpa 不受影响（day 类除外，它靠收益增速间接影响）。
+export const LOOT = [
+  { id: 'loot.tail',  name: '拖延兽的尾巴',   rarity: 'common',    kind: 'damage', value: 0.08,
+    desc: '你把它拽下来的时候，它还在说「明天再说」。' },
+  { id: 'loot.shoe',  name: '旧运动鞋',       rarity: 'common',    kind: 'hp',     value: 0.10,
+    desc: '鞋底磨平了，但还合脚。' },
+  { id: 'loot.lamp',  name: '宿舍台灯',       rarity: 'common',    kind: 'day',    value: 0.08,
+    desc: '灯罩有点歪，光刚好落在书页上。' },
+
+  { id: 'loot.page',  name: '撕掉的第一页',   rarity: 'rare',      kind: 'damage', value: 0.18,
+    desc: '那页纸上写着「算了」，你把它撕了。' },
+  { id: 'loot.mask',  name: '冒名的面具',     rarity: 'rare',      kind: 'hp',     value: 0.20,
+    desc: '戴上它，那个声音小了一点。' },
+  { id: 'loot.plan',  name: '内卷王的计划表', rarity: 'rare',      kind: 'day',    value: 0.15,
+    desc: '别人的时间表。你抄了一半就撕了。' },
+
+  { id: 'loot.hunt',  name: '猎人的直觉',     rarity: 'legendary', kind: 'damage', value: 0.25,
+    desc: '你开始能听见它们出手前的呼吸。' },
+  { id: 'loot.jersey', name: '校队队服',      rarity: 'legendary', kind: 'hp',     value: 0.25,
+    desc: '号码是别人挑剩的，但你穿得刚好。' },
+  { id: 'loot.clock', name: '别人的闹钟',     rarity: 'legendary', kind: 'day',    value: 0.20,
+    desc: '它每天响得比你早一个小时，你也就跟着起来了。' },
+];
+
+// 掉落权重：普通 60 / 稀有 30 / 传说 10
+export const LOOT_WEIGHT = { common: 60, rare: 30, legendary: 10 };
+
+export const LOOT_KIND = { damage: '夜战伤害', hp: '血量上限', day: '白天收益' };
+
 // ---------------------------------------------------------------- 文案
 export const TEXTS = {
-  intro: '张江学园的第七天是期末。白天你有三个行动点：进楼上课、找人打球、去操场跑两圈。' +
-    '走进 CDS-1 或文娱楼，先到电梯厅，再选楼层——楼层之间走动不花行动点，' +
-    '只有真的做一件事才花。晚上只能选一件事：继续深造，或者去打一只占位怪物。' +
+  intro: '张江学园的第七天是期末。每天两节大课是必上的，除此之外你还有三个行动点，' +
+    '可以进楼上课、找人打球、去操场跑两圈。走进 CDS-1 或文娱楼，先到电梯厅，再选楼层' +
+    '——楼层之间走动不花行动点，只有真的做一件事才花。' +
+    '每天从寝室醒来：书桌上是你的属性换算，墙上贴着学期日历，室友会告诉你今天该干什么。' +
+    '白天结束时回到那张床上，晚上只能选一件事：继续深造，或者去打一只占位怪物。' +
     '你记下的每一行笔记，都会变成晚上能打出去的牌。',
   introRules: [
-    'WASD / 方向键走路，E 或空格交互，也可以直接点标签。',
+    'WASD / 方向键走路，E 或空格交互，也可以直接点标签。寝室在 2# 门口，书桌/日历墙/室友都不花行动点。',
+    '每天 5 个行动点：2 节必修大课自动结算，剩下 3 点自己分配。',
+    '三属性各管一件事：知识 → 夜战伤害；心境 → 白天收益；体质 → 血量上限。',
+    '书桌看属性、日历墙看学期、室友给你一句判断——这三件都不花行动点。',
     '进楼先到电梯厅，电梯面板上标着每层有什么；层间移动 0 行动点。',
     '房间会先弹确认面板：看清代价再点「开始」。',
-    '每天 3 点行动点，用完自动进入夜晚。心情是乘数，同时决定学习收益和战斗伤害。',
   ],
   nightTitle: '夜晚',
   nightStudy: '宿舍深造',

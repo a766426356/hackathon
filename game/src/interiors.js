@@ -57,7 +57,52 @@ const ROOMS = {
 };
 
 // 楼 → 楼层（level 越大越高，可正可负）→ 这一层有哪些房间
+// 寝室：没有电梯，一层就是全部。床是白天的终点，书桌/日历墙/室友是出门前的三件事。
+const DORM_ROOMS = {
+  char: {
+    id: 'dorm.char', name: '书桌', icon: '🪑', action: 'char', ap: 0,
+    tagline: '看看自己现在什么水平',
+    desc: '桌上摊着笔记、半杯凉掉的咖啡，还有一张没写完的便签。',
+    effect: '打开角色面板：三条属性、今晚能打多少伤害、还差多少到学神',
+  },
+  calendar: {
+    id: 'dorm.calendar', name: '日历墙', icon: '📅', action: 'calendar', ap: 0,
+    tagline: '这学期还剩几天，今晚要面对什么',
+    desc: '墙上钉着一整学期的日程，今天的格子被红笔圈了。',
+    effect: '看学期时间轴：已过 / 今天 / 未来，以及今晚的敌人',
+  },
+  roomie: {
+    id: 'dorm.roomie', name: '室友 哲', icon: '💬', action: 'roomieTalk', ap: 0,
+    tagline: '每天一句，不给数值',
+    desc: '哲躺在床上刷手机，头也没抬。',
+    effect: '听他说一句今天的判断（不花行动点、不涨友谊）',
+  },
+  bed: {
+    id: 'dorm.bed', name: '床', icon: '🛏️', action: 'rest', ap: 1,
+    tagline: '睡过去，结束白天',
+    desc: '被子还是早上叠的那个形状，现在被压出了一道弧。',
+    effect: '心情 +' + CONFIG.restMood + '，直接结束白天',
+  },
+  door: {
+    id: 'dorm.door', name: '门', icon: '🚪', action: 'leave', ap: 0,
+    tagline: '出门，回校园',
+    desc: '走廊尽头的灯在闪。',
+    effect: '回到校园（不花行动点）',
+  },
+};
+
 export const BUILDING_FLOORS = {
+  dorm: {
+    id: 'dorm',
+    name: '寝室',
+    full: '2# 寝室',
+    floors: [
+      {
+        level: 1, label: '寝室', name: '你的房间',
+        rooms: [DORM_ROOMS.char, DORM_ROOMS.calendar, DORM_ROOMS.roomie, DORM_ROOMS.bed, DORM_ROOMS.door],
+      },
+    ],
+  },
   cds1: {
     id: 'cds1',
     name: 'CDS-1',

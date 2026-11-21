@@ -45,6 +45,7 @@ export function createWorld(canvas) {
   const keys = new Set();
   let near = null;
   let t = 0;
+  let spots = INTERACTABLES.slice(); // 会随日历活动变化
   // 镜头中心：平滑跟到玩家身上，并夹在图的边界内
   const cam = { x: player.x, y: player.y };
   const lead = { x: 0, y: 0 }; // 镜头前瞻：朝哪走就先往哪偏一点
@@ -108,7 +109,7 @@ export function createWorld(canvas) {
 
     near = null;
     let best = INTERACT_RANGE;
-    for (const item of INTERACTABLES) {
+    for (const item of spots) {
       const cx = item.x * S;
       const cy = item.y * S;
       const d = Math.hypot(cx - player.x, cy - player.y);
@@ -118,7 +119,7 @@ export function createWorld(canvas) {
 
   // ------------------------------------------------------------ 绘制
   function drawMarkers() {
-    for (const item of INTERACTABLES) {
+    for (const item of spots) {
       const cx = item.x * S;
       const cy = item.y * S;
       const active = near && near.id === item.id;
@@ -176,6 +177,12 @@ export function createWorld(canvas) {
   return {
     player,
     keys,
+    // 换一组交互点（活动出发点、或者回到基础那组）
+    setSpots(list) {
+      spots = list && list.length ? list.slice() : INTERACTABLES.slice();
+      near = null;
+    },
+    get spots() { return spots; },
     update,
     draw,
     get near() { return near; },
