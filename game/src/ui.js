@@ -312,10 +312,10 @@ function showElevatorBg(url) {
 
 // 用 mouseover 代理整列楼层：在楼层之间移动不会闪回默认背景
 function bindElevatorBg(panel, defaultUrl) {
-  const list = panel.querySelector('.floors');
+  const list = panel.querySelector('.shaft');
   if (!list) return;
   const hover = (ev) => {
-    const flo = ev.target instanceof Element && ev.target.closest('.flo[data-bg]');
+    const flo = ev.target instanceof Element && ev.target.closest('.plate[data-bg]');
     if (flo) showElevatorBg(flo.dataset.bg);
   };
   list.addEventListener('mouseover', hover);
@@ -327,23 +327,28 @@ function bindElevatorBg(panel, defaultUrl) {
 }
 
 export function elevatorPanel(building, currentId) {
-  const rows = building.floors.map((f) => {
+  // 像真电梯一样竖着排：高层在上、地下层在下，选中层亮一颗"轿厢"
+  const floors = building.floors.slice().sort((a, b) => (b.level ?? 0) - (a.level ?? 0));
+  const plates = floors.map((f) => {
     const here = f.id === currentId;
     const locked = !!f.locked;
     const attr = here || locked ? 'disabled' : 'data-act="floor" data-to="' + f.id + '"';
     const bgAttr = f.bg ? ' data-bg="' + esc(f.bg) + '"' : '';
-    return '<button class="flo' + (here ? ' here' : '') + (locked ? ' locked' : '') + '" ' + attr + bgAttr + '>' +
-      '<span class="flab">' + esc(f.label) + '</span>' +
-      '<span class="fname">' + esc(f.name) + '</span>' +
-      '<span class="frooms">' + esc(f.rooms) + '</span>' +
-      (here ? '<span class="ftag">当前</span>' : locked ? '<span class="ftag">未开放</span>' : '') +
+    return '<button class="plate' + (here ? ' here' : '') + (locked ? ' locked' : '') + '" ' + attr + bgAttr + '>' +
+      '<span class="plate-dot"></span>' +
+      '<span class="plate-num">' + esc(f.label) + '</span>' +
+      '<span class="plate-info"><b>' + esc(f.name) + '</b><i>' + esc(f.rooms) + '</i></span>' +
+      (here ? '<span class="plate-tag now">你在这</span>' : locked ? '<span class="plate-tag">未开放</span>' : '<span class="plate-tag go">→</span>') +
       '</button>';
   }).join('');
   const html = `
     <div class="elev">
       <h2>${esc(building.full)} · 电梯</h2>
       <p class="sub">楼层之间走动不花行动点。把鼠标停在某一层上，先看看那边。</p>
-      <div class="floors">${rows}</div>
+      <div class="shaft">
+        <span class="shaft-rail"></span>
+        ${plates}
+      </div>
       <div class="row"><button class="btn" data-act="cancel">再逛逛</button></div>
     </div>`;
   const panel = openModal(html, { cls: 'elev-panel' });

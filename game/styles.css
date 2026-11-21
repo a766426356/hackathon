@@ -523,10 +523,28 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
 .elev h2, .room h2 { margin: 0 0 2px; font-size: 17px; }
 .elev .sub, .room .sub { color: #97a3b8; font-size: 12px; line-height: 1.55; margin: 0; }
 
-.floors { display: flex; flex-direction: column; gap: 7px; margin: 14px 0 16px; }
-.flo {
+/* 电梯：竖起来的楼层牌，高层在上、地下层在下，左边一根导轨 */
+.shaft {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0 16px 0;
+  padding-left: 34px;
+}
+.shaft-rail {
+  position: absolute;
+  left: 15px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 1px;
+  background: linear-gradient(#2b3446, #3a4560, #2b3446);
+}
+.plate {
+  position: relative;
   display: grid;
-  grid-template-columns: 46px 92px 1fr auto;
+  grid-template-columns: 52px 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
@@ -539,14 +557,52 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
   cursor: pointer;
   transition: border-color .12s, background .12s, transform .12s;
 }
-.flo:hover:not(:disabled) { border-color: var(--gold); background: #2b3446; transform: translateX(2px); }
-.flo:disabled { cursor: default; opacity: .6; }
-.flo.here { border-color: #4c5d80; background: #1e2534; }
-.flo.locked { opacity: .42; }
-.flab { font-weight: 700; color: var(--gold-2); font-variant-numeric: tabular-nums; }
-.fname { font-size: 13px; }
-.frooms { font-size: 11.5px; color: #93a0b6; }
-.ftag { font-size: 10.5px; color: #8b96a9; border: 1px solid #3d475c; border-radius: 8px; padding: 1px 7px; }
+.plate:hover:not(:disabled) { border-color: var(--gold); background: #2b3446; transform: translateX(2px); }
+.plate:disabled { cursor: default; }
+.plate.locked { opacity: .42; }
+.plate.here {
+  border-color: rgba(224, 182, 74, .75);
+  background: #2b3446;
+  box-shadow: inset 0 0 0 1px rgba(224, 182, 74, .18);
+}
+.plate-dot {
+  position: absolute;
+  left: -24px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: #3f4a63;
+  border: 2px solid #222a38;
+  box-sizing: content-box;
+}
+.plate.here .plate-dot {
+  background: var(--gold);
+  box-shadow: 0 0 9px rgba(255, 227, 138, .8);
+}
+.plate-num {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold-2);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.plate.locked .plate-num { color: #6f7a90; }
+.plate-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.plate-info b { font-size: 13px; font-weight: 600; }
+.plate-info i { font-style: normal; font-size: 11.5px; color: #93a0b6; }
+.plate-tag {
+  font-size: 10.5px;
+  color: #8b96a9;
+  border: 1px solid #3d475c;
+  border-radius: 8px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.plate-tag.now { color: var(--gold-2); border-color: rgba(224, 182, 74, .55); background: rgba(224, 182, 74, .1); }
+.plate-tag.go { border-color: transparent; color: #6c7a94; font-size: 13px; }
+.plate:hover:not(:disabled) .plate-tag.go { color: var(--gold-2); }
 
 .room .rhead { display: flex; gap: 12px; align-items: flex-start; }
 .ricon { font-size: 26px; line-height: 1; margin-top: 2px; }
