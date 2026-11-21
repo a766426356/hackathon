@@ -898,8 +898,8 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
   display: grid;
   place-items: center;
   background:
-    linear-gradient(180deg, rgba(8, 12, 18, .78), rgba(8, 12, 18, .92)),
-    url("assets/campus.jpg") center / cover no-repeat;
+    linear-gradient(180deg, rgba(8, 12, 18, .62), rgba(8, 12, 18, .86)),
+    url("assets/bg/field.jpg") center / cover no-repeat;
   animation: rptFade .25s ease-out both;
 }
 .run-prep-card { width: min(78%, 360px); text-align: center; }

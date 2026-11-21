@@ -287,10 +287,11 @@ function interact(item) {
   afterAction(res);
 }
 
-// 操场：跨栏小游戏。准备画面 → 跑 → 按结果结算，关门回校园。
+// 操场：跨栏小游戏。准备画面（铺 assets/bg/field.jpg）→ 跑 → 按结果结算，关门回校园。
+// 队友那边的「先弹一个确认面板」被并进来了：这里的第一屏就是那张确认 + 准备画面。
 function openFieldRun() {
   if (!state || state.phase !== 'day') return;
-  if (state.ap <= 0) { ui.toast('没行动点了', 'warn'); return; }
+  if (state.ap <= 0) { ui.toast('今天没有行动点了。', 'warn'); return; }
   world.keys.clear();
   let settled = false;
   openRun({
