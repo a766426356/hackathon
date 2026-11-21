@@ -271,7 +271,7 @@ function roomBlocked(spot) {
   if (a === 'pingpong' && state.today.pingpong) return '今天已经打过球了，胳膊抬不起来。';
   if (a === 'piano' && state.today.piano) return '今天已经弹过了，再弹就是扰民。';
   if (a === 'pray') {
-    if (state.mood > CONFIG.room.pray.moodMax) return '心情还没低到那一步（要 ≤ ' + CONFIG.room.pray.moodMax + '）。';
+    if (state.mood > CONFIG.room.pray.moodMax) return '心境还没低到那一步（要 ≤ ' + CONFIG.room.pray.moodMax + '）。';
     if (state.today.pray) return '今天已经静过一次了。';
   }
   return null;

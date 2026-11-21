@@ -177,7 +177,12 @@ function esc(x) { return escapeHtml(x); }
 
 export function nightPanel(s) {
   const foe = enemyFor(s);
-  const hits = Math.ceil(foe.maxHp / Math.max(1, cardDamage(s, { kind: 'attack', power: 10 })));
+  // 用牌组里最强的那张估，而不是拍一个 power 10；同时把「最多几回合」写出来。
+  // 只给数字不给出上限的话，玩家看到「大约要 5 张」也不知道那是打不完的意思。
+  const best = s.deck.length ? Math.max(...s.deck.map((c) => c.power)) : CONFIG.battle.fillerPower;
+  const per = Math.max(1, cardDamage(s, { kind: 'attack', power: best }));
+  const hits = Math.ceil(foe.maxHp / per);
+  const canWin = hits <= CONFIG.battle.rounds;
   const html = `
     <div class="night">
       <h2>第 ${s.day} 天 · 夜晚</h2>
@@ -192,7 +197,10 @@ export function nightPanel(s) {
           <span class="ct">${TEXTS.nightFight}</span>
           <span class="cd">${TEXTS.nightFightDesc}</span>
           <span class="cnum">今晚的对手：<b>${esc(foe.name)}</b> Lv.${foe.lv} · HP ${foe.maxHp} · ATK ${foe.atk}</span>
-          <span class="cnum dim">你的血量 ${playerMaxHp(s)}，按现在的牌大约要 ${hits} 张牌解决；赢了掉一件永久战利品</span>
+          <span class="cnum dim">你 ${playerMaxHp(s)} 血；最强的一张牌打 ${per}，要 ${hits} 张才够，最多只能出 ${CONFIG.battle.rounds} 张</span>
+          <span class="cnum ${canWin ? 'ok' : 'danger'}">${canWin
+            ? '打得动。赢了掉一件永久战利品'
+            : '打不完。今晚去深造，明天先把牌攒厚'}</span>
         </button>
       </div>
     </div>`;
@@ -332,6 +340,7 @@ export function characterPanel(s) {
             '现在：一节大课 ' + CONFIG.studyGain + ' → <b>' + gainNow + ' 知识</b>',
             '心境掉到 40：→ <b>' + gainLow + ' 知识</b>（少 ' + (gainNow - gainLow) + '）',
             '归零会崩一次，第二天只剩 ' + CONFIG.collapseAp + ' 个自由点',
+            '<span class="warn">只作用于大课教室、社交、夜读；自习室 / 答疑角 / 公告板 / 日历活动是固定值，不受它和行囊影响</span>',
           ])}
         </div>
 

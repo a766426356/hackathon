@@ -95,7 +95,7 @@ src/interiors.js    室内数据：7 张 24×15 ASCII 平面 / 交互点 / 电�
 src/indoor.js       室内 canvas：渲染（家具按连通块整体画）、移动、碰撞、邻近交互
 src/ui.js           HUD / 标签 / 日志 / 牌组 / 弹窗 / 角色面板 / 日历墙 / 活动面板 / 钢琴键
 src/main.js         启动、输入、场景与阶段状态机
-tests/sim.mjs       无浏览器跑 700 局：不变量 + 结局分布 + 可复现性
+tests/sim.mjs       无浏览器跑 800 局：不变量 + 结局分布 + 可复现性
 tests/maps.mjs      地图体检：尺寸、交互点落脚、从出生点可达、活动出发点不抢交互
 serve.sh            本地静态服务器
 ```

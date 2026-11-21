@@ -94,7 +94,7 @@ export function playCard(s, b, index) {
     const healed = Math.min(CONFIG.battle.supportHeal, b.playerMaxHp - b.playerHp);
     b.playerHp += healed;
     s.mood = clampMood(s.mood + 3);
-    b.notes.push('好友拉了你一把：HP +' + healed + '，心情 +3。');
+    b.notes.push('好友拉了你一把：HP +' + healed + '，心境 +3。');
   }
 
   if (b.enemy.hp <= 0) {
@@ -111,7 +111,7 @@ export function playCard(s, b, index) {
   if (ddl) atk *= CONFIG.battle.ddlMult;
   b.playerHp = Math.max(0, b.playerHp - atk);
   s.mood = clampMood(s.mood - b.enemy.moodCost);
-  b.notes.push(b.enemy.name + '反击，你受到 ' + atk + ' 点伤害，心情 −' + b.enemy.moodCost + '。' +
+  b.notes.push(b.enemy.name + '反击，你受到 ' + atk + ' 点伤害，心境 −' + b.enemy.moodCost + '。' +
     (ddl ? '（DDL 追击！）' : ''));
 
   if (b.playerHp <= 0) {

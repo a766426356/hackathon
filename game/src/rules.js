@@ -1,6 +1,6 @@
 // rules.js — 行动结算 / 夜晚推进 / 考试。纯函数，可在 node 里直接跑（tests/sim.mjs 依赖）。
 
-import { CONFIG, TOPICS, NPCS, ROOMMATE, EVENT_PLACES, LOOT, LOOT_WEIGHT } from '../data.js';
+import { CONFIG, TOPICS, NPCS, ROOMMATE, LOOT, LOOT_WEIGHT } from '../data.js';
 import {
   clamp, clampMood, moodMult, maxFriend, examGpa, endingOf, nextRandom, hhLog, freshToday, playerMaxHp,
 } from './state.js';
@@ -50,7 +50,7 @@ export function requiredCourses(s) {
   s.mood = clampMood(s.mood - CONFIG.requiredCourseMoodCost * n);
   s.stats.studies += n;
   const cardMsg = gainCard(s);
-  const msg = '必修的两节课上完了：知识 +' + gain + '，心情 −' +
+  const msg = '必修的两节课上完了：知识 +' + gain + '，心境 −' +
     CONFIG.requiredCourseMoodCost * n + '。' + cardMsg;
   hhLog(s, msg, 'study');
   return ok(msg);
@@ -67,7 +67,7 @@ export function study(s) {
   s.stats.studies += 1;
   const cardMsg = gainCard(s);
   const msg = '在大课教室坐了一小时：知识 +' + gain + (focus ? '（专注加成）' : '') +
-    '，心情 −' + CONFIG.studyMoodCost + '。' + cardMsg;
+    '，心境 −' + CONFIG.studyMoodCost + '。' + cardMsg;
   hhLog(s, msg, 'study');
   return ok(msg);
 }
@@ -84,7 +84,7 @@ export function board(s) {
   s.mood = clampMood(s.mood - CONFIG.boardMoodCost);
   refreshSupport(s);
   const msg = '公告板上贴着今天的事：知识 +' + CONFIG.boardKnowledge + '，和' +
-    NPCS[who].name + '搭上了话（友谊 +' + CONFIG.boardFriend + '），心情 −' + CONFIG.boardMoodCost + '。';
+    NPCS[who].name + '搭上了话（友谊 +' + CONFIG.boardFriend + '），心境 −' + CONFIG.boardMoodCost + '。';
   hhLog(s, msg, 'board');
   return ok(msg);
 }
@@ -98,12 +98,12 @@ export function social(s, npcId) {
   s.today.talked[npcId] = true;
   const gain = Math.ceil(CONFIG.socialGain * moodMult(s));
   s.friend[npcId] = clamp(s.friend[npcId] + gain, 0, 100);
-  // 社交带来的快乐是递减的：心情越高，加成越少
+  // 社交带来的快乐是递减的：心境越高，加成越少
   const moodUp = Math.max(2, Math.round(CONFIG.socialMood * (1 - s.mood / 120)));
   s.mood = clampMood(s.mood + moodUp);
   s.stats.socials += 1;
   const unlocked = refreshSupport(s);
-  const msg = '和' + npc.name + '聊了一会儿：友谊 +' + gain + '（' + s.friend[npcId] + '），心情 +' +
+  const msg = '和' + npc.name + '聊了一会儿：友谊 +' + gain + '（' + s.friend[npcId] + '），心境 +' +
     moodUp + '。' + (unlocked ? ' · 解锁支援卡：TA 会在夜战里帮你。' : '');
   hhLog(s, msg, 'social');
   return ok(msg);
@@ -115,7 +115,7 @@ export function field(s) {
   s.mood = clampMood(s.mood + CONFIG.fieldMood);
   s.physique = clamp(s.physique + CONFIG.fieldPhysique, 0, CONFIG.physiqueCap);
   s.focus = true;
-  const msg = '在操场跑了两圈：心情 +' + CONFIG.fieldMood + '，体质 +' + CONFIG.fieldPhysique +
+  const msg = '在操场跑了两圈：心境 +' + CONFIG.fieldMood + '，体质 +' + CONFIG.fieldPhysique +
     '（血量上限 ' + (CONFIG.battle.playerBaseHp + Math.floor(s.physique * CONFIG.hpPerPhysique)) +
     '），获得「专注」（下次自习 ×' + CONFIG.studyFocusMult + '）。';
   hhLog(s, msg, 'field');
@@ -126,7 +126,7 @@ export function rest(s) {
   if (!hasAp(s)) return no('今天没有行动点了。');
   s.ap = 0;
   s.mood = clampMood(s.mood + CONFIG.restMood);
-  const msg = '回宿舍躺下了：心情 +' + CONFIG.restMood + '，今天到此为止。';
+  const msg = '回宿舍躺下了：心境 +' + CONFIG.restMood + '，今天到此为止。';
   hhLog(s, msg, 'rest');
   return ok(msg);
 }
@@ -151,9 +151,9 @@ function roomieTip(s) {
   if (s.day >= s.maxDay - 1) return '明天就期末了。今晚别硬撑，打不过就选深造。';
   if (!s.deck.length) return '你牌组是空的。去 CDS-1 三楼坐一节课，至少有一张能打的。';
   if (playerMaxHp(s) < 42) return '你今天太脆了，' + playerMaxHp(s) + ' 点血。操场跑两圈能长体质，血量跟着涨。';
-  if (s.mood < 30) return '你脸色不对。文娱楼三楼的祷告室，心情低到那一步才进得去。';
+  if (s.mood < 30) return '你脸色不对。文娱楼三楼的祷告室，心境低到那一步才进得去。';
   if (examGpa(s) >= CONFIG.endingGreat && s.battleWins >= CONFIG.endingGreatWins) return '分数和胜场都够了，剩下几天稳住就行。';
-  if (s.mood < 50) return '心情这么低，学也是白学。先去文娱楼弹个琴，或者打两局。';
+  if (s.mood < 50) return '心境这么低，学也是白学。先去文娱楼弹个琴，或者打两局。';
   return '想晚上抗揍就去操场，想分数就进楼。别都想要，一天只有三点。';
 }
 
@@ -192,7 +192,7 @@ export function studyroom(s) {
   addKnowledge(s, R.studyroom.know);
   s.mood = clampMood(s.mood + R.studyroom.mood);
   s.stats.studies += 1;
-  const msg = '在自习室坐了一节：知识 +' + R.studyroom.know + '，心情 ' + num(R.studyroom.mood) +
+  const msg = '在自习室坐了一节：知识 +' + R.studyroom.know + '，心境 ' + num(R.studyroom.mood) +
     '。这里只能记，写不成卡片。';
   hhLog(s, msg, 'study');
   return ok(msg);
@@ -210,7 +210,7 @@ export function doubt(s) {
   const ids = Object.keys(s.friend);
   const who = ids[Math.floor(nextRandom(s) * ids.length) % ids.length];
   const unlocked = bumpFriend(s, who, R.doubt.friend);
-  const msg = '在答疑角问了两道题：知识 +' + R.doubt.know + '，心情 ' + num(R.doubt.mood) +
+  const msg = '在答疑角问了两道题：知识 +' + R.doubt.know + '，心境 ' + num(R.doubt.mood) +
     '，顺便和' + NPCS[who].name + '说上话（友谊 +' + R.doubt.friend + '）。' +
     (unlocked ? ' · 解锁支援卡。' : '');
   hhLog(s, msg, 'study');
@@ -229,7 +229,7 @@ export function pingpong(s, npcId) {
   s.mood = clampMood(s.mood + R.pingpong.mood);
   const unlocked = bumpFriend(s, npcId, R.pingpong.friend);
   s.stats.socials += 1;
-  const msg = '和' + npc.name + '打了两局：心情 +' + R.pingpong.mood + '，友谊 +' + R.pingpong.friend +
+  const msg = '和' + npc.name + '打了两局：心境 +' + R.pingpong.mood + '，友谊 +' + R.pingpong.friend +
     '（' + s.friend[npcId] + '）。' + (unlocked ? ' · 解锁支援卡。' : '');
   hhLog(s, msg, 'social');
   return ok(msg);
@@ -247,7 +247,7 @@ export function snooker(s, npcId) {
   s.mood = clampMood(s.mood + R.snooker.mood);
   const unlocked = bumpFriend(s, npcId, R.snooker.friend);
   s.stats.socials += 1;
-  const msg = '和' + npc.name + '打了一局斯诺克：心情 +' + R.snooker.mood + '，友谊 +' + R.snooker.friend +
+  const msg = '和' + npc.name + '打了一局斯诺克：心境 +' + R.snooker.mood + '，友谊 +' + R.snooker.friend +
     '（' + s.friend[npcId] + '）。' + (unlocked ? ' · 解锁支援卡。' : '');
   hhLog(s, msg, 'social');
   return ok(msg);
@@ -262,7 +262,7 @@ export function piano(s, notes) {
   s.today.piano = true;
   s.mood = clampMood(s.mood + R.piano.mood);
   const played = notes || R.piano.notes;
-  const msg = '你在钢琴前按了 ' + played + ' 个音：心情 +' + R.piano.mood + '。';
+  const msg = '你在钢琴前按了 ' + played + ' 个音：心境 +' + R.piano.mood + '。';
   hhLog(s, msg, 'social');
   return ok(msg);
 }
@@ -271,12 +271,12 @@ export function piano(s, notes) {
 export function pray(s) {
   const bad = inDay(s);
   if (bad) return bad;
-  if (s.mood > R.pray.moodMax) return no('心情还没低到那一步，坐着反而别扭（要 ≤ ' + R.pray.moodMax + '）。');
+  if (s.mood > R.pray.moodMax) return no('心境还没低到那一步，坐着反而别扭（要 ≤ ' + R.pray.moodMax + '）。');
   if (s.today.pray) return no('今天已经静过一次了。');
   spendAp(s);
   s.today.pray = true;
   s.mood = clampMood(s.mood + R.pray.mood);
-  const msg = '在祷告室坐了一会儿，没人来打扰：心情 +' + R.pray.mood + '。';
+  const msg = '在祷告室坐了一会儿，没人来打扰：心境 +' + R.pray.mood + '。';
   hhLog(s, msg, 'info');
   return ok(msg);
 }
@@ -313,7 +313,7 @@ export function nightStudy(s) {
   addKnowledge(s, gain);
   s.mood = clampMood(s.mood - CONFIG.nightStudyMoodCost);
   s.stats.nights += 1;
-  const msg = '在宿舍台灯下继续啃书：知识 +' + gain + '，心情 −' + CONFIG.nightStudyMoodCost + '。';
+  const msg = '在宿舍台灯下继续啃书：知识 +' + gain + '，心境 −' + CONFIG.nightStudyMoodCost + '。';
   hhLog(s, msg, 'night');
   return ok(msg);
 }
@@ -367,7 +367,9 @@ export function endDay(s) {
   const collapsed = s.mood <= CONFIG.moodMin;
   s.day += 1;
   s.today = freshToday();
-  s.scene = 'campus';
+  // 第二天从寝室醒来，和 main.finishNight 保持一致；
+  // 以前这里写 campus，中间有一次存档会存错场景。
+  s.scene = 'dorm.room';
   s.scenePos = null;
   s.ap = CONFIG.freeAp;
   s.focus = false;
@@ -376,7 +378,7 @@ export function endDay(s) {
     s.collapsedOnce = true;
     s.mood = CONFIG.collapseMood;
     s.ap = CONFIG.collapseAp;
-    hhLog(s, '心情见底，你崩了一次：第二天只剩 ' + CONFIG.collapseAp + ' 个自由行动点。', 'warn');
+    hhLog(s, '心境见底，你崩了一次：第二天只剩 ' + CONFIG.collapseAp + ' 个自由行动点。', 'warn');
   }
 
   // 昨天没去的事，今天就划掉了。只记一笔，不扣分（罚分留给 ddl）。

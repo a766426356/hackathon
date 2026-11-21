@@ -163,12 +163,12 @@ export const SCENES = {
       {
         id: 'cds1.course', x: 8, y: 5, name: '大课教室', icon: '🎓', kind: 'room', action: 'course', ap: 1, hint: '上一节课，换一张笔记卡',
         desc: '阶梯教室空着。前排有人占座，后排有人睡觉，黑板上还留着上一节的板书。',
-        effect: '知识 +' + CONFIG.studyGain + '（心情越高越接近上限，专注 ×' + CONFIG.studyFocusMult + '），心情 −' + CONFIG.studyMoodCost + '，笔记 +1 张',
+        effect: '知识 +' + CONFIG.studyGain + '（心境越高越接近上限，专注 ×' + CONFIG.studyFocusMult + '），心境 −' + CONFIG.studyMoodCost + '，笔记 +1 张',
       },
       {
         id: 'cds1.doubt', x: 19, y: 5, name: '答疑角', icon: '📎', kind: 'room', action: 'doubt', ap: 1, hint: '问两道题，顺手认识一个人',
         desc: '助教坐在沙发边上，桌上摊着一沓没改完的作业。',
-        effect: '知识 +' + R.doubt.know + '，心情 ' + sgn(R.doubt.mood) + '，和随机一位朋友的友谊 +' + R.doubt.friend + '（每天 1 次）',
+        effect: '知识 +' + R.doubt.know + '，心境 ' + sgn(R.doubt.mood) + '，和随机一位朋友的友谊 +' + R.doubt.friend + '（每天 1 次）',
       },
       { id: 'lift', x: 11, y: 13, name: '电梯', icon: '🛗', kind: 'elevator', hint: '回电梯厅，或去别的楼层' },
     ],
@@ -195,17 +195,17 @@ export const SCENES = {
       {
         id: 'wenyu.tt', x: 5, y: 4, name: '乒乓球台', icon: '🏓', kind: 'room', action: 'pingpong', ap: 1, pick: 'pingpong', labelBelow: true, hint: '找个人打两局',
         desc: '台子空着，边上扔着两副拍子和一筒球。想打就得找人。',
-        effect: '心情 +' + R.pingpong.mood + '，选一位朋友：友谊 +' + R.pingpong.friend + '（每天 1 次）',
+        effect: '心境 +' + R.pingpong.mood + '，选一位朋友：友谊 +' + R.pingpong.friend + '（每天 1 次）',
       },
       {
         id: 'wenyu.snooker', x: 16, y: 8, name: '斯诺克台', icon: '🎱', kind: 'room', action: 'snooker', ap: 1, pick: 'snooker', labelBelow: true, hint: '约一局，聊点真的',
         desc: '绿呢台面，灯压得很低。这地方适合边打球边说点平时不说的话。',
-        effect: '心情 +' + R.snooker.mood + '，选一位朋友：友谊 +' + R.snooker.friend + '（TA 今天还没和你聊过才行）',
+        effect: '心境 +' + R.snooker.mood + '，选一位朋友：友谊 +' + R.snooker.friend + '（TA 今天还没和你聊过才行）',
       },
       {
         id: 'wenyu.piano', x: 10, y: 9, name: '钢琴', icon: '🎹', kind: 'piano', action: 'piano', ap: 1, hint: '弹几个音',
         desc: '一架立式钢琴，琴盖是开的。没人管，你可以弹。',
-        effect: '弹够 4 个音：心情 +' + R.piano.mood + '（每天 1 次）',
+        effect: '弹够 4 个音：心境 +' + R.piano.mood + '（每天 1 次）',
       },
       { id: 'lift', x: 11, y: 13, name: '电梯', icon: '🛗', kind: 'elevator', hint: '回电梯厅，或去别的楼层' },
     ],
@@ -222,7 +222,7 @@ export const SCENES = {
       {
         id: 'wenyu.studyroom', x: 9, y: 5, name: '自习室', icon: '📖', kind: 'room', action: 'studyroom', ap: 1, hint: '安静记一点，但写不成卡',
         desc: '长桌一路排到窗边，安静得能听见空调。',
-        effect: '知识 +' + R.studyroom.know + '，心情 ' + sgn(R.studyroom.mood) + '，不产出笔记卡',
+        effect: '知识 +' + R.studyroom.know + '，心境 ' + sgn(R.studyroom.mood) + '，不产出笔记卡',
       },
       { id: 'lift', x: 11, y: 13, name: '电梯', icon: '🛗', kind: 'elevator', hint: '回电梯厅，或去别的楼层' },
     ],
@@ -237,9 +237,9 @@ export const SCENES = {
     spawn: { x: 11, y: 12 },
     spots: [
       {
-        id: 'wenyu.pray', x: 11, y: 9, name: '祷告室', icon: '🕯️', kind: 'room', action: 'pray', ap: 1, hint: '心情低的时候进来坐坐',
+        id: 'wenyu.pray', x: 11, y: 9, name: '祷告室', icon: '🕯️', kind: 'room', action: 'pray', ap: 1, hint: '心境低的时候进来坐坐',
         desc: '一排长椅，窗上有彩色的玻璃。没有神像，只有安静。',
-        effect: '心情 +' + R.pray.mood + '，但只有心情 ≤ ' + R.pray.moodMax + ' 时才进得去（每天 1 次）',
+        effect: '心境 +' + R.pray.mood + '，但只有心境 ≤ ' + R.pray.moodMax + ' 时才进得去（每天 1 次）',
       },
       { id: 'lift', x: 11, y: 13, name: '电梯', icon: '🛗', kind: 'elevator', hint: '回电梯厅，或去别的楼层' },
     ],
@@ -254,7 +254,7 @@ export const SCENES = {
     spawn: { x: 3, y: 7 },
     spots: [
       {
-        id: 'dorm.bed', x: 4, y: 4, name: '床', icon: '🛏️', kind: 'rest', hint: '躺下：心情 +，今天到此为止',
+        id: 'dorm.bed', x: 4, y: 4, name: '床', icon: '🛏️', kind: 'rest', hint: '躺下：心境 +，今天到此为止',
         labelBelow: true,
       },
       {

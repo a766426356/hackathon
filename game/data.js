@@ -21,7 +21,7 @@ export const CONFIG = {
   studyGain: 7,
   studyMoodCost: 4,
   studyFocusMult: 1.5,
-  // 必修课给固定的一小份（不受心境影响）：必修不是选择，不该拿它奖励高心情
+  // 必修课给固定的一小份（不受心境影响）：必修不是选择，不该拿它奖励高心境
   requiredCourseGain: 3,
   requiredCourseMoodCost: 2,
   deckCap: 8,
@@ -145,10 +145,10 @@ export const INTERACTABLES = [
   { id: 'cds1',  name: 'CDS-1', icon: '🏫', kind: 'enter', building: 'cds1', x: 4, y: 5, hint: '进楼：电梯厅 → 3F 教学楼层（大课教室 / 答疑角）' },
   { id: 'wenyu', name: '文娱楼', icon: '🎱', kind: 'enter', building: 'wenyu', x: 19, y: 5, hint: '进楼：乒乓球 / 斯诺克 / 钢琴 / 自习室 / 祷告室' },
   { id: 'board', name: '公告板', icon: '📋', kind: 'board', x: 11, y: 7, labelBelow: true, hint: '当日日程：小量知识 + 一段友谊' },
-  { id: 'lin',   name: '林 · 文娱楼', icon: '☕', kind: 'social', npc: 'lin', x: 16, y: 5, hint: '聊天：友谊 +、心情 +' },
-  { id: 'chen',  name: '陈 · 社团楼', icon: '🎭', kind: 'social', npc: 'chen', x: 2, y: 13, hint: '聊天：友谊 +、心情 +' },
-  { id: 'zhou',  name: '周 · 社团楼', icon: '🎧', kind: 'social', npc: 'zhou', x: 5, y: 13, hint: '聊天：友谊 +、心情 +' },
-  { id: 'field', name: '操场', icon: '🏃', kind: 'field', x: 20, y: 9, hint: '跑步：心情 +，体质 +' },
+  { id: 'lin',   name: '林 · 文娱楼', icon: '☕', kind: 'social', npc: 'lin', x: 16, y: 5, hint: '聊天：友谊 +、心境 +' },
+  { id: 'chen',  name: '陈 · 社团楼', icon: '🎭', kind: 'social', npc: 'chen', x: 2, y: 13, hint: '聊天：友谊 +、心境 +' },
+  { id: 'zhou',  name: '周 · 社团楼', icon: '🎧', kind: 'social', npc: 'zhou', x: 5, y: 13, hint: '聊天：友谊 +、心境 +' },
+  { id: 'field', name: '操场', icon: '🏃', kind: 'field', x: 20, y: 9, hint: '跑步：心境 +，体质 +' },
   { id: 'dorm',  name: '宿舍', icon: '🛏️', kind: 'enter', building: 'dorm', x: 11, y: 13, hint: '进寝室：床 / 书桌 / 日历墙 / 室友' },
 ];
 
@@ -283,7 +283,7 @@ export const TEXTS = {
   nightStudy: '宿舍深造',
   nightStudyDesc: '在台灯下继续啃书。稳，但会把自己越拧越紧。',
   nightFight: '出门夜战',
-  nightFightDesc: '用白天的笔记打一只占位怪物。赢了大回心情、补一点知识；输了心情大跌。',
+  nightFightDesc: '用白天的笔记打一只占位怪物。赢了大回心境、补一点知识；输了心境大跌。',
   examTitle: '期末考',
   endings: {
     great: { name: '学神与侠客', text: '成绩单上是一行漂亮的数字。牌组里那几张笔记，陪你熬过了六个夜晚。' },
