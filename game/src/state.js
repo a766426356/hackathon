@@ -18,6 +18,7 @@ export function freshToday() {
     pray: false,
     courses: false, // 今天的 2 节必修课结算过没有
     zhe: false,     // 今天问过室友没有
+    gym: false,     // 今天练过没有
   };
 }
 
@@ -133,6 +134,7 @@ export function loadGame() {
     if (!s.today) s.today = freshToday();
     if (s.today.courses === undefined) s.today.courses = false;
     if (s.today.zhe === undefined) s.today.zhe = false;
+    if (s.today.gym === undefined) s.today.gym = false;
     if (s.physique === undefined) s.physique = CONFIG.startPhysique;
     // 旧档没有日历：补一份，过去的天会在下次翻页时被判成 missed（不扣分）
     if (!Array.isArray(s.calendar)) s.calendar = freshCalendar();

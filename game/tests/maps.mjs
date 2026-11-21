@@ -66,7 +66,7 @@ for (const r of WALKABLE) {
 // 后者必须 0 AP —— 看东西不该花行动点。
 const ACTION_FN = {
   course: 'course', doubt: 'doubt', pingpong: 'pingpong', snooker: 'snooker',
-  piano: 'piano', studyroom: 'studyroom', pray: 'pray', bed: 'bed',
+  piano: 'piano', studyroom: 'studyroom', pray: 'pray', bed: 'bed', gym: 'gym',
 };
 const UI_ACTION = { char: 1, calendar: 1, roomie: 1 };
 let roomCount = 0;

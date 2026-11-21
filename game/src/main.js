@@ -13,6 +13,8 @@ import { eventSpots } from './calendar.js';
 import { openPiano as openPianoGame } from './minigames/piano.js';
 import { openPong } from './minigames/pong.js';
 import { openSnooker } from './minigames/snooker.js';
+import { openRun } from './minigames/run.js';
+import { openGym } from './minigames/gym.js';
 
 let state = null;
 let world = null;
@@ -214,6 +216,7 @@ function openFloor(building, level) {
       if (room.action === 'char') { openCharacter(true, () => openFloor(building, floor.level)); return; }
       if (room.action === 'calendar') { openCalendar(true, () => openFloor(building, floor.level)); return; }
       if (room.action === 'roomie') { afterAction(rules.roomieTalk(state), building, floor); return; }
+      if (room.action === 'gym') { launchGym(building, floor); return; }
       if (room.action === 'piano') openPiano(room, building, floor);
       else openRoom(room, building, floor);
     },
@@ -267,16 +270,62 @@ function tryInteract() {
 function interact(item) {
   if (item.kind === 'enter') { enterBuilding(item.building); return; }
   if (item.kind === 'event') { openEvent(item.entry); return; }
+  if (item.kind === 'field') { openFieldRun(); return; }
 
   let res;
   if (item.kind === 'study') res = rules.study(state);
   else if (item.kind === 'board') res = rules.board(state);
   else if (item.kind === 'social') res = rules.social(state, item.npc);
-  else if (item.kind === 'field') res = rules.field(state);
   else if (item.kind === 'rest') res = rules.rest(state);
   else res = { ok: false, msg: '这里什么也没有。' };
 
   afterAction(res);
+}
+
+// 操场：跨栏小游戏。准备画面 → 跑 → 按结果结算，关门回校园。
+function openFieldRun() {
+  if (!state || state.phase !== 'day') return;
+  if (state.ap <= 0) { ui.toast('没行动点了', 'warn'); return; }
+  world.keys.clear();
+  let settled = false;
+  openRun({
+    onFinish: (outcome) => {
+      if (settled) return null;
+      settled = true;
+      const res = rules.field(state, outcome);
+      if (res.ok) { ui.renderAll(state); save(); }
+      return res;
+    },
+    onExit: () => {
+      ui.renderAll(state);
+      save();
+      if (state.ap <= 0 && state.phase === 'day') { openNight(); return; }
+      ui.closeModal();
+    },
+  });
+}
+
+// B1 健身房：反应小游戏，同样按结果结算
+function launchGym(building, floor) {
+  if (!state || state.phase !== 'day') return;
+  world.keys.clear();
+  let settled = false;
+  openGym({
+    need: CONFIG.room.gym.need,
+    onFinish: (outcome) => {
+      if (settled) return null;
+      settled = true;
+      const res = rules.gym(state, outcome);
+      if (res.ok) { ui.renderAll(state); save(); }
+      return res;
+    },
+    onExit: () => {
+      ui.renderAll(state);
+      save();
+      if (state.ap <= 0 && state.phase === 'day') { openNight(); return; }
+      openFloor(building, floor.level);
+    },
+  });
 }
 
 // 这间房现在能不能用：不能就当场说清楚，不弹一个按不动的面板
@@ -289,6 +338,7 @@ function roomBlocked(room) {
   if (state.ap <= 0) return '没行动点了';
   if (a === 'doubt' && state.today.doubt) return '今天用过了';
   if (a === 'pingpong' && state.today.pingpong) return '今天打过了';
+  if (a === 'gym' && state.today.gym) return '今天练过了';
   if (a === 'pray') {
     if (state.mood > CONFIG.room.pray.moodMax) return '心境高于 ' + CONFIG.room.pray.moodMax;
     if (state.today.pray) return '今天静过了';

@@ -111,15 +111,21 @@ export function social(s, npcId) {
   return ok(msg);
 }
 
-export function field(s) {
+// 操场：跨栏小游戏结算。默认 win，sim 里不带参数调用，数值不变。
+export function field(s, outcome = 'win') {
   if (!hasAp(s)) return no('今天没有行动点了。');
   spendAp(s);
-  s.mood = clampMood(s.mood + CONFIG.fieldMood);
-  s.physique = clamp(s.physique + CONFIG.fieldPhysique, 0, CONFIG.physiqueCap);
-  s.focus = true;
+  const win = outcome === 'win';
+  const draw = outcome === 'draw';
+  const mood = win ? CONFIG.fieldMood : draw ? Math.round(CONFIG.fieldMood / 2) : 4;
+  const phys = win ? CONFIG.fieldPhysique : draw ? Math.round(CONFIG.fieldPhysique / 2) : 1;
+  s.mood = clampMood(s.mood + mood);
+  s.physique = clamp(s.physique + phys, 0, CONFIG.physiqueCap);
+  if (win) s.focus = true;
   s.stats.field += 1;
-  const msg = '在体育场跑了两圈：心境 +' + CONFIG.fieldMood + '，体质 +' + CONFIG.fieldPhysique +
-    '（血量上限 ' + playerMaxHp(s) + '），获得「专注」（下次自习 ×' + CONFIG.studyFocusMult + '）。';
+  const label = win ? '跑了第一名' : draw ? '跑了个中间' : '被套了一圈';
+  const msg = '跨栏（' + label + '）：心境 +' + mood + '，体质 +' + phys +
+    (win ? '，获得「专注」（下次自习 ×' + CONFIG.studyFocusMult + '）' : '') + '。';
   hhLog(s, msg, 'field');
   return ok(msg);
 }
@@ -131,6 +137,26 @@ export function rest(s) {
   s.stats.rest += 1;
   const msg = '躺到床上：心境 +' + CONFIG.restMood + '，今天到此为止。';
   hhLog(s, msg, 'rest');
+  return ok(msg);
+}
+
+// B1 健身房：反应小游戏结算。成功一次记一天，失败也给一点（毕竟真的动了）
+export function gym(s, outcome = 'win') {
+  const bad = inDay(s);
+  if (bad) return bad;
+  if (s.today.gym) return no('今天已经练过了，肌肉还酸着。');
+  spendAp(s);
+  s.today.gym = true;
+  const win = outcome === 'win';
+  const R = CONFIG.room.gym;
+  const mood = win ? R.mood : R.loseMood;
+  const phys = win ? R.physique : R.losePhysique;
+  s.mood = clampMood(s.mood + mood);
+  s.physique = clamp(s.physique + phys, 0, CONFIG.physiqueCap);
+  s.stats.field += 1;
+  const msg = (win ? '把杠铃举起来了' : '最后一组没撑住') + '：心境 ' + num(mood) +
+    '，体质 +' + phys + '（血量上限 ' + playerMaxHp(s) + '）。';
+  hhLog(s, msg, 'field');
   return ok(msg);
 }
 

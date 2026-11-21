@@ -78,7 +78,17 @@ const ROOMS = {
     id: 'bed', name: '床', icon: '🛏️', action: 'bed', ap: 1,
     tagline: '躺下，今天到此为止',
     desc: '被子没叠。窗外的光刚好落在枕头边上。',
-    effect: '心情 +' + (R.bed ? R.bed.mood : 12) + '，立刻结束白天进入夜晚',
+    effect: '心境 +' + (R.bed ? R.bed.mood : 12) + '，立刻结束白天进入夜晚',
+  },
+
+  // ---- B1 gym 层：反应小游戏 ----
+  gym: {
+    id: 'gym', name: '健身房', icon: '🏋️', action: 'gym', ap: 1,
+    bg: 'assets/elevator-test/cds1-b1.jpg',
+    tagline: '灯一亮就按，别犹豫',
+    desc: '杠铃片挂在架上，镜子有点雾。没人在看你。',
+    effect: '跟上节奏举 ' + R.gym.need + ' 次：心境 +' + R.gym.mood + '，体质 +' + R.gym.physique +
+      '（失手太多只剩 ' + R.gym.loseMood + ' / ' + R.gym.losePhysique + '，每天 1 次）',
   },
 };
 
@@ -101,8 +111,8 @@ export const BUILDING_FLOORS = {
         bg: 'assets/elevator-test/cds1-f3.jpg',
       },
       {
-        level: -1, label: 'B1', name: 'gym 层', locked: true,
-        rooms: [], note: '还在装修',
+        level: -1, label: 'B1', name: 'gym 层',
+        rooms: [ROOMS.gym],
         bg: 'assets/elevator-test/cds1-b1.jpg',
       },
     ],

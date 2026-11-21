@@ -86,6 +86,8 @@ export const CONFIG = {
     roomie:    { any: 0 },
     desk:      { any: 0 },
     wall:      { any: 0 },
+    // 小游戏类：win / lose 两种结果给不同收益，具体在 rules.field / rules.gym 里
+    gym:       { mood: 6, physique: 6, loseMood: 2, losePhysique: 2, need: 6 },
   },
 };
 
