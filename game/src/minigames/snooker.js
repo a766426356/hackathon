@@ -152,6 +152,18 @@ export function openSnooker(opts) {
   const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
+
+function roundRectPath(c, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + rr, y);
+  c.arcTo(x + w, y, x + w, y + h, rr);
+  c.arcTo(x + w, y + h, x, y + h, rr);
+  c.arcTo(x, y + h, x, y, rr);
+  c.arcTo(x, y, x + w, y, rr);
+  c.closePath();
+}
+
   // ---------------------------------------------------------------- 摆球
   function freshBalls() {
     const balls = [];
@@ -791,8 +803,7 @@ export function openSnooker(opts) {
     wood.addColorStop(0.5, '#4b2d17');
     wood.addColorStop(1, '#2f1b0e');
     ctx.fillStyle = wood;
-    ctx.beginPath();
-    ctx.roundRect(24, 22, W - 48, H - 44, 18);
+    roundRectPath(ctx, 24, 22, W - 48, H - 44, 18);
     ctx.fill();
     ctx.strokeStyle = 'rgba(224, 182, 74, .3)';
     ctx.lineWidth = 2;
@@ -996,8 +1007,7 @@ export function openSnooker(opts) {
     const px = 42;
     const py = H - 36;
     ctx.fillStyle = 'rgba(10, 16, 14, .6)';
-    ctx.beginPath();
-    ctx.roundRect(px, py - 7, 190, 14, 7);
+    roundRectPath(ctx, px, py - 7, 190, 14, 7);
     ctx.fill();
     const pw = 186 * g.power;
     const pg = ctx.createLinearGradient(px, 0, px + 190, 0);
@@ -1005,8 +1015,7 @@ export function openSnooker(opts) {
     pg.addColorStop(0.65, '#e9c84c');
     pg.addColorStop(1, '#e07a5a');
     ctx.fillStyle = pg;
-    ctx.beginPath();
-    ctx.roundRect(px + 2, py - 5, Math.max(2, pw), 10, 5);
+    roundRectPath(ctx, px + 2, py - 5, Math.max(2, pw), 10, 5);
     ctx.fill();
     ctx.fillStyle = 'rgba(240, 245, 238, .8)';
     ctx.font = '11px "PingFang SC", system-ui, sans-serif';
