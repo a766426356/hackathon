@@ -121,91 +121,203 @@ export function openGym(opts = {}) {
   }
 
   // ------------------------------------------------------------ 场景
+  // 整间健身房是画出来的：天花板灯带 + 后墙大镜子 + 左边哑铃架 + 右边卧推凳 + 地胶。
+  // （外部图片源在当前环境里都被挡了，索性画一套，也更贴像素风。）
   function drawRoom() {
     // 后墙
-    const wall = ctx.createLinearGradient(0, 0, 0, FLOOR);
-    wall.addColorStop(0, '#242c3b');
-    wall.addColorStop(1, '#171d28');
+    const wall = ctx.createLinearGradient(0, 22, 0, FLOOR);
+    wall.addColorStop(0, '#242d3d');
+    wall.addColorStop(1, '#151b24');
     ctx.fillStyle = wall;
-    ctx.fillRect(0, 0, W, FLOOR);
+    ctx.fillRect(0, 22, W, FLOOR - 22);
 
-    // 镜子：两块带斜高光的板子
-    for (const bx of [26, W - 186]) {
-      ctx.fillStyle = 'rgba(150,180,220,0.10)';
-      ctx.fillRect(bx, 22, 160, 96);
-      ctx.strokeStyle = 'rgba(150,180,220,0.28)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(bx, 22, 160, 96);
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    // 墙裙
+    ctx.fillStyle = 'rgba(10,15,22,0.72)';
+    ctx.fillRect(0, FLOOR - 28, W, 28);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(0, FLOOR - 28, W, 1);
+
+    drawMirror();
+    drawRack();
+    drawBench();
+
+    // 地板 + 地胶
+    ctx.fillStyle = '#10161e';
+    ctx.fillRect(0, FLOOR, W, H - FLOOR);
+    ctx.fillStyle = 'rgba(90,104,128,0.16)';
+    ctx.fillRect(0, FLOOR, W, 2);
+    // 地胶：中间一块，带接缝
+    ctx.fillStyle = 'rgba(58,70,94,0.75)';
+    ctx.fillRect(W / 2 - 150, FLOOR - 2, 300, 16);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+      const gx = W / 2 - 150 + i * 75;
       ctx.beginPath();
-      ctx.moveTo(bx + 12, 118);
-      ctx.lineTo(bx + 74, 22);
-      ctx.lineTo(bx + 106, 22);
-      ctx.lineTo(bx + 44, 118);
+      ctx.moveTo(gx, FLOOR - 2);
+      ctx.lineTo(gx, FLOOR + 14);
+      ctx.stroke();
+    }
+    // 一点白色的镁粉痕迹
+    ctx.fillStyle = 'rgba(220,228,242,0.05)';
+    ctx.beginPath();
+    ctx.ellipse(W / 2 + 42, FLOOR + 8, 26, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    drawCeiling();
+  }
+
+  function drawCeiling() {
+    // 天花板
+    ctx.fillStyle = '#0d1219';
+    ctx.fillRect(0, 0, W, 22);
+
+    // 三条灯带 + 光锥：光锥压在墙和器材上，整间屋子才像有顶灯
+    for (const lx of [92, W / 2, W - 92]) {
+      ctx.fillStyle = '#ffe9b0';
+      ctx.fillRect(lx - 30, 15, 60, 4);
+      ctx.fillStyle = 'rgba(255,233,176,0.35)';
+      ctx.fillRect(lx - 34, 19, 68, 2);
+
+      const cone = ctx.createLinearGradient(lx, 20, lx, FLOOR);
+      cone.addColorStop(0, 'rgba(255,233,176,0.13)');
+      cone.addColorStop(0.65, 'rgba(255,233,176,0.04)');
+      cone.addColorStop(1, 'rgba(255,233,176,0)');
+      ctx.fillStyle = cone;
+      ctx.beginPath();
+      ctx.moveTo(lx - 34, 20);
+      ctx.lineTo(lx + 34, 20);
+      ctx.lineTo(lx + 104, FLOOR + 8);
+      ctx.lineTo(lx - 104, FLOOR + 8);
       ctx.closePath();
       ctx.fill();
     }
 
-    // 地板 + 地胶
-    ctx.fillStyle = '#121821';
-    ctx.fillRect(0, FLOOR, W, H - FLOOR);
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.fillRect(0, FLOOR, W, 2);
-    ctx.fillStyle = 'rgba(60,72,96,0.55)';
-    ctx.fillRect(W / 2 - 112, FLOOR - 6, 224, 12);
+    // 四角压暗
+    const vig = ctx.createRadialGradient(W / 2, FLOOR * 0.55, 60, W / 2, FLOOR * 0.55, W * 0.62);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(4,7,12,0.55)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
   }
 
-  function drawDumbbell(x, y, size, flip) {
+  function drawMirror() {
+    const mx = 138;
+    const my = 34;
+    const mw = 244;
+    const mh = 92;
+
+    // 外框
+    ctx.fillStyle = '#2b364a';
+    ctx.fillRect(mx - 4, my - 4, mw + 8, mh + 8);
+    ctx.fillStyle = '#1b2431';
+    ctx.fillRect(mx - 2, my - 2, mw + 4, mh + 4);
+
+    // 玻璃
+    const glass = ctx.createLinearGradient(mx, my, mx, my + mh);
+    glass.addColorStop(0, 'rgba(176,200,232,0.24)');
+    glass.addColorStop(0.55, 'rgba(140,166,200,0.14)');
+    glass.addColorStop(1, 'rgba(96,120,152,0.20)');
+    ctx.fillStyle = glass;
+    ctx.fillRect(mx, my, mw, mh);
+
+    // 镜子里映出的两盏灯
+    ctx.fillStyle = 'rgba(255,233,176,0.30)';
+    for (const rx of [mx + 62, mx + mw - 62]) ctx.fillRect(rx - 22, my + 10, 44, 3);
+
+    // 斜向高光
+    ctx.fillStyle = 'rgba(255,255,255,0.055)';
+    ctx.beginPath();
+    ctx.moveTo(mx + 18, my + mh);
+    ctx.lineTo(mx + 92, my);
+    ctx.lineTo(mx + 126, my);
+    ctx.lineTo(mx + 52, my + mh);
+    ctx.closePath();
+    ctx.fill();
+
+    // 镜面下沿的一条暗边
+    ctx.fillStyle = 'rgba(10,15,22,0.35)';
+    ctx.fillRect(mx, my + mh - 6, mw, 6);
+  }
+
+  function drawDumbbell(x, y, len) {
+    // 横杆
     ctx.fillStyle = '#8d99ad';
-    ctx.fillRect(x, y, size, 3);
-    ctx.fillStyle = '#4b5b78';
-    ctx.fillRect(x - 3 * (flip ? -1 : 1) * 0, y - 3, 4, 9);
-    ctx.fillRect(x + size - 4, y - 3, 4, 9);
+    ctx.fillRect(x, y, len, 3);
+    // 两头的片
+    ctx.fillStyle = '#3f4d66';
+    ctx.fillRect(x - 4, y - 5, 5, 13);
+    ctx.fillRect(x + len - 1, y - 5, 5, 13);
+    ctx.fillStyle = '#5d6f96';
+    ctx.fillRect(x - 4, y - 5, 5, 3);
+    ctx.fillRect(x + len - 1, y - 5, 5, 3);
   }
 
   function drawRack() {
-    // 左边哑铃架：两层，每层三副
-    const bx = 22;
-    const by = FLOOR - 62;
-    ctx.strokeStyle = '#3b4a63';
+    // 左边哑铃架：A 字架，两层，各三副
+    const bx = 24;
+    const top = FLOOR - 74;
+    ctx.strokeStyle = '#39465c';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(bx, FLOOR);
-    ctx.lineTo(bx, by);
-    ctx.lineTo(bx + 78, by);
-    ctx.lineTo(bx + 78, FLOOR);
+    ctx.lineTo(bx + 4, top);
+    ctx.lineTo(bx + 84, top);
+    ctx.lineTo(bx + 88, FLOOR);
     ctx.stroke();
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(bx, by + 26);
-    ctx.lineTo(bx + 78, by + 26);
+    ctx.moveTo(bx + 4, top + 30);
+    ctx.lineTo(bx + 84, top + 30);
     ctx.stroke();
+
     for (let i = 0; i < 3; i++) {
-      drawDumbbell(bx + 8 + i * 24, by - 2, 16, false);
-      drawDumbbell(bx + 8 + i * 24, by + 24, 16, false);
+      drawDumbbell(bx + 10 + i * 25, top + 4, 16);
+      drawDumbbell(bx + 10 + i * 25, top + 34, 16);
     }
+
+    // 地上一个壶铃
+    ctx.fillStyle = '#3f4d66';
+    ctx.beginPath();
+    ctx.arc(bx + 104, FLOOR - 9, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#5d6f96';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(bx + 104, FLOOR - 16, 6, Math.PI, Math.PI * 2);
+    ctx.stroke();
   }
 
   function drawBench() {
-    // 右边卧推凳 + 杠铃片
-    const bx = W - 128;
-    const by = FLOOR - 26;
-    ctx.fillStyle = '#2f3a4d';
-    ctx.fillRect(bx, by, 92, 12);
+    // 右边卧推凳
+    const bx = W - 132;
+    const by = FLOOR - 30;
+    ctx.fillStyle = '#2c3648';
+    ctx.fillRect(bx, by, 98, 10);
     ctx.fillStyle = '#5b6f96';
-    ctx.fillRect(bx + 4, by - 4, 84, 8);
-    ctx.fillStyle = '#3b4a63';
-    ctx.fillRect(bx + 10, by + 12, 4, 14);
-    ctx.fillRect(bx + 76, by + 12, 4, 14);
-    // 地上的片子
-    ctx.fillStyle = '#3b4a63';
-    ctx.beginPath();
-    ctx.arc(bx + 20, FLOOR - 8, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#232b3b';
-    ctx.beginPath();
-    ctx.arc(bx + 20, FLOOR - 8, 4, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(bx + 4, by - 5, 90, 7);
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.fillRect(bx + 4, by - 5, 90, 2);
+    // 凳腿
+    ctx.fillStyle = '#39465c';
+    ctx.fillRect(bx + 12, by + 10, 5, 20);
+    ctx.fillRect(bx + 80, by + 10, 5, 20);
+
+    // 杠铃片树：立柱 + 三片
+    const px = bx + 116;
+    ctx.fillStyle = '#39465c';
+    ctx.fillRect(px, FLOOR - 62, 4, 62);
+    for (let i = 0; i < 3; i++) {
+      const py = FLOOR - 54 + i * 17;
+      ctx.fillStyle = i === 0 ? '#5d6f96' : '#3f4d66';
+      ctx.beginPath();
+      ctx.ellipse(px + 2, py, 13, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1b2431';
+      ctx.beginPath();
+      ctx.arc(px + 2, py, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function poseAmount() {
@@ -313,13 +425,7 @@ export function openGym(opts = {}) {
 
   function render(dt) {
     ctx.clearRect(0, 0, W, H);
-    // 墙面和器材交给底下的实景图（CSS 里虚化过的 B1 照片），这里只画人和光
-    const ground = ctx.createLinearGradient(0, FLOOR - 40, 0, H);
-    ground.addColorStop(0, 'rgba(12,18,26,0)');
-    ground.addColorStop(1, 'rgba(12,18,26,0.72)');
-    ctx.fillStyle = ground;
-    ctx.fillRect(0, FLOOR - 40, W, H - FLOOR + 40);
-
+    drawRoom();
     drawLifter(poseAmount());
     drawDust(dt || 0);
   }
