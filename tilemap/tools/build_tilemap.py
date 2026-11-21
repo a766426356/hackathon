@@ -37,7 +37,7 @@ P = dict(
     flower_w='#F1EAD4', flower_y='#E8C25E', flower_p='#D8A7B5',
     path='#C9C2C7', path_l='#D6D0D4', path_d='#B3ACB3', path_line='#BDB6BC',
     plaza='#D8CCC2', plaza_d='#C6B8AC', plaza_l='#E3D8CE',
-    brick='#C7A48A', brick_d='#AE8A70', brick_l='#D7B79F',
+    brick='#C2A48C', brick_d='#A98A73', brick_l='#D2B8A2',
     road='#63646C', road_l='#6E6F78', road_d='#575860',
     curb='#A3A4AC', curb_d='#7A7B84',
     dash='#E9E5E2', cross='#EDE9E5',
@@ -209,7 +209,7 @@ ell(30, 37, 2.3, 2.3, 'w')
 
 # ---- brick plaza, stairs, planters --------------------------------------
 rect(26, 42, 34, 55, 'b')          # brick forecourt
-rect(26, 43, 34, 44, 's')          # grand stair
+rect(27, 43, 33, 44, 's')          # grand stair
 for (cx, cy, rx, ry) in ((28.0, 48.0, 1.7, 1.1), (32.0, 51.0, 1.6, 1.0), (30.0, 54.0, 1.9, 1.0)):
     for x, y in ell_area(cx, cy, rx, ry):
         GROUND_G[y][x] = 'g'
@@ -228,6 +228,13 @@ for b in BUILDINGS:
         for x in range(d['x'] - 1, d['x'] + 2):
             if GROUND_G[d['y']][x] in 'gr':
                 GROUND_G[d['y']][x] = 'p'
+
+# stone edging frames the central axis
+for yy in range(31, 56):
+    if GROUND_G[yy][26] in 'pb':
+        GROUND_G[yy][26] = 'P'
+    if GROUND_G[yy][34] in 'pb':
+        GROUND_G[yy][34] = 'P'
 
 # CDS-1 stoop down to the promenade
 rect(44, 42, 46, 44, 'p')
@@ -300,52 +307,78 @@ for y in range(H):
             elif n > 0.82:
                 GROUND_G[y][x] = 'u'
 
-# hedges along path edges, in short runs
+# hedges: continuous clippings along path edges, broken every few tiles for access
+PATHISH = 'pPbs'
 for y in range(H):
     for x in range(W):
-        if GROUND_G[y][x] != 'g' or near(x, y, POI_POINTS, 2) or near(x, y, DOOR_POINTS, 1):
+        if PROP_G[y][x] != '.' or GROUND_G[y][x] not in 'guf' \
+                or near(x, y, POI_POINTS, 2) or near(x, y, DOOR_POINTS, 2):
             continue
-        edge = any(is_ground(x + dx, y + dy, 'pPbs') for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
-        if not edge:
+        horiz = is_ground(x, y - 1, PATHISH) or is_ground(x, y + 1, PATHISH)
+        vert = is_ground(x - 1, y, PATHISH) or is_ground(x + 1, y, PATHISH)
+        if not (horiz or vert):
             continue
-        if cell_noise(x // 2, y // 2, 21) < 0.52:
+        keep = True
+        if horiz and cell_noise(x // 3, y, 121) < 0.24:
+            keep = False
+        if vert and cell_noise(x, y // 3, 123) < 0.24:
+            keep = False
+        if keep:
             PROP_G[y][x] = 'H'
 
 # trees: framed edges + lawn clusters
 TREE_CANDIDATES = []
-for y in range(0, H, 5):
-    TREE_CANDIDATES += [(2, y), (63, y), (y, 2), (y, 63)]
-for x in range(9, 56, 5):
+for y in range(0, H, 3):
+    TREE_CANDIDATES += [(0, y), (63, y), (y, 0), (y, 63)]
+for x in range(9, 56, 4):
     TREE_CANDIDATES += [(x, 8), (x, 55)]
-for y in range(9, 56, 5):
+for y in range(9, 56, 4):
     TREE_CANDIDATES += [(8, y), (55, y)]
 
 for (x, y) in TREE_CANDIDATES:
-    if 0 <= x < W and 0 <= y < H and GROUND_G[y][x] == 'g' and not near(x, y, POI_POINTS, 2):
+    if 0 <= x < W and 0 <= y < H and GROUND_G[y][x] in 'guf' and PROP_G[y][x] == '.' \
+            and not near(x, y, POI_POINTS, 2):
         PROP_G[y][x] = 'T'
 
 for y in range(H):
     for x in range(W):
-        if PROP_G[y][x] != '.' or GROUND_G[y][x] not in 'gu':
+        if PROP_G[y][x] != '.' or GROUND_G[y][x] not in 'guf':
             continue
         if near(x, y, POI_POINTS, 2) or near(x, y, DOOR_POINTS, 2):
             continue
-        # keep trees off the running track infield
+        # keep trees off the running track infield and the brick forecourt
         if 10 <= x <= 25 and 10 <= y <= 19:
             continue
         if 26 <= x <= 35 and 42 <= y <= 55:
             continue
-        if cell_noise(x, y, 33) > 0.977:
+        if cell_noise(x, y, 33) > 0.905:
             if not any(PROP_G[yy][xx] == 'T' for yy in range(max(0, y - 2), min(H, y + 3))
                        for xx in range(max(0, x - 2), min(W, x + 3))):
                 PROP_G[y][x] = 'T'
+
+# groves at the lawn corners, like the mature planting on the reference render
+CLUSTERS = [(9, 9), (14, 9), (23, 9), (27, 9), (36, 10), (54, 9),
+            (9, 22), (23, 22), (36, 22), (54, 22), (9, 32), (9, 43),
+            (24, 47), (24, 53), (35, 32), (35, 43), (54, 32), (54, 43),
+            (17, 22), (44, 43), (10, 55), (48, 55)]
+for (gx, gy) in CLUSTERS:
+    for (dx, dy) in ((0, 0), (1, 0), (0, 1), (1, 1)):
+        x, y = gx + dx, gy + dy
+        if 0 <= x < W and 0 <= y < H and GROUND_G[y][x] in 'guf' and PROP_G[y][x] == '.' \
+                and not near(x, y, POI_POINTS, 2) and not near(x, y, DOOR_POINTS, 2):
+            PROP_G[y][x] = 'T'
+
+# trees standing in the three oval planters
+for (x, y) in [(28, 48), (32, 51), (30, 54)]:
+    if GROUND_G[y][x] == 'g':
+        PROP_G[y][x] = 'T'
 
 # lamps + benches
 for (x, y) in [(27, 31), (33, 31), (27, 40), (33, 40), (27, 47), (33, 47),
                (27, 52), (33, 52), (11, 20), (21, 20), (41, 20), (51, 20)]:
     if PROP_G[y][x] == '.' and GROUND_G[y][x] in 'pP':
         PROP_G[y][x] = 'l'
-for (x, y) in [(28, 39), (32, 39), (28, 50), (31, 53)]:
+for (x, y) in [(28, 42), (32, 42), (28, 50), (31, 53), (21, 29), (48, 29), (11, 45), (50, 45)]:
     if PROP_G[y][x] == '.' and GROUND_G[y][x] in 'pPb':
         PROP_G[y][x] = 'n'
 
@@ -402,17 +435,24 @@ def rnd_rect(d, x, y, w, h, c):
 
 def tile_grass(v=0):
     img, d = tile_new(P['grass'])
-    r = cell_noise(v + 1, 3, 11)
-    for i in range(4):
-        a = cell_noise(v + 1, i, 5)
-        b = cell_noise(v + 1, i, 9)
-        x, y = int(a * 13), int(b * 13)
-        d.rectangle([x, y, x + 1, y], fill=P['grass_l'] if i % 2 else P['grass_d'])
-    for i in range(5):
-        x = int(cell_noise(v + 2, i, 17) * 15)
-        y = int(cell_noise(v + 3, i, 19) * 14)
+    # broad mown patches
+    for i in range(3):
+        x = int(cell_noise(v + 1, i, 5) * 11)
+        y = int(cell_noise(v + 1, i, 9) * 11)
+        d.rectangle([x, y, x + 2, y + 1], fill=P['grass_l'] if i % 2 else P['grass_d'])
+    # short blades: 2px clusters, three tones
+    for i in range(7):
+        x = 1 + int(cell_noise(v + 2, i, 17) * 13)
+        y = 1 + int(cell_noise(v + 3, i, 19) * 13)
         d.point((x, y), fill=P['grass_xl'])
         d.point((x, y + 1), fill=P['grass_d'])
+        if i % 2:
+            d.point((x + 1, y + 1), fill=P['grass_l'])
+    # clover dots
+    for i in range(2):
+        x = int(cell_noise(v + 4, i, 21) * 14)
+        y = int(cell_noise(v + 5, i, 23) * 14)
+        d.rectangle([x, y, x + 1, y], fill=P['grass_l'])
     return img
 
 
@@ -429,13 +469,15 @@ def tile_tuft():
 
 def tile_flower(white=True):
     img, d = tile_new(P['grass'])
-    blooms = [(4, 4), (11, 9)] if white else [(5, 10), (12, 4)]
+    blooms = [(3, 4), (11, 8)] if white else [(5, 11), (12, 3)]
     for i, (bx, by) in enumerate(blooms):
         c = P['flower_w'] if (white or i == 0) else P['flower_p']
         for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
             d.point((bx + dx, by + dy), fill=c)
         d.point((bx, by), fill=P['flower_y'])
-    d.point((8, 13), fill=P['flower_w'])
+        d.point((bx + 2, by + 1), fill=P['grass_d'])
+    for (px, py) in ((8, 12), (2, 9), (13, 13)):
+        d.point((px, py), fill=P['flower_w'])
     return img
 
 
@@ -447,12 +489,14 @@ def tile_path(v=0):
     if v % 2 == 0:
         d.rectangle([7, 1, 7, 15], fill=P['path_line'])
         d.rectangle([1, 7, 15, 7], fill=P['path_line'])
-    for i in range(5):
+    for i in range(6):
         x = int(cell_noise(v, i, 41) * 15)
         y = int(cell_noise(v, i, 43) * 15)
         d.point((x, y), fill=P['path_l'] if i % 2 else P['path_d'])
-    if n > 0.8:
-        d.rectangle([11, 10, 13, 11], fill=P['path_d'])
+    if n > 0.78:
+        d.rectangle([10, 10, 12, 11], fill=P['path_d'])
+    if n < 0.12:
+        d.rectangle([3, 3, 4, 3], fill=P['path_l'])
     return img
 
 
@@ -544,27 +588,35 @@ def tile_water():
 
 def tile_hedge():
     img, d = tile_new(P['hedge_d'])
-    d.rectangle([0, 2, 15, 13], fill=P['hedge'])
-    for i in range(7):
-        x = int(cell_noise(i, 1, 91) * 13)
-        y = int(cell_noise(i, 2, 93) * 10) + 2
-        d.rectangle([x, y, x + 1, y + 1], fill=P['hedge_l'])
-        d.point((x + 1, y + 2), fill=P['hedge_xl'])
-    d.rectangle([0, 11, 15, 13], fill=P['hedge_d'])
+    d.rectangle([0, 1, 15, 14], fill=P['hedge'])
+    d.rectangle([0, 1, 15, 2], fill=P['hedge_l'])
+    d.rectangle([0, 13, 15, 14], fill=P['hedge_d'])
+    # clipped scallops
+    for (cx, cy) in ((2, 4), (7, 3), (12, 5), (4, 9), (9, 8), (14, 11)):
+        d.ellipse([cx - 2, cy - 2, cx + 2, cy + 2], fill=P['hedge_l'])
+        d.point((cx - 1, cy - 2), fill=P['hedge_xl'])
+        d.point((cx + 2, cy + 2), fill=P['hedge_d'])
+    d.rectangle([0, 0, 15, 0], fill=P['hedge_d'])
+    d.rectangle([0, 15, 15, 15], fill=P['hedge_d'])
     return img
 
 
 def tile_tree():
     img, d = tile_new((0, 0, 0, 0))
-    d.rectangle([7, 11, 8, 15], fill=P['trunk'])
-    d.rectangle([7, 11, 7, 15], fill=P['trunk_d'])
-    d.ellipse([1, 1, 14, 13], fill=P['tree_d'])
-    d.ellipse([2, 2, 13, 11], fill=P['tree'])
-    d.ellipse([4, 3, 11, 8], fill=P['tree_l'])
-    d.ellipse([5, 4, 8, 6], fill=P['tree_xl'])
-    d.point((3, 8), fill=P['tree_d'])
-    d.point((12, 9), fill=P['tree_d'])
-    d.point((9, 2), fill=P['tree_xl'])
+    # ground shadow
+    d.ellipse([2, 11, 14, 15], fill=(45, 62, 38, 90))
+    d.rectangle([7, 9, 8, 15], fill=P['trunk'])
+    d.rectangle([7, 10, 7, 15], fill=P['trunk_d'])
+    # canopy: dark rim, mid mass, sun-lit crown
+    d.ellipse([0, 0, 15, 13], fill=P['tree_d'])
+    d.ellipse([1, 1, 14, 12], fill=P['tree'])
+    d.ellipse([2, 2, 12, 10], fill=P['tree_l'])
+    d.ellipse([4, 3, 9, 7], fill=P['tree_xl'])
+    d.point((2, 6), fill=P['tree_d'])
+    d.point((13, 8), fill=P['tree_d'])
+    d.point((10, 2), fill=P['tree_xl'])
+    d.point((6, 11), fill=P['tree_d'])
+    d.point((11, 5), fill=P['tree_l'])
     return img
 
 
@@ -586,20 +638,22 @@ def tile_roof(kind):
 
 def tile_bench():
     img, d = tile_new((0, 0, 0, 0))
-    d.rectangle([2, 8, 13, 12], fill=P['bench_d'])
-    d.rectangle([2, 8, 13, 10], fill=P['bench'])
-    d.rectangle([2, 9, 13, 9], fill=P['plaza_l'])
-    d.rectangle([3, 12, 4, 13], fill=P['bench_d'])
-    d.rectangle([11, 12, 12, 13], fill=P['bench_d'])
+    d.rectangle([1, 7, 14, 12], fill=P['bench_d'])
+    d.rectangle([1, 7, 14, 10], fill=P['bench'])
+    d.rectangle([1, 8, 14, 8], fill=P['plaza_l'])
+    d.rectangle([1, 10, 14, 10], fill=P['bench_d'])
+    d.rectangle([2, 12, 3, 14], fill=P['bench_d'])
+    d.rectangle([12, 12, 13, 14], fill=P['bench_d'])
     return img
 
 
 def tile_lamp():
     img, d = tile_new((0, 0, 0, 0))
-    d.rectangle([7, 6, 8, 15], fill=P['lamp'])
-    d.rectangle([6, 2, 9, 5], fill=P['lamp'])
-    d.rectangle([7, 2, 8, 4], fill=P['lamp_l'])
-    d.point((7, 5), fill=P['lamp_l'])
+    d.rectangle([7, 5, 8, 15], fill=P['lamp'])
+    d.rectangle([6, 1, 9, 4], fill=P['lamp'])
+    d.rectangle([6, 2, 9, 3], fill=P['lamp_l'])
+    d.rectangle([5, 5, 10, 5], fill=P['lamp'])
+    d.point((7, 0), fill=P['lamp_l'])
     return img
 
 
@@ -727,9 +781,9 @@ for y in range(H):
                 d.line(line, fill=P['stone_l'])
 
 # track lanes
-d.ellipse([10 * TS + 3, 10 * TS + 3, 25 * TS - 3, 19 * TS - 3], outline=P['line'])
-d.ellipse([10 * TS + 5, 10 * TS + 6, 25 * TS - 5, 19 * TS - 6], outline=P['line'])
-d.rectangle([17 * TS, 10 * TS + 4, 18 * TS - 1, 10 * TS + 8], fill=P['line'])
+d.ellipse([10 * TS + 2, 10 * TS + 2, 25 * TS - 2, 19 * TS - 2], outline=P['track_d'])
+d.ellipse([10 * TS + 5, 10 * TS + 5, 25 * TS - 5, 19 * TS - 5], outline=P['line'])
+d.ellipse([10 * TS + 8, 10 * TS + 8, 25 * TS - 8, 19 * TS - 8], outline=P['line'])
 
 # court lines
 for x0, x1 in ((27, 30), (32, 35)):
@@ -737,20 +791,50 @@ for x0, x1 in ((27, 30), (32, 35)):
     d.line([x0 * TS + 2, 14 * TS + 7, (x1 + 1) * TS - 3, 14 * TS + 7], fill=P['line'])
     d.ellipse([(x0 + 1.5) * TS, 13 * TS + 4, (x0 + 2.5) * TS, 14 * TS + 4], outline=P['line'])
 
-# plaza rings
-for rr, col in ((4.2, P['stone_l']), (3.6, P['stone_d']), (2.9, P['stone_l'])):
-    d.ellipse([30 * TS - rr * TS, 37 * TS - rr * TS, 30 * TS + rr * TS, 37 * TS + rr * TS], outline=col)
+# circular fountain plaza
+fx, fy = 30 * TS, 37 * TS
+d.ellipse([fx - 4.0 * TS, fy - 4.0 * TS, fx + 4.0 * TS, fy + 4.0 * TS], fill=P['plaza'])
+d.ellipse([fx - 3.85 * TS, fy - 3.85 * TS, fx + 3.85 * TS, fy + 3.85 * TS], outline=P['plaza_d'])
+d.ellipse([fx - 3.4 * TS, fy - 3.4 * TS, fx + 3.4 * TS, fy + 3.4 * TS], outline=P['stone_l'])
+d.ellipse([fx - 3.95 * TS, fy - 3.95 * TS, fx + 3.95 * TS, fy + 3.95 * TS], outline=P['plaza_d'])
+for k in range(16):
+    a = k * math.pi / 8
+    d.line([fx + math.cos(a) * 3.45 * TS, fy + math.sin(a) * 3.45 * TS,
+            fx + math.cos(a) * 3.85 * TS, fy + math.sin(a) * 3.85 * TS], fill=P['plaza_d'])
+d.ellipse([fx - 3.05 * TS, fy - 3.05 * TS, fx + 3.05 * TS, fy + 3.05 * TS], fill=P['stone'])
+d.ellipse([fx - 2.85 * TS, fy - 2.85 * TS, fx + 2.85 * TS, fy + 2.85 * TS], fill=P['stone_d'])
+d.ellipse([fx - 2.6 * TS, fy - 2.6 * TS, fx + 2.6 * TS, fy + 2.6 * TS], fill=P['water_d'])
+d.ellipse([fx - 2.2 * TS, fy - 2.2 * TS, fx + 2.2 * TS, fy + 2.2 * TS], fill=P['water'])
+# segmented stone kerb, echoing the circular paving on the plan
+for k in range(8):
+    a = k * math.pi / 4
+    x0 = fx + math.cos(a - 0.18) * 3.15 * TS
+    y0 = fy + math.sin(a - 0.18) * 3.15 * TS
+    x1 = fx + math.cos(a + 0.18) * 3.15 * TS
+    y1 = fy + math.sin(a + 0.18) * 3.15 * TS
+    d.line([x0, y0, x1, y1], fill=P['stone_l'], width=5)
+# water highlights + jet
+d.arc([fx - 2.35 * TS, fy - 2.35 * TS, fx + 2.35 * TS, fy + 2.35 * TS], 200, 275, fill=P['water_l'], width=2)
+d.arc([fx - 1.55 * TS, fy - 1.55 * TS, fx + 1.55 * TS, fy + 1.55 * TS], 15, 85, fill=P['water_l'], width=2)
+d.arc([fx - 1.0 * TS, fy - 1.0 * TS, fx + 1.0 * TS, fy + 1.0 * TS], 190, 250, fill=P['water_d'])
+d.ellipse([fx - 5, fy - 5, fx + 5, fy + 5], fill=P['stone_l'])
+d.ellipse([fx - 3, fy - 3, fx + 3, fy + 3], fill=P['water_l'])
+d.rectangle([fx - 1, fy - 14, fx, fy - 7], fill=P['water_l'])
+d.point((fx - 3, fy - 12), fill=P['water_l'])
+d.point((fx + 3, fy - 12), fill=P['water_l'])
 
-# planter rims
+# planter rims (rings only — the trees inside are already composited)
 for (cx, cy, rx, ry) in ((28.0, 48.0, 1.7, 1.1), (32.0, 51.0, 1.6, 1.0), (30.0, 54.0, 1.9, 1.0)):
-    d.ellipse([(cx - rx - 0.5) * TS, (cy - ry - 0.5) * TS, (cx + rx + 0.5) * TS, (cy + ry + 0.5) * TS],
-              outline=P['stone_d'])
+    d.ellipse([(cx - rx - 0.55) * TS, (cy - ry - 0.55) * TS, (cx + rx + 0.55) * TS, (cy + ry + 0.55) * TS],
+              outline=P['stone_l'], width=3)
+    d.ellipse([(cx - rx - 0.2) * TS, (cy - ry - 0.2) * TS, (cx + rx + 0.2) * TS, (cy + ry + 0.2) * TS],
+              outline=P['stone_d'], width=2)
 
 # stairs edge rails
 for y0 in (43 * TS, 44 * TS):
-    d.line([26 * TS, y0, 26 * TS + TS * 9 - 1, y0], fill=P['stone_l'])
-d.line([26 * TS, 45 * TS - 2, 26 * TS, 44 * TS], fill=P['stone_d'])
-d.line([35 * TS - 1, 45 * TS - 2, 35 * TS - 1, 44 * TS], fill=P['stone_d'])
+    d.line([27 * TS, y0, 34 * TS - 1, y0], fill=P['stone_l'])
+d.rectangle([26 * TS, 43 * TS, 26 * TS + 15, 45 * TS - 1], fill=P['plaza_d'])
+d.rectangle([33 * TS + 1, 43 * TS, 34 * TS, 45 * TS - 1], fill=P['plaza_d'])
 
 # building parapets + roof clutter + doors
 for b in BUILDINGS:
@@ -768,31 +852,46 @@ for b in BUILDINGS:
             d.rectangle([px, py, px + 15, py + 1], fill=edge)
         if y < H - 1 and BID_G[y + 1][x] != b['id']:
             d.rectangle([px, py + 14, px + 15, py + 15], fill=edge)
-        # deterministic roof clutter
+        # deterministic roof clutter, kept clear of the parapet
+        interior = (x > 0 and BID_G[y][x - 1] == b['id'] and x < W - 1 and BID_G[y][x + 1] == b['id']
+                    and y > 0 and BID_G[y - 1][x] == b['id'] and y < H - 1 and BID_G[y + 1][x] == b['id'])
         n = cell_noise(x, y, 301)
-        if n > 0.9:
-            d.rectangle([px + 3, py + 4, px + 8, py + 8], fill=P['roof_d'])
-            d.rectangle([px + 4, py + 5, px + 7, py + 7], fill=light)
-        elif n < 0.045:
-            d.rectangle([px + 6, py + 2, px + 10, py + 5], fill=P['roof_ll'])
+        if interior and n > 0.93:
+            d.rectangle([px + 4, py + 5, px + 10, py + 9], fill=P['roof_d'])
+            d.rectangle([px + 5, py + 6, px + 9, py + 8], fill=light)
+            d.rectangle([px + 5, py + 6, px + 9, py + 6], fill=P['roof_ll'])
+        elif interior and n < 0.05:
+            d.rectangle([px + 4, py + 6, px + 11, py + 8], fill=P['roof_ll'])
+            d.rectangle([px + 4, py + 6, px + 11, py + 6], fill=light)
     # circular skylight for the gym
     if b['id'] == 'gym':
         d.ellipse([43 * TS, 12 * TS, 49 * TS, 17 * TS], outline=P['line'], width=2)
         d.ellipse([43.5 * TS, 12.4 * TS, 48.5 * TS, 16.6 * TS], fill=P['water_d'])
         d.ellipse([44 * TS, 12.9 * TS, 48 * TS, 16.1 * TS], fill=P['water'])
+        d.arc([44 * TS, 13 * TS, 48 * TS, 16 * TS], 200, 250, fill=P['water_l'])
+    # 1# has a round light-well, like the drilled hole on the plan
+    if b['id'] == 'b1':
+        d.ellipse([20.1 * TS, 36.1 * TS, 22.9 * TS, 38.9 * TS], fill=P['plaza_d'])
+        d.ellipse([20.35 * TS, 36.35 * TS, 22.65 * TS, 38.65 * TS], fill=P['stone'])
+        d.ellipse([20.9 * TS, 36.9 * TS, 22.1 * TS, 38.1 * TS], fill=P['plaza_l'])
 
-# doors
+# doors: lit awning + stone step, so entrances read at map scale
 for b in BUILDINGS:
     dr = b['door']
+    ex = dr['x'] * TS
     if dr['side'] == 's':
-        ex, ey = dr['x'] * TS, (dr['y'] - 1) * TS + 12
-        d.rectangle([ex + 3, ey, ex + 12, ey + 3], fill=P['roof_d'])
-        d.rectangle([ex + 3, ey, ex + 12, ey], fill=P['water_l'])
-        d.rectangle([dr['x'] * TS + 4, dr['y'] * TS, dr['x'] * TS + 12, dr['y'] * TS + 1], fill=P['stone_l'])
+        ey = (dr['y'] - 1) * TS + 12
+        d.rectangle([ex + 2, ey, ex + 13, ey + 1], fill=P['water_l'])
+        d.rectangle([ex + 3, ey + 1, ex + 12, ey + 3], fill='#2B2F38')
+        d.rectangle([ex + 4, ey + 2, ex + 7, ey + 3], fill=P['water_d'])
+        d.rectangle([ex + 1, dr['y'] * TS, ex + 14, dr['y'] * TS + 2], fill=P['stone_l'])
+        d.rectangle([ex + 1, dr['y'] * TS + 2, ex + 14, dr['y'] * TS + 3], fill=P['stone_d'])
     else:
-        ex, ey = dr['x'] * TS, dr['y'] * TS
-        d.rectangle([ex + 3, ey, ex + 12, ey + 3], fill=P['roof_d'])
-        d.rectangle([ex + 3, ey + 3, ex + 12, ey + 3], fill=P['water_l'])
+        ey = (dr['y'] + 1) * TS
+        d.rectangle([ex + 2, ey, ex + 13, ey + 1], fill=P['water_l'])
+        d.rectangle([ex + 3, ey + 1, ex + 12, ey + 3], fill='#2B2F38')
+        d.rectangle([ex + 4, ey + 2, ex + 7, ey + 3], fill=P['water_d'])
+        d.rectangle([ex + 1, dr['y'] * TS + 14, ex + 14, dr['y'] * TS + 15], fill=P['stone_l'])
 
 # --------------------------------------------------------------------------
 # pixel font + labels
@@ -856,55 +955,69 @@ def draw_text(dr, text, x, y, color, scale=1):
         cx += 6 * scale
 
 
-def pill(dr, x, y, w, h, fill, border, text, tc):
+def pill(dr, x, y, w, h, fill, border, text, tc, scale=2):
     pts = [(x + 2, y), (x + w - 3, y), (x + w - 1, y + 2), (x + w - 1, y + h - 3),
            (x + w - 3, y + h - 1), (x + 2, y + h - 1), (x, y + h - 3), (x, y + 2)]
     dr.polygon(pts, fill=border)
     inner = [(x + 3, y + 1), (x + w - 4, y + 1), (x + w - 2, y + 3), (x + w - 2, y + h - 4),
              (x + w - 4, y + h - 2), (x + 3, y + h - 2), (x + 1, y + h - 4), (x + 1, y + 3)]
     dr.polygon(inner, fill=fill)
-    tw = text_w(text)
-    draw_text(dr, text, x + (w - tw) // 2, y + (h - 7) // 2, tc)
+    tw = text_w(text) * scale
+    draw_text(dr, text, x + (w - tw) // 2, y + (h - 7 * scale) // 2, tc, scale)
 
 
+# map furniture: compass + scale bar (present in both clean and labelled renders)
+ccx, ccy = 22, 22
+d.ellipse([ccx - 13, ccy - 13, ccx + 13, ccy + 13], fill=P['stone_l'], outline=P['stone_d'])
+d.ellipse([ccx - 10, ccy - 10, ccx + 10, ccy + 10], outline=P['path_line'])
+d.polygon([(ccx, ccy - 8), (ccx - 4, ccy + 4), (ccx, ccy + 1), (ccx + 4, ccy + 4)], fill=P['roof'])
+d.rectangle([ccx - 1, ccy + 1, ccx, ccy + 1], fill=P['stone_d'])
+
+sx, sy = 7 * TS, 62 * TS + 2
+for k in range(3):
+    d.rectangle([sx + k * 16, sy + 1, sx + k * 16 + 15, sy + 4], fill=P['roof_d'] if k % 2 == 0 else P['path_l'])
+    d.rectangle([sx + k * 16, sy + 1, sx + k * 16, sy + 4], fill=P['roof_d'])
+d.rectangle([sx, sy + 1, sx + 47, sy + 1], fill=P['roof_d'])
+draw_text(d, '10M', sx + 52, sy - 1, P['roof_d'], 1)
+
+# clean render (no labels) for use as a game background
+clean = map_img.copy()
+
+# labelled render for humans / map inspection
+labeled = map_img.copy()
+ld = ImageDraw.Draw(labeled)
 for b in BUILDINGS:
     cells = [(x, y) for y in range(H) for x in range(W) if BID_G[y][x] == b['id']]
     cx = sum(x for x, _ in cells) / len(cells)
     cy = sum(y for _, y in cells) / len(cells)
     label = b['label']
-    tw = text_w(label) + 2
-    w = tw + 7
-    h = 13
-    # nudge badges so they sit inside the roof
+    tw = text_w(label) * 2
+    w = tw + 11
+    h = 20
     bx = int(cx * TS) - w // 2
     by = int(cy * TS) - h // 2
-    pill(d, bx, by, w, h, '#4F9E92', '#2F6B62', label, P['line'])
+    pill(ld, bx, by, w, h, '#4F9E92', '#2F6B62', label, P['line'])
 
-# road names
-road_labels = [(6, 40, 'ZUCHONGZHI RD'), (6, 936, 'JIDIAN RD')]
+road_labels = [(6, 38, 'ZUCHONGZHI RD'), (6, 934, 'JIDIAN RD')]
 for x, y, name in road_labels:
-    draw_text(d, name, x * TS + 4, y, (226, 223, 219), 1)
+    draw_text(ld, name, x * TS + 4, y, (226, 223, 219), 1)
 
-for name, x, y in (('JICHUANG RD', 36, 100), ('FANGCHUN RD', 932, 100)):
+for name, x, y in (('JICHUANG RD', 34, 96), ('FANGCHUN RD', 930, 96)):
     tmp = Image.new('RGBA', (text_w(name) + 2, 9), (0, 0, 0, 0))
     td = ImageDraw.Draw(tmp)
     draw_text(td, name, 1, 1, (226, 223, 219), 1)
     rot = tmp.rotate(90, expand=True)
-    map_img.alpha_composite(rot, (x, y))
+    labeled.alpha_composite(rot, (x, y))
 
-# scale bar in the SW verge
-sx, sy = 9 * TS, 62 * TS + 4
-d.rectangle([sx, sy + 5, sx + 24, sy + 6], fill=P['line'])
-for k in range(3):
-    d.rectangle([sx + k * 12, sy + 2, sx + k * 12, sy + 5], fill=P['line'])
-draw_text(d, '10M', sx + 28, sy, (226, 223, 219), 1)
-
-# upscale to display scale
-preview = map_img.resize((W * TS * SCALE, H * TS * SCALE), Image.NEAREST).convert('RGB')
+preview = labeled.resize((W * TS * SCALE, H * TS * SCALE), Image.NEAREST).convert('RGB')
 preview.save(os.path.join(OUT, 'campus_preview.png'), optimize=True)
-preview.resize((W * TS, H * TS), Image.LANCZOS).save(os.path.join(OUT, 'campus_preview_1024.png'), optimize=True)
+preview.resize((W * TS, H * TS), Image.NEAREST).save(
+    os.path.join(OUT, 'campus_preview_1024.png'), optimize=True)
 
-# cut-out clean render without labels would need a second pass; keep one for now.
+clean_big = clean.resize((W * TS * SCALE, H * TS * SCALE), Image.NEAREST).convert('RGB')
+clean_big.save(os.path.join(OUT, 'campus_clean.png'), optimize=True)
+clean_big.resize((W * TS, H * TS), Image.NEAREST).save(
+    os.path.join(OUT, 'campus_clean_1024.png'), optimize=True)
 
 # --------------------------------------------------------------------------
 # tileset atlas
@@ -922,7 +1035,7 @@ S4 = 4
 cols4 = COLS
 rows4 = 3
 cell = TS * S4
-pad = 22
+pad = 32
 sheet = Image.new('RGB', (cols4 * cell + 20, rows4 * (cell + pad) + 20), '#23262D')
 sd = ImageDraw.Draw(sheet)
 for i, (key, fn) in enumerate(TILE_ART):
@@ -932,8 +1045,9 @@ for i, (key, fn) in enumerate(TILE_ART):
     y = 10 + (i // cols4) * (cell + pad)
     sd.rectangle([x - 2, y - 2, x + cell + 1, y + cell + 1], fill='#34383F')
     sheet.paste(fn().resize((cell, cell), Image.NEAREST), (x, y))
-    draw_text(sd, f'{i}', x + 2, y + cell + 6, '#C9C2C7', 2)
-    draw_text(sd, key.upper()[:8], x + 30, y + cell + 6, '#8FAE45', 2)
+    draw_text(sd, f'{i:02d}', x + 2, y + cell + 4, '#C9C2C7', 1)
+    draw_text(sd, key.upper()[:9], x + 22, y + cell + 4, '#8FAE45', 1)
+    draw_text(sd, 'TILE ' + f'{i:02d}', x + 2, y + cell + 16, '#6E727B', 1)
 sheet.save(os.path.join(OUT, 'tileset@4x.png'), optimize=True)
 
 # --------------------------------------------------------------------------
@@ -1122,8 +1236,9 @@ try:
     fz_small = ImageFont.truetype(FONT_CJK, 17)
     fz_title = ImageFont.truetype(FONT_CJK, 30)
     fz_latin = ImageFont.truetype(FONT_CJK, 13)
+    fz_zh = ImageFont.truetype(FONT_CJK, 15)
 except Exception:
-    fz = fz_small = fz_title = fz_latin = ImageFont.load_default()
+    fz = fz_small = fz_title = fz_latin = fz_zh = ImageFont.load_default()
 
 LG_W, LG_H = 1180, 900
 lg = Image.new('RGB', (LG_W, LG_H), '#23262D')
@@ -1143,30 +1258,45 @@ for i, t in enumerate(tiles_meta[:23]):
     tile_rgba = fn.resize((cell, cell), Image.NEAREST)
     lg.paste(tile_rgba, (x, y), tile_rgba)
     ld.rectangle([x - 1, y - 1, x + cell, y + cell], outline='#4A4E57')
-    ld.text((x + 2, y + cell + 2), f"{t['id']:02d} {t['key']}", font=fz_latin, fill='#8FAE45')
-    ld.text((x + 2, y + cell + 18), f"{GROUND.get(t.get('glyph'), PROPS.get(t.get('glyph'), {})).get('zh', t['key'])}",
-            font=fz_small, fill='#D8D3CE')
+    ld.text((x + 2, y + cell + 1), f"{t['id']:02d} {t['key']}", font=fz_latin, fill='#8FAE45')
+    info = GROUND.get(t.get('glyph')) or PROPS.get(t.get('glyph')) or {}
+    zh = info.get('zh', t['key']).split('·')[0]
+    ld.text((x + 2, y + cell + 16), zh, font=fz_zh, fill='#D8D3CE')
 
 # right column: key
 kx = 36 + 8 * 112 + 16
 ld.text((kx, sy0), 'NAVIGATION', font=fz_small, fill='#8FAE45')
-ld.text((kx, sy0 + 28), 'ground walkable:  ' + ' '.join(MAP['navigation']['walkableGlyphs']),
-        font=fz_latin, fill='#D8D3CE')
-ld.text((kx, sy0 + 48), 'ground blocked:   ' + ' '.join(MAP['navigation']['blockedGlyphs']),
-        font=fz_latin, fill='#D8D3CE')
-ld.text((kx, sy0 + 68), 'solid props:      H T n l B', font=fz_latin, fill='#D8D3CE')
-ld.text((kx, sy0 + 96), 'ROADS', font=fz_small, fill='#8FAE45')
+nav_lines = [
+    'walkable ground:',
+    '  g f u  lawn / flowers',
+    '  p P b  paved / plaza',
+    '  z x    zebra crossings',
+    '  k c s  track / court / stairs',
+    'blocked ground:  r  w',
+    'solid props:     H T n l B',
+]
+for i, line in enumerate(nav_lines):
+    ld.text((kx, sy0 + 28 + i * 20), line, font=fz_latin, fill='#D8D3CE')
+
+ld.text((kx, sy0 + 200), 'ROADS', font=fz_small, fill='#8FAE45')
 for i, rd in enumerate(ROADS):
-    ld.text((kx, sy0 + 124 + i * 22), f"{rd['zh']}  {rd['en']}", font=fz_small, fill='#D8D3CE')
+    ld.text((kx, sy0 + 228 + i * 24), f"{rd['zh']}  {rd['en']}", font=fz_zh, fill='#D8D3CE')
 
-ld.text((kx, sy0 + 236), 'BUILDINGS', font=fz_small, fill='#8FAE45')
+ld.text((kx, sy0 + 354), 'BUILDINGS', font=fz_small, fill='#8FAE45')
 for i, b in enumerate(BUILDINGS):
-    ld.text((kx, sy0 + 264 + i * 22), f"{b['label']:<6} {b['zh']}", font=fz_small, fill='#D8D3CE')
+    ld.text((kx, sy0 + 382 + i * 21), f"{b['label']:<6} {b['zh']}", font=fz_zh, fill='#D8D3CE')
 
-ld.text((kx, sy0 + 474), 'POIs', font=fz_small, fill='#8FAE45')
-for i, p in enumerate(POIS[:10]):
-    ld.text((kx, sy0 + 500 + i * 20), f"{p['id']:<12} ({p['x']:02d},{p['y']:02d})", font=fz_latin,
+ld.text((kx, sy0 + 570), 'POIs  (x, y)', font=fz_small, fill='#8FAE45')
+for i, p in enumerate(POIS[:13]):
+    ld.text((kx, sy0 + 596 + i * 19), f"{p['id']:<12} ({p['x']:02d},{p['y']:02d})", font=fz_latin,
             fill='#D8D3CE')
+ld.text((kx, sy0 + 852), '+ 5 more in campus.tilemap.json', font=fz_latin, fill='#7E828B')
+
+# mini map fills the lower-left space
+thumb = Image.open(os.path.join(OUT, 'campus_clean_1024.png')).resize((360, 360), Image.NEAREST)
+lg.paste(thumb, (36, 420))
+ld.rectangle([35, 419, 396, 781], outline='#4A4E57')
+ld.text((36, 790), 'campus_clean.png  —  rendered 64 x 64 tile map, label-free', font=fz_latin, fill='#8E929B')
 
 ld.text((36, LG_H - 46), 'style: 16px tiles, 2px pixel clusters, muted lawn/pavement/asphalt palette sampled from the reference render',
         font=fz_latin, fill='#7E828B')

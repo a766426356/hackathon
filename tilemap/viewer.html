@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>张江学园 · 集电校区 — Tile Map Inspector</title>
+<style>
+  :root {
+    --bg: #171a21;
+    --panel: #20242d;
+    --panel2: #262b35;
+    --ink: #e9e5e2;
+    --muted: #969ba6;
+    --line: #333945;
+    --teal: #4f9e92;
+    --teal-light: #7fd0c2;
+    --grass: #8fae45;
+    --gold: #ffd166;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 330px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.55 "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  #stage {
+    position: relative;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 50% 40%, #232833 0%, #15181e 70%);
+    overflow: hidden;
+  }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+  canvas.dragging { cursor: grabbing; }
+  #hud {
+    position: absolute; left: 14px; top: 14px;
+    background: rgba(23, 26, 33, .86);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+  }
+  #hud .t { font-size: 14px; font-weight: 700; letter-spacing: .02em; }
+  #hud .s { color: var(--muted); font-size: 11px; }
+  #zoom {
+    position: absolute; right: 14px; bottom: 14px;
+    display: flex; gap: 6px;
+    background: rgba(23, 26, 33, .86);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 5px;
+  }
+  #zoom button {
+    width: 30px; height: 28px; border: 0; border-radius: 5px;
+    background: var(--panel2); color: var(--ink);
+    font: 700 16px/1 ui-monospace, monospace; cursor: pointer;
+  }
+  #zoom button:hover { background: #333a47; }
+  #zoom .wide { width: auto; padding: 0 9px; font-size: 11px; }
+
+  aside {
+    background: var(--panel);
+    border-left: 1px solid #2b313d;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  header { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 16px; letter-spacing: .02em; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+  header code { color: var(--grass); }
+  .scroll { overflow-y: auto; padding: 12px 14px 24px; }
+  .block { margin-bottom: 16px; }
+  .block h2 {
+    margin: 0 0 7px; font-size: 10px; font-weight: 700;
+    letter-spacing: .14em; color: var(--teal-light); text-transform: uppercase;
+  }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; }
+  .row label { cursor: pointer; user-select: none; }
+  .row kbd {
+    font: 10px/1 ui-monospace, monospace; color: var(--muted);
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 4px; padding: 2px 4px;
+  }
+  input[type=checkbox] { accent-color: var(--teal); }
+  .poi-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+  .poi {
+    border: 1px solid var(--line); background: var(--panel2);
+    color: var(--ink); border-radius: 5px; padding: 4px 7px;
+    font: 11px/1.2 inherit; cursor: pointer;
+  }
+  .poi:hover { border-color: var(--teal); color: var(--teal-light); }
+  .poi.on { background: #2f5b55; border-color: var(--teal); }
+  .poi small { color: var(--muted); margin-left: 4px; font-size: 9px; }
+  #inspect {
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 7px; padding: 9px 10px; min-height: 74px;
+    font-size: 11px; color: var(--muted);
+  }
+  #inspect b { color: var(--ink); font-weight: 600; }
+  #inspect .xy { color: var(--teal-light); font: 12px/1.4 ui-monospace, monospace; }
+  #inspect .tag {
+    display: inline-block; padding: 1px 5px; margin: 3px 4px 0 0;
+    background: #333a47; border-radius: 4px; color: var(--muted); font-size: 10px;
+  }
+  .stat { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; padding: 2px 0; }
+  .stat b { color: var(--ink); font-family: ui-monospace, monospace; }
+  #pathline {
+    font: 10px/1.5 ui-monospace, monospace; color: var(--muted);
+    background: #1b1f27; border: 1px solid var(--line); border-radius: 6px;
+    padding: 7px 8px; max-height: 92px; overflow: auto; word-break: break-all;
+  }
+  .btns { display: flex; gap: 6px; margin-top: 7px; }
+  .btn {
+    flex: 1; border: 1px solid var(--line); background: var(--panel2);
+    color: var(--ink); border-radius: 5px; padding: 5px 6px;
+    font: 11px/1.3 inherit; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--teal); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; color: var(--muted); font-size: 11px; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .foot { color: #666c78; font-size: 10px; line-height: 1.6; }
+  .foot a { color: #7f8798; }
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; grid-template-rows: 58vh 1fr; }
+    aside { border-left: 0; border-top: 1px solid #2b313d; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="map"></canvas>
+  <div id="hud">
+    <div class="t">张江学园 · 集电校区</div>
+    <div class="s">64 × 64 tiles @ 16px · hover 查格 · 点击设终点 · shift+点击设起点</div>
+  </div>
+  <div id="zoom">
+    <button id="zin" title="放大">+</button>
+    <button id="zout" title="缩小">−</button>
+    <button id="zreset" class="wide" title="适配窗口">FIT</button>
+  </div>
+</div>
+
+<aside>
+  <header>
+    <h1>Campus Tile Map</h1>
+    <p><code>campus.tilemap.json</code> · A* nav · walkable mask</p>
+  </header>
+  <div class="scroll">
+    <div class="block">
+      <h2>Layers</h2>
+      <div class="row"><label><input type="checkbox" id="cbLabels" checked> 标签 / POI</label><kbd>L</kbd></div>
+      <div class="row"><label><input type="checkbox" id="cbGrid"> 网格</label><kbd>G</kbd></div>
+      <div class="row"><label><input type="checkbox" id="cbBlocked"> 阻挡区</label><kbd>W</kbd></div>
+      <div class="row"><label><input type="checkbox" id="cbPath" checked> 路径</label><kbd>P</kbd></div>
+    </div>
+
+    <div class="block">
+      <h2>Tile inspector</h2>
+      <div id="inspect">把鼠标移到地图上查看这格。</div>
+    </div>
+
+    <div class="block">
+      <h2>Route</h2>
+      <div class="stat"><span>起点</span><b id="startLabel">spawn 30,56</b></div>
+      <div class="stat"><span>终点</span><b id="goalLabel">—</b></div>
+      <div class="stat"><span>步数</span><b id="steps">—</b></div>
+      <div id="pathline">点击地图任意格，自动从出生点寻路。</div>
+      <div class="btns">
+        <button class="btn" id="copyPath">复制路径</button>
+        <button class="btn" id="resetRoute">清除路径</button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>POIs</h2>
+      <div class="poi-grid" id="poiGrid"></div>
+    </div>
+
+    <div class="block">
+      <h2>Legend</h2>
+      <div class="legend">
+        <span><i class="sw" style="background:#8fae45"></i>草地</span>
+        <span><i class="sw" style="background:#c9c2c7"></i>人行道</span>
+        <span><i class="sw" style="background:#63646c"></i>车行道</span>
+        <span><i class="sw" style="background:#6fa8b4"></i>水面</span>
+        <span><i class="sw" style="background:#578a3e"></i>绿篱</span>
+        <span><i class="sw" style="background:#3b404b"></i>屋顶</span>
+      </div>
+      <p class="foot" style="margin-top:8px">
+        一格 = 16px，渲染 ×2。<br>
+        道路不可走，只能走斑马线跨越四邻道路。<br>
+        数据字段见 README.md。
+      </p>
+    </div>
+  </div>
+</aside>
+
+<script type="module">
+import { createNav, findPath, pathLength, pathToCsv } from './agent/nav.mjs';
+
+const canvas = document.getElementById('map');
+const ctx = canvas.getContext('2d');
+const stage = document.getElementById('stage');
+const inspect = document.getElementById('inspect');
+const pathline = document.getElementById('pathline');
+
+const map = await (await fetch('./campus.tilemap.json')).json();
+const nav = createNav(map);
+const img = new Image();
+img.src = './campus_clean.png';
+await img.decode();
+
+const IMG = map.size.pixelWidth * map.size.displayScale; // 2048
+const CELL = map.size.tileSize * map.size.displayScale;  // 32
+const dpr = Math.min(window.devicePixelRatio || 1, 2);
+const view = { zoom: 1, panX: 0, panY: 0, fit: 1, scale: 1 };
+let hover = null;
+let start = { x: nav.spawn.x, y: nav.spawn.y };
+let goal = null;
+let path = null;
+
+const opts = {
+  labels: true, grid: false, blocked: false, showPath: true,
+};
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  canvas.width = Math.round(r.width * dpr);
+  canvas.height = Math.round(r.height * dpr);
+  view.fit = Math.min(r.width / IMG, r.height / IMG);
+  view.scale = view.fit * view.zoom;
+  clampPan();
+  draw();
+}
+window.addEventListener('resize', resize);
+
+function clampPan() {
+  const w = IMG * view.scale;
+  const h = IMG * view.scale;
+  const r = stage.getBoundingClientRect();
+  const mx = Math.max(0, (w - r.width) / 2);
+  const my = Math.max(0, (h - r.height) / 2);
+  view.panX = Math.max(-mx, Math.min(mx, view.panX));
+  view.panY = Math.max(-my, Math.min(my, view.panY));
+}
+
+function origin() {
+  const w = IMG * view.scale;
+  const h = IMG * view.scale;
+  const r = stage.getBoundingClientRect();
+  return { x: (r.width - w) / 2 + view.panX, y: (r.height - h) / 2 + view.panY };
+}
+
+function toImage(ev) {
+  const r = canvas.getBoundingClientRect();
+  const o = origin();
+  return {
+    x: (ev.clientX - r.left - o.x) / view.scale,
+    y: (ev.clientY - r.top - o.y) / view.scale,
+  };
+}
+
+function tileFromImage(p) {
+  const tx = Math.floor(p.x / CELL);
+  const ty = Math.floor(p.y / CELL);
+  if (tx < 0 || ty < 0 || tx >= nav.cols || ty >= nav.rows) return null;
+  return { x: tx, y: ty };
+}
+
+function regionOf(x, y) {
+  return nav.regions.find((r) => x >= r.rect[0] && y >= r.rect[1] && x <= r.rect[2] && y <= r.rect[3]);
+}
+
+function drawRoundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+}
+
+function draw() {
+  const dprW = canvas.width;
+  const dprH = canvas.height;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, dprW, dprH);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const o = origin();
+  ctx.save();
+  ctx.translate(o.x, o.y);
+  ctx.scale(view.scale, view.scale);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0);
+
+  if (opts.blocked) {
+    for (let y = 0; y < nav.rows; y += 1) {
+      for (let x = 0; x < nav.cols; x += 1) {
+        if (nav.walkable(x, y)) continue;
+        ctx.fillStyle = 'rgba(214, 76, 76, .30)';
+        ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+      }
+    }
+  }
+
+  if (opts.grid) {
+    ctx.lineWidth = 1 / view.scale;
+    for (let i = 0; i <= 64; i += 1) {
+      const strong = i % 8 === 0;
+      ctx.strokeStyle = strong ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.09)';
+      ctx.beginPath();
+      ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, IMG); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, i * CELL); ctx.lineTo(IMG, i * CELL); ctx.stroke();
+    }
+  }
+
+  const fs = 26;
+  if (opts.labels) {
+    // roads
+    ctx.save();
+    ctx.font = `600 ${fs}px ui-monospace, "SFMono-Regular", Menlo, monospace`;
+    ctx.fillStyle = 'rgba(240, 236, 232, .82)';
+    for (const rd of nav.roads) {
+      const [x0, y0, x1, y1] = rd.rect;
+      const label = `${rd.zh}  ${rd.en}`;
+      ctx.save();
+      if (rd.axis === 'h') {
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, (x0 + 2.2) * CELL, ((y0 + y1 + 1) / 2) * CELL);
+      } else {
+        ctx.translate(((x0 + x1 + 1) / 2) * CELL, (y0 + 8) * CELL);
+        ctx.rotate(Math.PI / 2);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, 0, 0);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // building badges
+    ctx.font = `700 ${fs}px ui-monospace, "SFMono-Regular", Menlo, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const b of nav.buildings) {
+      let sx = 0; let sy = 0; let n = 0;
+      for (const [x0, y0, x1, y1] of b.rects) {
+        for (let y = y0; y <= y1; y += 1) {
+          for (let x = x0; x <= x1; x += 1) { sx += x; sy += y; n += 1; }
+        }
+      }
+      const cx = (sx / n + 0.5) * CELL;
+      const cy = (sy / n + 0.5) * CELL;
+      const tw = ctx.measureText(b.label).width;
+      const w = tw + 20;
+      const h = 34;
+      drawRoundRect(cx - w / 2, cy - h / 2, w, h, 8);
+      ctx.fillStyle = 'rgba(47, 107, 98, .92)';
+      ctx.fill();
+      ctx.strokeStyle = '#2b6b61';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#f4f1ec';
+      ctx.fillText(b.label, cx, cy + 1);
+    }
+
+    // POI markers
+    ctx.font = `600 19px "PingFang SC", "Hiragino Sans GB", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (const p of nav.pois) {
+      const cx = (p.x + 0.5) * CELL;
+      const cy = (p.y + 0.5) * CELL;
+      if (p.kind === 'building_entrance') {
+        ctx.fillStyle = '#8fe0d2';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      ctx.fillStyle = 'rgba(23, 26, 33, .80)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = p.kind === 'gate' ? '#ffd166' : '#8fe0d2';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const tw = ctx.measureText(p.zh).width;
+      let tx = cx + 11;
+      let ty = cy;
+      if (p.kind === 'gate') {
+        if (p.y < 10) { tx = cx - tw / 2; ty = cy - 30; }
+        else if (p.y > 54) { tx = cx - tw / 2; ty = cy + 30; }
+        else if (p.x < 10) { tx = cx + 11; }
+        else { tx = cx - tw - 13; }
+      } else if (p.id === 'spawn') {
+        tx = cx - tw - 13; ty = cy - 4;
+      }
+      ctx.fillStyle = 'rgba(23, 26, 33, .84)';
+      ctx.fillRect(tx - 5, ty - 12, tw + 10, 24);
+      ctx.fillStyle = '#e9e5e2';
+      ctx.fillText(p.zh, tx - 1, ty + 1);
+    }
+  }
+
+  // start marker
+  const scx = (start.x + 0.5) * CELL;
+  const scy = (start.y + 0.5) * CELL;
+  ctx.fillStyle = '#7fd0c2';
+  ctx.beginPath(); ctx.arc(scx, scy, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#12211f'; ctx.lineWidth = 2; ctx.stroke();
+
+  // path
+  if (opts.showPath && path && path.length > 1) {
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,.45)';
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    path.forEach((p, i) => {
+      const x = (p.x + 0.5) * CELL;
+      const y = (p.y + 0.5) * CELL;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    const end = path[path.length - 1];
+    const ex = (end.x + 0.5) * CELL;
+    const ey = (end.y + 0.5) * CELL;
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath(); ctx.arc(ex, ey, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#4a3a12'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // hover
+  if (hover) {
+    ctx.strokeStyle = 'rgba(143, 224, 210, .95)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(hover.x * CELL + 1, hover.y * CELL + 1, CELL - 2, CELL - 2);
+  }
+
+  ctx.restore();
+}
+
+function setGoal(x, y, label) {
+  goal = { x, y };
+  path = findPath(nav, start, goal);
+  const end = path ? path[path.length - 1] : null;
+  document.getElementById('goalLabel').textContent = label || `${x},${y}`;
+  document.getElementById('steps').textContent = path ? pathLength(path) : '不可达';
+  pathline.textContent = path ? pathToCsv(path) : '这条路线被挡住了。';
+  document.querySelectorAll('.poi').forEach((el) => el.classList.toggle('on',
+    el.dataset.x === String(x) && el.dataset.y === String(y)));
+  draw();
+}
+
+function setStart(x, y) {
+  start = { x, y };
+  document.getElementById('startLabel').textContent = `${x},${y}`;
+  if (goal) setGoal(goal.x, goal.y);
+  draw();
+}
+
+canvas.addEventListener('pointermove', (ev) => {
+  const p = toImage(ev);
+  const t = tileFromImage(p);
+  hover = t;
+  if (t) {
+    const d = nav.describe(t.x, t.y);
+    const r = regionOf(t.x, t.y);
+    const tags = [];
+    if (d.poi) tags.push(`POI: ${d.poi.id}`);
+    if (r) tags.push(`区域: ${r.name}`);
+    if (d.ground?.tags?.length) tags.push(...d.ground.tags);
+    inspect.innerHTML = `
+      <div class="xy">(${t.x}, ${t.y})  ·  ${d.walkable ? '可走' : '阻挡'}</div>
+      <div>地面 <b>${d.ground ? d.ground.zh : '—'}</b>${d.prop && d.prop.glyph !== '.' ? ` / 物件 <b>${d.prop.zh}</b>` : ''}</div>
+      <div class="tag">tile ${map.legend.ground[d.ground?.glyph]?.id ?? '—'}</div>
+      ${d.poi ? `<div><b>${d.poi.zh}</b> · ${d.poi.kind}</div>` : ''}
+      ${tags.map((x) => `<span class="tag">${x}</span>`).join('')}
+    `;
+  }
+  draw();
+});
+
+let dragging = false;
+let moved = false;
+let last = null;
+canvas.addEventListener('pointerdown', (ev) => {
+  if (ev.button !== 0) return;
+  dragging = true; moved = false;
+  last = { x: ev.clientX, y: ev.clientY };
+  canvas.classList.add('dragging');
+});
+window.addEventListener('pointerup', (ev) => {
+  if (!dragging) return;
+  dragging = false;
+  canvas.classList.remove('dragging');
+  if (moved) return;
+  const t = tileFromImage(toImage(ev));
+  if (!t) return;
+  if (ev.shiftKey) setStart(t.x, t.y);
+  else setGoal(t.x, t.y);
+});
+window.addEventListener('pointermove', (ev) => {
+  if (!dragging) return;
+  const dx = ev.clientX - last.x;
+  const dy = ev.clientY - last.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+  last = { x: ev.clientX, y: ev.clientY };
+  view.panX += dx;
+  view.panY += dy;
+  clampPan();
+  draw();
+});
+
+canvas.addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const mx = ev.clientX - r.left;
+  const my = ev.clientY - r.top;
+  const o = origin();
+  const ix = (mx - o.x) / view.scale;
+  const iy = (my - o.y) / view.scale;
+  const fit = view.fit;
+  const nextZoom = Math.max(1, Math.min(8, view.zoom * (ev.deltaY < 0 ? 1.15 : 0.87)));
+  if (Math.abs(nextZoom - view.zoom) < 1e-4) return;
+  view.zoom = nextZoom;
+  view.scale = fit * view.zoom;
+  view.panX = mx - r.width / 2 - (ix - IMG / 2) * view.scale;
+  view.panY = my - r.height / 2 - (iy - IMG / 2) * view.scale;
+  clampPan();
+  draw();
+}, { passive: false });
+
+document.getElementById('zin').onclick = () => {
+  const r = stage.getBoundingClientRect();
+  const o = origin();
+  const ix = (r.width / 2 - o.x) / view.scale;
+  const iy = (r.height / 2 - o.y) / view.scale;
+  view.zoom = Math.min(8, view.zoom * 1.35);
+  view.scale = view.fit * view.zoom;
+  view.panX = r.width / 2 - r.width / 2 - (ix - IMG / 2) * view.scale;
+  view.panY = r.height / 2 - r.height / 2 - (iy - IMG / 2) * view.scale;
+  clampPan(); draw();
+};
+document.getElementById('zout').onclick = () => {
+  view.zoom = Math.max(1, view.zoom / 1.35);
+  view.scale = view.fit * view.zoom;
+  if (view.zoom === 1) { view.panX = 0; view.panY = 0; }
+  clampPan(); draw();
+};
+document.getElementById('zreset').onclick = () => {
+  view.zoom = 1; view.panX = 0; view.panY = 0; view.scale = view.fit; draw();
+};
+
+const gridEl = document.getElementById('cbGrid');
+const blockedEl = document.getElementById('cbBlocked');
+const labelsEl = document.getElementById('cbLabels');
+const pathEl = document.getElementById('cbPath');
+function bind(el, key) {
+  el.addEventListener('change', () => { opts[key] = el.checked; draw(); });
+}
+bind(gridEl, 'grid'); bind(blockedEl, 'blocked'); bind(labelsEl, 'labels'); bind(pathEl, 'showPath');
+
+window.addEventListener('keydown', (ev) => {
+  if (ev.target.tagName === 'INPUT') return;
+  const k = ev.key.toLowerCase();
+  if (k === 'g') { gridEl.checked = !gridEl.checked; opts.grid = gridEl.checked; }
+  if (k === 'w') { blockedEl.checked = !blockedEl.checked; opts.blocked = blockedEl.checked; }
+  if (k === 'l') { labelsEl.checked = !labelsEl.checked; opts.labels = labelsEl.checked; }
+  if (k === 'p') { pathEl.checked = !pathEl.checked; opts.showPath = pathEl.checked; }
+  draw();
+});
+
+const poiGrid = document.getElementById('poiGrid');
+for (const p of nav.pois) {
+  if (p.id === 'spawn') continue;
+  const btn = document.createElement('button');
+  btn.className = 'poi';
+  btn.dataset.x = p.x; btn.dataset.y = p.y;
+  btn.innerHTML = `${p.zh}<small>${p.x},${p.y}</small>`;
+  btn.title = `${p.id} · ${p.kind}`;
+  btn.onclick = () => setGoal(p.x, p.y, p.zh);
+  poiGrid.appendChild(btn);
+}
+
+document.getElementById('copyPath').onclick = async () => {
+  if (!path) return;
+  try {
+    await navigator.clipboard.writeText(pathToCsv(path));
+    pathline.textContent = '已复制：' + pathToCsv(path);
+  } catch {
+    pathline.textContent = pathToCsv(path);
+  }
+};
+document.getElementById('resetRoute').onclick = () => {
+  goal = null; path = null;
+  document.getElementById('goalLabel').textContent = '—';
+  document.getElementById('steps').textContent = '—';
+  pathline.textContent = '点击地图任意格，自动从出生点寻路。';
+  document.querySelectorAll('.poi').forEach((el) => el.classList.remove('on'));
+  draw();
+};
+
+resize();
+setGoal(nav.poi('cds1').x, nav.poi('cds1').y, 'CDS-1');
+</script>
+</body>
+</html>
