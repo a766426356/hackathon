@@ -36,11 +36,7 @@ function boot() {
   });
   document.getElementById('btn-char').addEventListener('click', () => {
     if (!started || !state) return;
-    if (modalOpen()) return;
-    world.keys.clear();
-    indoor.keys.clear();
-    ui.characterPanel(state);
-    ui.bindModal({ close: () => ui.closeModal() });
+    openCharacter();
   });
 
   window.addEventListener('keydown', onKeyDown);
@@ -75,9 +71,10 @@ function startNew() {
   started = true;
   ui.closeModal();
   rules.requiredCourses(state); // 第 1 天的两节必修课
-  enterScene('campus');
+  // 开局也在寝室醒来：先看日历墙和书桌，再出门
+  enterScene('dorm.room');
   renderAll();
-  ui.toast('第 1 天的两节必修课上完了，剩下 ' + CONFIG.freeAp + ' 个自由行动点。');
+  ui.toast('第 1 天的两节必修课上完了，剩下 ' + CONFIG.freeAp + ' 个自由行动点。门在左边。');
   save();
 }
 
@@ -94,7 +91,7 @@ function resume() {
   if (state.phase === 'night') {
     // 刷新时正好停夜晚：把夜晚选择重新摆出来，避免卡在半路
     state.phase = 'day';
-    enterScene('campus');
+    enterScene('dorm.room');
     renderAll();
     openNight();
     return;
@@ -137,6 +134,11 @@ function enterBuilding(buildingId) {
   const b = BUILDING_FLOORS[buildingId];
   if (!b) return;
   if (!enterScene(b.lobby)) return;
+  // 单层建筑（寝室）进门就是房间本身，没有电梯可选
+  if (b.floors.length <= 1) {
+    ui.toast(b.full === '宿舍' ? '你回到寝室。' : '你走进' + b.full + '。');
+    return;
+  }
   ui.toast('你走进' + b.full + '。先去电梯口。');
   setTimeout(() => {
     if (started && state.phase === 'day' && scene === b.lobby) openElevator();
@@ -224,6 +226,9 @@ function interact(item) {
     case 'leave': return leaveBuilding();
     case 'room': return openRoom(item);
     case 'piano': return openPiano(item);
+    case 'char': return openCharacter();
+    case 'calendar': return openCalendar();
+    case 'roomie': return afterAction(rules.roomieTalk(state));
     default: break;
   }
 
@@ -329,6 +334,24 @@ function playNote(i) {
   renderPiano();
 }
 
+// ---------------------------------------------------------------- 面板
+// 书桌和侧栏「角色」按钮打开的是同一个面板：只读，不花行动点，不改状态。
+function openCharacter() {
+  if (!state || modalOpen()) return;
+  world.keys.clear();
+  indoor.keys.clear();
+  ui.characterPanel(state);
+  ui.bindModal({ close: () => ui.closeModal() });
+}
+
+function openCalendar() {
+  if (!state || modalOpen()) return;
+  world.keys.clear();
+  indoor.keys.clear();
+  ui.calendarPanel(state);
+  ui.bindModal({ close: () => ui.closeModal() });
+}
+
 // ---------------------------------------------------------------- 夜晚
 function openNight() {
   if (state.phase !== 'day') return;
@@ -336,7 +359,8 @@ function openNight() {
   world.keys.clear();
   indoor.keys.clear();
   pianoState = null;
-  enterScene('campus');
+  // 一天在这里结束，也在这里收尾：晚上回寝室再决定深造还是出门打
+  enterScene('dorm.room');
   save();
   ui.nightPanel(state);
   ui.bindModal({ study: nightStudy, fight: nightFight });
@@ -381,9 +405,11 @@ function finishNight() {
   if (state.phase === 'exam') { examNow(); return; }
   state.phase = 'day';
   ui.closeModal();
-  enterScene('campus');
+  // 第二天早上从寝室醒来：抬头就是日历墙，今天的事不用弹窗通知
+  enterScene('dorm.room');
   renderAll();
   save();
+  ui.toast('第 ' + state.day + ' 天。必修两节已上，还有 ' + state.ap + ' 点自由。');
   if (state.ap <= 0) openNight();
 }
 
@@ -414,7 +440,7 @@ function frame(ts) {
   if (scene === 'campus') {
     world.draw(state && state.phase === 'night');
   } else {
-    indoor.draw();
+    indoor.draw(state && state.phase === 'night');
   }
   if (active) ui.setNear(eng.near);
   else ui.setNear(null);

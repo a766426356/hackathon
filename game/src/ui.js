@@ -348,6 +348,42 @@ export function characterPanel(s) {
   return openModal(html, { cls: 'char-panel' });
 }
 
+// ---------------------------------------------------------------- 日历墙
+// 学期时间轴：7 天一行，已过 / 今天 / 未来三态。今天那行写今晚要面对什么。
+export function calendarPanel(s) {
+  const rows = [];
+  for (let d = 1; d <= s.maxDay; d++) {
+    const cls = d < s.day ? 'past' : d === s.day ? 'today' : 'next';
+    let note = '';
+    if (d === s.maxDay) note = '期末考试';
+    else if (d === s.day) note = '今晚：深造 或 夜战';
+    else note = '—';
+    rows.push(
+      '<li class="' + cls + '">' +
+        '<span class="cday">第 ' + d + ' 天</span>' +
+        '<span class="cflag">' + (d < s.day ? '已过' : d === s.day ? '今天' : '') + '</span>' +
+        '<span class="cnote">' + esc(note) + '</span>' +
+      '</li>'
+    );
+  }
+  const left = Math.max(0, s.maxDay - s.day);
+  const now = [];
+  now.push(s.today.courses ? '必修两节已上' : '必修两节没上');
+  now.push('自由行动点 ' + s.ap + ' / ' + CONFIG.freeAp);
+  now.push('心境 ' + s.mood + '（白天收益 ×' + moodMult(s).toFixed(2) + '）');
+
+  const html = `
+    <div class="cal">
+      <h2>日历墙</h2>
+      <p class="sub">学期共 ${s.maxDay} 天，今天第 ${s.day} 天${left ? '，距期末还有 ' + left + ' 天' : '，就是期末'}</p>
+      <ul class="ctimeline">${rows.join('')}</ul>
+      <h3 class="csec">今天</h3>
+      <ul class="clist">${now.map((b) => '<li>' + esc(b) + '</li>').join('')}</ul>
+      <div class="row"><button class="btn" data-act="close">走开</button></div>
+    </div>`;
+  return openModal(html, { cls: 'cal-panel' });
+}
+
 // 用 onclick 覆盖而不是 addEventListener：每次重绘弹窗都重新绑定，不会叠加
 export function bindModal(actionMap) {
   els.modal.onclick = (ev) => {

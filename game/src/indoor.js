@@ -13,6 +13,7 @@ const FURN = {
   G: { base: '#1f5a3c', top: '#2a7049', dark: '#123425' },
   P: { base: '#12151c', top: '#232936', dark: '#0b0d12' },
   O: { base: '#6f4242', top: '#8a5454', dark: '#472a2a' },
+  Z: { base: '#3a2a20', top: '#c9d2e2', dark: '#241a14' },
 };
 
 export function createIndoor(canvas) {
@@ -26,7 +27,7 @@ export function createIndoor(canvas) {
   let blocks = []; // 连成一片的家具/门，按整体绘制（不然一张球台会变成八张小桌）
 
   // 同字符四邻连通 → 一个整体对象
-  const CLUSTER = new Set(['T', 'G', 'P', 'O', 'E', 'D']);
+  const CLUSTER = new Set(['T', 'G', 'P', 'O', 'E', 'D', 'Z']);
 
   function computeBlocks() {
     blocks = [];
@@ -251,6 +252,22 @@ export function createIndoor(canvas) {
       return;
     }
 
+    if (c === 'Z') {
+      // 床：床架 → 床垫 → 被子 → 枕头，一眼能看出哪头睡人
+      ctx.fillStyle = f.dark;
+      ctx.fillRect(px + 1, py + 2, w - 2, h - 4);
+      ctx.fillStyle = f.top;
+      ctx.fillRect(px + 4, py + 5, w - 8, h - 10);
+      ctx.fillStyle = '#8fa8c9';
+      ctx.fillRect(px + 4 + (w - 8) * 0.36, py + 5, (w - 8) * 0.64, h - 10);
+      ctx.fillStyle = '#f2f2f6';
+      ctx.fillRect(px + 7, py + 9, Math.max(8, (w - 14) * 0.24), h - 18);
+      ctx.strokeStyle = 'rgba(20, 16, 12, 0.55)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 1, py + 2, w - 2, h - 4);
+      return;
+    }
+
     // O 沙发
     ctx.fillStyle = f.dark;
     ctx.fillRect(px + 2, py + 3, w - 4, h - 6);
@@ -290,7 +307,7 @@ export function createIndoor(canvas) {
     }
   }
 
-  function draw() {
+  function draw(night) {
     if (!scene) return;
     ctx.clearRect(0, 0, MAP_W, MAP_H);
     for (let y = 0; y < grid.length; y++) {
@@ -316,6 +333,12 @@ export function createIndoor(canvas) {
     g.addColorStop(1, 'rgba(8,10,16,0.10)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, MAP_W, MAP_H);
+
+    // 夜里在寝室：整间压一层冷光，和白天分开
+    if (night) {
+      ctx.fillStyle = 'rgba(18,24,52,0.46)';
+      ctx.fillRect(0, 0, MAP_W, MAP_H);
+    }
   }
 
   return {

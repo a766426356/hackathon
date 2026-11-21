@@ -1,8 +1,8 @@
 // rules.js — 行动结算 / 夜晚推进 / 考试。纯函数，可在 node 里直接跑（tests/sim.mjs 依赖）。
 
-import { CONFIG, TOPICS, NPCS } from '../data.js';
+import { CONFIG, TOPICS, NPCS, ROOMMATE } from '../data.js';
 import {
-  clamp, clampMood, moodMult, maxFriend, examGpa, endingOf, nextRandom, hhLog, freshToday,
+  clamp, clampMood, moodMult, maxFriend, examGpa, endingOf, nextRandom, hhLog, freshToday, playerMaxHp,
 } from './state.js';
 
 const KNOWN_CAP = 150;
@@ -135,6 +135,27 @@ function refreshSupport(s) {
     return true;
   }
   return false;
+}
+
+// 室友：不产数值、不进友谊条，只根据你现在的状态说一句有用的话。
+// 刻意不用 nextRandom —— 情报不应该改动随机序列，否则同 seed 复现会被它影响。
+function roomieTip(s) {
+  if (s.day >= s.maxDay - 1) return '明天就期末了。今晚别硬撑，打不过就选深造。';
+  if (!s.deck.length) return '你牌组是空的。去 CDS-1 三楼坐一节课，至少有一张能打的。';
+  if (playerMaxHp(s) < 42) return '你今天太脆了，' + playerMaxHp(s) + ' 点血。操场跑两圈能长体质，血量跟着涨。';
+  if (s.mood < 30) return '你脸色不对。文娱楼三楼的祷告室，心情低到那一步才进得去。';
+  if (examGpa(s) >= CONFIG.endingGreat && s.battleWins >= CONFIG.endingGreatWins) return '分数和胜场都够了，剩下几天稳住就行。';
+  if (s.mood < 50) return '心情这么低，学也是白学。先去文娱楼弹个琴，或者打两局。';
+  return '想晚上抗揍就去操场，想分数就进楼。别都想要，一天只有三点。';
+}
+
+export function roomieTalk(s) {
+  if (s.phase !== 'day') return no('现在不是说话的时候。');
+  if (s.today.zhe) return no(ROOMMATE.name + '已经戴上耳机了，别吵他。');
+  s.today.zhe = true;
+  const msg = ROOMMATE.name + '：' + roomieTip(s);
+  hhLog(s, msg, 'info');
+  return ok(msg);
 }
 
 // ---------------------------------------------------------------- 室内房间

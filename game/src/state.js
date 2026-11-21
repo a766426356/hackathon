@@ -15,6 +15,7 @@ export function freshToday() {
     piano: false,
     pray: false,
     courses: false, // 今天的 2 节必修课结算过没有
+    zhe: false,     // 今天问过室友没有
   };
 }
 

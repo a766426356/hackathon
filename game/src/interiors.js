@@ -8,8 +8,8 @@ export const IW = 24;
 export const IH = 15;
 export const ITILE = 32;
 
-// # 墙   . 地面   B 课桌/书桌   T 乒乓球台   G 斯诺克台   P 钢琴   O 沙发   E 电梯门   D 楼门
-export const ISOLID = new Set(['#', 'B', 'T', 'G', 'P', 'O', 'E', 'D']);
+// # 墙   . 地面   B 课桌/书桌   T 乒乓球台   G 斯诺克台   P 钢琴   O 沙发   E 电梯门   D 楼门   Z 床
+export const ISOLID = new Set(['#', 'B', 'T', 'G', 'P', 'O', 'E', 'D', 'Z']);
 
 const PAL = {
   lobby: { a: '#3b4354', b: '#414a5e', wall: '#171a21', edge: '#4d5871', line: '#333b4b' },
@@ -17,6 +17,7 @@ const PAL = {
   play:  { a: '#3f5247', b: '#45594d', wall: '#18211c', edge: '#53705d', line: '#33443a' },
   study: { a: '#46505e', b: '#4c5766', wall: '#1b2029', edge: '#5b6879', line: '#37414e' },
   quiet: { a: '#4a4560', b: '#514b69', wall: '#1e1b29', edge: '#5f5779', line: '#393450' },
+  dorm:  { a: '#4a4038', b: '#514739', wall: '#1f1a15', edge: '#63554a', line: '#3a322b' },
 };
 
 // 三栋楼共用同一个电梯厅平面：进楼 → 站在电梯口 → 选楼层。
@@ -114,6 +115,26 @@ const FLOOR_QUIET = [
 const LOBBY_SPOTS = [
   { id: 'lift', x: 11, y: 13, name: '电梯', icon: '🛗', kind: 'elevator', hint: '选楼层：层间移动不花行动点' },
   { id: 'gate', x: 1, y: 7, name: '出口', icon: '🚪', kind: 'leave', hint: '走出这栋楼，回校园' },
+];
+
+// 寝室：单层、没有电梯厅，进门就是房间本身。
+// 一天的终点也是第二天的起点 —— 醒来就在日历墙旁边，不用弹窗通知今天的事。
+const DORM = [
+  '########################',
+  '#......................#',
+  '#..ZZZ...........BBB...#',
+  '#..ZZZ...........BBB...#',
+  '#......................#',
+  '#......................#',
+  '#.....OOOOO............#',
+  'D......................#',
+  '#......................#',
+  '#......................#',
+  '#......................#',
+  '#......................#',
+  '#......................#',
+  '#......................#',
+  '########################',
 ];
 
 const R = CONFIG.room;
@@ -223,6 +244,35 @@ export const SCENES = {
       { id: 'lift', x: 11, y: 13, name: '电梯', icon: '🛗', kind: 'elevator', hint: '回电梯厅，或去别的楼层' },
     ],
   },
+  'dorm.room': {
+    id: 'dorm.room',
+    building: 'dorm',
+    title: '宿舍 · 寝室',
+    tag: '寝室',
+    map: DORM,
+    pal: PAL.dorm,
+    spawn: { x: 3, y: 7 },
+    spots: [
+      {
+        id: 'dorm.bed', x: 4, y: 4, name: '床', icon: '🛏️', kind: 'rest', hint: '躺下：心情 +，今天到此为止',
+        labelBelow: true,
+      },
+      {
+        id: 'dorm.desk', x: 18, y: 4, name: '书桌', icon: '🪑', kind: 'char', hint: '看属性换算（不花行动点）',
+        labelBelow: true,
+      },
+      {
+        id: 'dorm.wall', x: 11, y: 1, name: '日历墙', icon: '📅', kind: 'calendar', hint: '学期时间轴：还剩几天到期末',
+        labelBelow: true,
+      },
+      {
+        id: 'dorm.zhe', x: 10, y: 9, name: '室友 哲', icon: '🧑', kind: 'roomie', hint: '问他一句今天该干什么（不花行动点）',
+      },
+      {
+        id: 'dorm.door', x: 1, y: 7, name: '门', icon: '🚪', kind: 'leave', hint: '出门，回校园',
+      },
+    ],
+  },
 };
 
 // 楼 → 电梯菜单。「未开放」的楼层也列出来，让人看见这栋楼的结构。
@@ -249,6 +299,16 @@ export const BUILDING_FLOORS = {
       { id: 'wenyu.f1', label: '1F', name: '活动层', rooms: '乒乓球 · 斯诺克 · 钢琴' },
       { id: 'wenyu.f2', label: '2F', name: '自习层', rooms: '自习室' },
       { id: 'wenyu.f3', label: '3F', name: '静室层', rooms: '祷告室' },
+    ],
+  },
+  // 单层建筑：没有电梯厅，进门就是房间（和大狮子同一类）。
+  dorm: {
+    id: 'dorm',
+    name: '宿舍',
+    full: '宿舍',
+    lobby: 'dorm.room',
+    floors: [
+      { id: 'dorm.room', label: '1F', name: '寝室', rooms: '床 · 书桌 · 日历墙 · 室友' },
     ],
   },
 };
