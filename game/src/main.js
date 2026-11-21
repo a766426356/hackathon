@@ -137,6 +137,7 @@ function startNew() {
   battlePct = null;
   started = true;
   ui.closeModal();
+  ui.resetReportSeen();
   rules.requiredCourses(state); // 第 1 天的两节必修课
   refreshCampusSpots();
   renderAll();

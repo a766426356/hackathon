@@ -299,6 +299,10 @@ export function battlePanel(s, b, prev) {
   return openModal(html, { cls: 'battle-panel' });
 }
 
+// 报告看过一次之前，结局页不给「再来一局」——玩家必须先读完自己的报告
+let reportSeen = false;
+export function resetReportSeen() { reportSeen = false; }
+
 // 结局页 = 只有成绩和结局，外加一个「生成报告」的按钮。
 // 报告单独一页（personaPanel），点开时带一段入场动画，背景仍是游戏里的校园。
 export function endingPanel(s) {
@@ -319,7 +323,7 @@ export function endingPanel(s) {
 
       <div class="row">
         <button class="btn primary" data-act="report">生成我的 HKUTI 报告</button>
-        <button class="btn" data-act="restart">再来一局</button>
+        ${reportSeen ? '<button class="btn" data-act="restart">再来一局</button>' : ''}
       </div>
     </div>`;
   return openModal(html, { cls: 'ending-panel' });
@@ -330,6 +334,7 @@ export function endingPanel(s) {
 // 入场分三段：标题先落，卡片再弹，四根轴依次长出来。
 export function personaPanel(s) {
   const p = buildPersona(s);
+  reportSeen = true; // 看过报告，结局页才会解锁「再来一局」
 
   const axisRows = p.axes.map((a, i) => {
     const share = a.share === null ? 50 : a.share;
