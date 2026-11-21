@@ -78,5 +78,31 @@ for (const it of INTERACTABLES) {
   if (!seenCampus.has(it.x + ',' + it.y)) fail('校园：交互点 ' + it.id + ' 走不到');
 }
 
-console.log(bad ? '\n地图检查失败：' + bad + ' 处' : '室内 ' + Object.keys(SCENES).length + ' 张图 + 校园门口：全部可达 ✓');
+// 日历活动的出发点：只在当天出现，所以不在 INTERACTABLES 里，但必须同样站得住、走得到
+const { EVENT_PLACES, EVENTS } = campus;
+for (const [key, p] of Object.entries(EVENT_PLACES)) {
+  const ch = MAP[p.y] && MAP[p.y][p.x];
+  if (ch === undefined) { fail('活动出发点 ' + key + '：坐标越界'); continue; }
+  if ('TBW'.includes(ch)) fail('活动出发点 ' + key + '（' + p.x + ',' + p.y + '）压在实体格「' + ch + '」上');
+  if (!seenCampus.has(p.x + ',' + p.y)) fail('活动出发点 ' + key + '（' + p.x + ',' + p.y + '）走不到');
+}
+for (const e of EVENTS) {
+  if (!EVENT_PLACES[e.place]) fail('活动 ' + e.id + ' 的 place「' + e.place + '」没有定义');
+  if (e.day < 1 || e.day > 7) fail('活动 ' + e.id + ' 的 day 越界：' + e.day);
+}
+
+// 活动点必须和固定点隔开两格以上：走近时只认最近的一个，
+// 两个点挨在一起会出现「站在活动点旁边却按出别的点」。
+for (const [key, p] of Object.entries(EVENT_PLACES)) {
+  for (const it of INTERACTABLES) {
+    const d = Math.hypot(it.x - p.x, it.y - p.y);
+    if (d < 2) {
+      fail('活动出发点 ' + key + ' 和固定点 ' + it.id + ' 只隔 ' + d.toFixed(1) + ' 格，会抢交互');
+    }
+  }
+}
+
+console.log(bad ? '\n地图检查失败：' + bad + ' 处'
+  : '室内 ' + Object.keys(SCENES).length + ' 张图 + 校园门口 + ' +
+    Object.keys(EVENT_PLACES).length + ' 个活动出发点：全部可达 ✓');
 process.exit(bad ? 1 : 0);

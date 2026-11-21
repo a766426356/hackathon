@@ -39,6 +39,9 @@ export function createWorld(canvas) {
   const keys = new Set();
   let near = null;
   let t = 0;
+  // 校园交互点不是固定的：当天有日历活动时会多出一个出发点。
+  // 留一份可变列表，setSpots 由 main 在进场景和行动结算后调用。
+  let spots = INTERACTABLES;
 
   function tileAt(px, py) {
     const tx = Math.floor(px / TILE);
@@ -94,12 +97,17 @@ export function createWorld(canvas) {
 
     near = null;
     let best = INTERACT_RANGE;
-    for (const item of INTERACTABLES) {
+    for (const item of spots) {
       const cx = item.x * TILE + TILE / 2;
       const cy = item.y * TILE + TILE / 2;
       const d = Math.hypot(cx - player.x, cy - player.y);
       if (d < best) { best = d; near = item; }
     }
+  }
+
+  function setSpots(list) {
+    spots = list && list.length ? list : INTERACTABLES;
+    near = null;
   }
 
   // ------------------------------------------------------------ 绘制
@@ -218,7 +226,7 @@ export function createWorld(canvas) {
   }
 
   function drawMarkers() {
-    for (const item of INTERACTABLES) {
+    for (const item of spots) {
       const cx = item.x * TILE + TILE / 2;
       const cy = item.y * TILE + TILE / 2;
       const active = near && near.id === item.id;
@@ -260,6 +268,8 @@ export function createWorld(canvas) {
     keys,
     update,
     draw,
+    setSpots,
+    get spots() { return spots; },
     get near() { return near; },
     interactRange: INTERACT_RANGE,
   };

@@ -1,9 +1,10 @@
 // rules.js — 行动结算 / 夜晚推进 / 考试。纯函数，可在 node 里直接跑（tests/sim.mjs 依赖）。
 
-import { CONFIG, TOPICS, NPCS, ROOMMATE } from '../data.js';
+import { CONFIG, TOPICS, NPCS, ROOMMATE, EVENT_PLACES } from '../data.js';
 import {
   clamp, clampMood, moodMult, maxFriend, examGpa, endingOf, nextRandom, hhLog, freshToday, playerMaxHp,
 } from './state.js';
+import { activeEntry, expirePast, effectLine, placeOf } from './calendar.js';
 
 const KNOWN_CAP = 150;
 
@@ -140,6 +141,12 @@ function refreshSupport(s) {
 // 室友：不产数值、不进友谊条，只根据你现在的状态说一句有用的话。
 // 刻意不用 nextRandom —— 情报不应该改动随机序列，否则同 seed 复现会被它影响。
 function roomieTip(s) {
+  const ev = activeEntry(s);
+  if (ev) {
+    const p = placeOf(ev);
+    return '今天有「' + ev.title + '」，在' + (p ? p.name : '校园') + '。' +
+      effectLine(ev) + '，要 ' + ev.ap + ' 点。';
+  }
   if (s.day >= s.maxDay - 1) return '明天就期末了。今晚别硬撑，打不过就选深造。';
   if (!s.deck.length) return '你牌组是空的。去 CDS-1 三楼坐一节课，至少有一张能打的。';
   if (playerMaxHp(s) < 42) return '你今天太脆了，' + playerMaxHp(s) + ' 点血。操场跑两圈能长体质，血量跟着涨。';
@@ -273,6 +280,31 @@ export function pray(s) {
   return ok(msg);
 }
 
+// ---------------------------------------------------------------- 日历活动
+// 活动不是在房间里做的：当天校园上多出一个出发点，走到那里才出发。
+// 每个活动的三条属性配比不一样，幅度也不一样 —— 面板负责把它们写清楚。
+export function doEvent(s, entry) {
+  if (!entry) return no('今天日程上是空的。');
+  if (entry.done) return no('「' + entry.title + '」已经去过了。');
+  if (entry.missed) return no('「' + entry.title + '」已经过期了。');
+  if (entry.day !== s.day) return no('不是今天的事。');
+  if (s.phase !== 'day') return no('现在不是白天。');
+  if (s.ap < entry.ap) return no('行动点不够，「' + entry.title + '」要 ' + entry.ap + ' 点。');
+  s.ap -= entry.ap;
+  entry.done = true;
+
+  addKnowledge(s, entry.know);
+  if (entry.mood) s.mood = clampMood(s.mood + entry.mood);
+  if (entry.physique) {
+    s.physique = clamp(s.physique + entry.physique, 0, CONFIG.physiqueCap);
+  }
+  s.stats.socials += 1;
+
+  const msg = '「' + entry.title + '」：' + effectLine(entry) + '。';
+  hhLog(s, msg, 'event');
+  return ok(msg);
+}
+
 // ---------------------------------------------------------------- 夜晚
 export function nightStudy(s) {
   if (s.phase !== 'night') return no('现在不是晚上。');
@@ -318,6 +350,11 @@ export function endDay(s) {
     s.mood = CONFIG.collapseMood;
     s.ap = CONFIG.collapseAp;
     hhLog(s, '心情见底，你崩了一次：第二天只剩 ' + CONFIG.collapseAp + ' 个自由行动点。', 'warn');
+  }
+
+  // 昨天没去的事，今天就划掉了。只记一笔，不扣分（罚分留给 ddl）。
+  for (const e of expirePast(s)) {
+    hhLog(s, '错过了「' + e.title + '」，日程上划掉了一条。', 'warn');
   }
 
   if (s.day >= s.maxDay) {

@@ -1,6 +1,7 @@
 // state.js — 状态、派生数值、存读档。纯逻辑，除了 localStorage 之外不碰 DOM。
 
 import { CONFIG } from '../data.js';
+import { freshCalendar } from './calendar.js';
 
 export const SAVE_KEY = 'zjxy.save.v4';
 export const SAVE_VERSION = 4;
@@ -60,6 +61,7 @@ export function createState(seed) {
     focus: false,
     battleWins: 0,
     today: freshToday(),
+    calendar: freshCalendar(),
     scene: 'campus',
     scenePos: null,
     gpa: null,
@@ -120,7 +122,10 @@ export function loadGame() {
     if (!s || s.version !== SAVE_VERSION) return null;
     if (!s.today) s.today = freshToday();
     if (s.today.courses === undefined) s.today.courses = false;
+    if (s.today.zhe === undefined) s.today.zhe = false;
     if (s.physique === undefined) s.physique = CONFIG.startPhysique;
+    // 旧档没有日历：补一份，过去的天会在下次翻页时被判成 missed（不扣分）
+    if (!Array.isArray(s.calendar)) s.calendar = freshCalendar();
     if (!s.scene) s.scene = 'campus';
     return s;
   } catch (e) {

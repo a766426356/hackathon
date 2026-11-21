@@ -10,6 +10,7 @@ import * as ui from './ui.js';
 import { createWorld } from './world.js';
 import { createIndoor } from './indoor.js';
 import { BUILDING_FLOORS, sceneOf } from './interiors.js';
+import { eventSpots } from './calendar.js';
 
 let state = null;
 let world = null;
@@ -111,10 +112,25 @@ function engine() {
   return scene === 'campus' ? world : indoor;
 }
 
+// 校园交互点 = 固定点 + 当天日历活动的出发点（一天最多一个）
+function campusSpots() {
+  return state ? INTERACTABLES.concat(eventSpots(state)) : INTERACTABLES;
+}
+
+// 事件做完 / 翻页之后，校园上那个出发点要跟着消失或换位置
+function refreshCampusSpots() {
+  if (scene !== 'campus') return;
+  const list = campusSpots();
+  world.setSpots(list);
+  ui.setSpots(list);
+}
+
 function enterScene(id, pos) {
   if (id === 'campus') {
     scene = 'campus';
-    ui.setSpots(INTERACTABLES);
+    const list = campusSpots();
+    world.setSpots(list);
+    ui.setSpots(list);
     ui.setSceneChip('校园');
   } else {
     if (!indoor.load(id, pos)) return false;
@@ -229,6 +245,7 @@ function interact(item) {
     case 'char': return openCharacter();
     case 'calendar': return openCalendar();
     case 'roomie': return afterAction(rules.roomieTalk(state));
+    case 'event': return openEvent(item.entry);
     default: break;
   }
 
@@ -290,10 +307,24 @@ function openRoom(spot) {
   });
 }
 
+// 日历活动：先看清三条属性给多少，再决定去不去
+function openEvent(entry) {
+  if (!entry) return;
+  if (entry.done) { ui.toast('「' + entry.title + '」今天已经去过了。', 'warn'); return; }
+  world.keys.clear();
+  indoor.keys.clear();
+  ui.eventPanel(entry, state);
+  ui.bindModal({
+    go: () => afterAction(rules.doEvent(state, entry)),
+    cancel: () => ui.closeModal(),
+  });
+}
+
 function afterAction(res) {
   if (!res.ok) { ui.toast(res.msg, 'warn'); return; }
   ui.closeModal();
   ui.toast(res.msg);
+  refreshCampusSpots();
   renderAll();
   save();
   if (state.ap <= 0) setTimeout(() => { if (state.phase === 'day') openNight(); }, 320);

@@ -1,8 +1,9 @@
 // ui.js — HUD / 标签 / 日志 / 各种弹窗。只负责 DOM，不碰游戏逻辑。
 
-import { CONFIG, INTERACTABLES, NPCS, TEXTS } from '../data.js';
+import { CONFIG, INTERACTABLES, NPCS, TEXTS, EVENT_PLACES } from '../data.js';
 import { cardDamage } from './battle.js';
 import { moodMult, examParts, examGpa, playerMaxHp } from './state.js';
+import { entriesOf, placeOf, effectLine } from './calendar.js';
 
 export const els = {};
 
@@ -349,20 +350,24 @@ export function characterPanel(s) {
 }
 
 // ---------------------------------------------------------------- 日历墙
-// 学期时间轴：7 天一行，已过 / 今天 / 未来三态。今天那行写今晚要面对什么。
+// 学期时间轴：7 天一行，已过 / 今天 / 未来三态。
+// 每行都带上那天的日程条目（活动 / 期末考试），今天那行再补一句今晚要面对什么。
 export function calendarPanel(s) {
   const rows = [];
   for (let d = 1; d <= s.maxDay; d++) {
     const cls = d < s.day ? 'past' : d === s.day ? 'today' : 'next';
-    let note = '';
-    if (d === s.maxDay) note = '期末考试';
-    else if (d === s.day) note = '今晚：深造 或 夜战';
-    else note = '—';
+    const evs = entriesOf(s, d).map((e) => {
+      const st = e.done ? 'done' : e.missed ? 'missed' : 'open';
+      const tail = e.done ? ' 已去' : e.missed ? ' 错过' : '';
+      return '<span class="cev ' + st + '">' + esc(e.title + tail) + '</span>';
+    });
+    if (d === s.maxDay) evs.push('<span class="cev exam">期末考试</span>');
+    const tail = d === s.day && d !== s.maxDay ? '<span class="cev night">今晚：深造 或 夜战</span>' : '';
     rows.push(
       '<li class="' + cls + '">' +
         '<span class="cday">第 ' + d + ' 天</span>' +
         '<span class="cflag">' + (d < s.day ? '已过' : d === s.day ? '今天' : '') + '</span>' +
-        '<span class="cnote">' + esc(note) + '</span>' +
+        '<span class="cnote">' + (evs.join('') + tail || '—') + '</span>' +
       '</li>'
     );
   }
@@ -371,6 +376,11 @@ export function calendarPanel(s) {
   now.push(s.today.courses ? '必修两节已上' : '必修两节没上');
   now.push('自由行动点 ' + s.ap + ' / ' + CONFIG.freeAp);
   now.push('心境 ' + s.mood + '（白天收益 ×' + moodMult(s).toFixed(2) + '）');
+  const todayEv = entriesOf(s, s.day).filter((e) => !e.done && !e.missed);
+  for (const e of todayEv) {
+    const p = placeOf(e);
+    now.push('今天有「' + e.title + '」· ' + (p ? p.name : '校园') + ' · ' + effectLine(e));
+  }
 
   const html = `
     <div class="cal">
@@ -382,6 +392,46 @@ export function calendarPanel(s) {
       <div class="row"><button class="btn" data-act="close">走开</button></div>
     </div>`;
   return openModal(html, { cls: 'cal-panel' });
+}
+
+// ---------------------------------------------------------------- 活动确认面板
+// 出发之前把三条属性的增减写清楚：这个活动给什么、要几点行动点、幅度多大。
+export function eventPanel(entry, s) {
+  const place = EVENT_PLACES[entry.place];
+  const host = entry.host ? NPCS[entry.host] : null;
+  const enough = s.ap >= entry.ap;
+  const rows = [];
+  const row = (label, val, cls) =>
+    '<div class="evrow ' + cls + '"><span class="evl">' + label + '</span>' +
+    '<span class="evv">' + val + '</span></div>';
+  if (entry.know) rows.push(row('知识', '+' + entry.know + '（伤害倍率 +' + (entry.know / 100).toFixed(2) + '）', 'gain'));
+  if (entry.mood) {
+    rows.push(row('心境', (entry.mood > 0 ? '+' : '−') + Math.abs(entry.mood), entry.mood > 0 ? 'gain' : 'cost'));
+  }
+  if (entry.physique) {
+    const hpGain = Math.floor((s.physique + entry.physique) * CONFIG.hpPerPhysique) -
+      Math.floor(s.physique * CONFIG.hpPerPhysique);
+    rows.push(row('体质', '+' + entry.physique + '（血量上限 +' + hpGain + '）', 'gain'));
+  }
+
+  const html = `
+    <div class="room event">
+      <div class="rhead">
+        <span class="ricon">📌</span>
+        <div>
+          <h2>${esc(entry.title)}</h2>
+          <p class="sub">${esc(place ? place.name : '校园')}${host ? ' · ' + esc(host.name) + ' 主办' : ''}</p>
+        </div>
+      </div>
+      <p class="body">${esc(entry.desc || '')}</p>
+      <div class="evrows">${rows.join('')}</div>
+      <p class="rcost">花费 ${entry.ap} 行动点 · 今天还剩 ${s.ap}${entry.ap > 1 ? ' · 这一趟要占掉大半天' : ''}</p>
+      <div class="row">
+        <button class="btn primary" data-act="go"${enough ? '' : ' disabled'}>${enough ? '出发' : '行动点不够'}</button>
+        <button class="btn" data-act="cancel">不去了</button>
+      </div>
+    </div>`;
+  return openModal(html, { cls: 'room-panel event-panel' });
 }
 
 // 用 onclick 覆盖而不是 addEventListener：每次重绘弹窗都重新绑定，不会叠加

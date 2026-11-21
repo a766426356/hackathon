@@ -150,6 +150,48 @@ export const INTERACTABLES = [
 // 单独放，不进 NPCS —— NPCS 的每个 key 都对应一条 friend 数值。
 export const ROOMMATE = { id: 'zhe', name: '哲', place: '寝室', color: '#b8a0d9' };
 
+// ---------------------------------------------------------------- 日历活动
+// 活动不在房间里，而在校园的一个「出发点」上：当天走到那里按 E 才能出发。
+// 每个活动给的东西不一样、幅度也不同 —— 出发前的面板会把三条属性的增减直接写出来。
+// 坐标刻意和现有交互点隔开两格以上：走近时光圈会自动选最近的一个，
+// 两个点挨太近（旧版的操场/文娱楼门口）会出现「明明站在活动点旁边却选不中」。
+export const EVENT_PLACES = {
+  club:  { x: 7,  y: 13, name: '社团楼门口' },
+  field: { x: 18, y: 10, name: '操场' },
+  wenyu: { x: 21, y: 5,  name: '文娱楼门口' },
+  cds1:  { x: 6,  y: 6,  name: 'CDS-1 门口' },
+  gate:  { x: 22, y: 8,  name: '校门' },
+};
+
+// 7 天里排 5 场，第 1 天留空当教学日。错过只记一笔，不扣分（罚分留给 ddl）。
+export const EVENTS = [
+  {
+    id: 'ev.club', day: 2, kind: 'event', title: '社团招新', place: 'club', host: 'chen', ap: 1,
+    know: 0, mood: 8, physique: 6,
+    desc: '陈在楼下支了张桌子，海报还是手写的。「就填个名字，」他说，「不来也行。」',
+  },
+  {
+    id: 'ev.run', day: 3, kind: 'event', title: '夜跑团', place: 'field', host: 'zhou', ap: 1,
+    know: 0, mood: 4, physique: 10,
+    desc: '周拉你绕操场跑圈，跑到第三圈他就不说话了。',
+  },
+  {
+    id: 'ev.read', day: 4, kind: 'event', title: '读书会', place: 'wenyu', host: 'lin', ap: 1,
+    know: 6, mood: 6, physique: 0,
+    desc: '林带了手冲和两本旧书，一共只来了三个人。',
+  },
+  {
+    id: 'ev.team', day: 5, kind: 'event', title: '校队集训', place: 'field', host: 'chen', ap: 2,
+    know: 0, mood: -5, physique: 18,
+    desc: '陈把训练表拍在桌上：今天两小时，跑完再谈别的。',
+  },
+  {
+    id: 'ev.visit', day: 6, kind: 'event', title: '公司走访', place: 'gate', host: null, ap: 2,
+    know: 10, mood: -6, physique: 0,
+    desc: '跟着名单出去一趟，回来时天已经黑了，手里多了一沓没人要的资料。',
+  },
+];
+
 // ---------------------------------------------------------------- NPC / 卡 / 敌人
 export const NPCS = {
   lin:  { id: 'lin',  name: '林', place: '文娱楼', color: '#d98b8b', taunt: '「输的人请奶茶。」', lines: [
