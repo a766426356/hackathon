@@ -1542,3 +1542,258 @@ table.stats td.muted { font-size: 12px; color: var(--muted); font-variant-numeri
 }
 .pmeta b { color: #cfd8e8; }
 .pmeta .warn { color: #c9a97a; }
+
+/* ================================================================ 开场标题屏（intro.js） */
+/* 只有一张卡，但用真 3D：翻转全程只动 .ts-flipper 的 transform，
+   不给 #app / #modal-root 加任何 transform，避免把 position:fixed 的弹窗拖进新的包含块。 */
+
+#title-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transition: opacity 320ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+#title-screen.ts-leaving { opacity: 0; pointer-events: none; }
+
+.ts-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(760px 480px at 50% 44%, #2f3a56 0%, #1a2130 44%, #0b0e14 82%);
+}
+
+/* 俯视角度的网格地板：和卡片的翻转方向一致，让「从上往下看」这件事有参照物 */
+.ts-grid {
+  position: absolute;
+  inset: -30% -18% -12%;
+  background-image:
+    linear-gradient(rgba(224, 182, 74, .075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(224, 182, 74, .075) 1px, transparent 1px);
+  background-size: 48px 48px;
+  transform: perspective(620px) rotateX(64deg);
+  transform-origin: 50% 100%;
+  -webkit-mask-image: radial-gradient(circle at 50% 64%, #000 0%, rgba(0, 0, 0, .38) 40%, transparent 70%);
+  mask-image: radial-gradient(circle at 50% 64%, #000 0%, rgba(0, 0, 0, .38) 40%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 卡翻到边朝屏幕（约 490ms）之后才把背景撤完，所以翻转发生在暗底上，
+   「翻过去」那一下才是校园真正露出来的时刻 */
+#title-screen.ts-go .ts-bg,
+#title-screen.ts-go .ts-grid { animation: ts-bg-out 300ms 340ms ease-out forwards; }
+
+@keyframes ts-bg-out { to { opacity: 0; } }
+
+.ts-stage {
+  position: relative;
+  z-index: 1;
+  perspective: 1500px;
+  perspective-origin: 50% 46%;
+  transform-style: preserve-3d;
+}
+
+.ts-flipper {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.ts-front {
+  position: relative;
+  width: min(720px, 88vw);
+  padding: 40px 34px 30px;
+  text-align: center;
+  overflow: hidden;
+  border: 1px solid rgba(224, 182, 74, .32);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(42, 51, 70, .93) 0%, rgba(20, 25, 35, .97) 100%);
+  box-shadow:
+    0 46px 100px -34px rgba(0, 0, 0, .95),
+    0 1px 0 rgba(255, 255, 255, .07) inset,
+    0 0 0 1px rgba(255, 255, 255, .035) inset;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* 一张慢速扫过的反光，卡静止的时候给它一点「在发光」的错觉 */
+.ts-front::before {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -40%;
+  width: 42%;
+  height: 220%;
+  background: linear-gradient(100deg, transparent, rgba(255, 233, 168, .10), transparent);
+  transform: rotate(14deg);
+  animation: ts-sheen 5.6s 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ts-sheen {
+  0%   { left: -40%; }
+  55%  { left: 118%; }
+  100% { left: 118%; }
+}
+
+.ts-front::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(224, 182, 74, .13);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.ts-kicker {
+  font-size: 10.5px;
+  letter-spacing: .44em;
+  text-indent: .44em;
+  text-transform: uppercase;
+  color: #8592aa;
+}
+
+.ts-title { margin: 20px 0 0; line-height: 1.04; }
+
+.ts-title .ts-en {
+  display: block;
+  font-size: clamp(34px, 6.6vw, 68px);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-indent: .08em;
+  color: #f3f6fc;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .55), 0 0 34px rgba(150, 186, 255, .16);
+}
+
+.ts-title .ts-en2 {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(13px, 2.1vw, 22px);
+  font-weight: 700;
+  letter-spacing: .26em;
+  text-indent: .26em;
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(224, 182, 74, .35);
+}
+
+.ts-seal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 22px;
+  font-size: 12px;
+  letter-spacing: .26em;
+  text-indent: .26em;
+  color: #9dabc2;
+}
+.ts-seal i { width: 44px; height: 1px; }
+.ts-seal i:first-child { background: linear-gradient(90deg, transparent, rgba(224, 182, 74, .75)); }
+.ts-seal i:last-child { background: linear-gradient(90deg, rgba(224, 182, 74, .75), transparent); }
+
+.ts-start {
+  margin-top: 38px;
+  min-width: 196px;
+  padding: 12px 30px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .38em;
+  text-indent: .38em;
+  color: #171207;
+  cursor: pointer;
+  border: 1px solid #f7df9f;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--gold-2) 0%, var(--gold) 58%, #bd9529 100%);
+  box-shadow: 0 6px 0 #6b5316, 0 18px 34px -12px rgba(224, 182, 74, .65);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+.ts-start:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 7px 0 #6b5316, 0 22px 38px -12px rgba(224, 182, 74, .75);
+}
+.ts-start:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #6b5316, 0 8px 16px -10px rgba(224, 182, 74, .5);
+}
+.ts-start:focus-visible { outline: 2px solid #fff3c4; outline-offset: 3px; }
+
+.ts-hint {
+  margin-top: 16px;
+  font-size: 10.5px;
+  letter-spacing: .24em;
+  color: #6b778e;
+}
+
+/* 依次淡入上浮，比整块一起出现更像片头 */
+.ts-front > * { animation: ts-in 700ms cubic-bezier(.16, .84, .3, 1) both; }
+.ts-kicker { animation-delay: 60ms; }
+.ts-title  { animation-delay: 140ms; }
+.ts-seal   { animation-delay: 300ms; }
+.ts-start  { animation-delay: 400ms; }
+.ts-hint   { animation-delay: 520ms; }
+
+@keyframes ts-in {
+  from { opacity: 0; transform: translateY(16px) scale(.985); filter: blur(7px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* 翻转本体：0→14% 先微微后仰蓄力，14→50% 上仰到俯视 + 顺时针拧 26°，
+   50→100% 翻到背面 + 逆时针拧回 0 */
+#title-screen.ts-go .ts-flipper {
+  animation: ts-flip 980ms cubic-bezier(.45, .05, .4, .95) forwards;
+}
+
+@keyframes ts-flip {
+  0%   { transform: rotateX(0deg)   rotateZ(0deg)  scale(1); }
+  14%  { transform: rotateX(-6deg)  rotateZ(-3deg) scale(1.012); }
+  50%  { transform: rotateX(94deg)  rotateZ(26deg) scale(.93); }
+  100% { transform: rotateX(180deg) rotateZ(0deg)  scale(1); }
+}
+
+/* 光闸：正好压在卡片边朝屏幕那一帧，翻过去的一瞬间整屏亮一下 */
+.ts-gate {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 48%,
+    rgba(255, 246, 214, .95) 0%,
+    rgba(224, 182, 74, .30) 26%,
+    rgba(224, 182, 74, 0) 60%);
+}
+#title-screen.ts-go .ts-gate { animation: ts-gate 600ms 240ms ease-out forwards; }
+
+@keyframes ts-gate {
+  0%   { opacity: 0; }
+  46%  { opacity: .55; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #title-screen *,
+  #title-screen *::before { animation: none !important; }
+}
+
+/* ---------------------------------------------------------------- 欢迎卡（翻转落地后） */
+/* 比普通弹窗宽一点：文案是「介绍 + 规则」，窄了就换行到要滚动，入学按钮会被推到折叠线以下 */
+#modal.intro-panel { width: min(94vw, 760px); }
+
+.intro .tag {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 9px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #1a1508;
+  background: var(--gold);
+  border-radius: 3px;
+}
+.intro h1 { margin: 4px 0 2px; font-size: 24px; letter-spacing: .04em; }
+.intro .sub { margin: 0 0 12px; font-size: 12.5px; letter-spacing: .14em; color: var(--muted); }
+.intro .body { margin: 0 0 10px; font-size: 13px; line-height: 1.75; color: #c3cddf; }
+.intro .body.dim { color: #9aa6bc; font-size: 12.5px; }
+.intro .rules { margin-top: 12px; }
+.intro .row { margin-top: 16px; }

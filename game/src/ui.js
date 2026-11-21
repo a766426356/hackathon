@@ -200,15 +200,20 @@ export function closeModal() {
   els.modal.innerHTML = '';
 }
 
+// 开场屏翻转落地之后的欢迎卡：先给身份（角色扮演），再给玩法。
 export function introPanel(hasSave) {
   const html = `
     <div class="intro">
+      <div class="tag">欢迎来到张江</div>
       <h1>${esc(CONFIG.schoolName)}</h1>
-      <p class="sub">一个白天养成、晚上抉择的小游戏 · 7 天</p>
-      <p class="body">${esc(TEXTS.intro)}</p>
+      <p class="sub">你的身份：这里的一名新生 · 只有七天</p>
+      <p class="body">欢迎你，访客。这七天你不是来参观的——你是这里的学生：白天上课、打球、跑圈，
+        晚上要么留着灯继续啃书，要么出门打一场。第七天期末考，考完你会拿到一张成绩单，
+        和一份由你这七天的行为写出来的人格报告。</p>
+      <p class="body dim">${esc(TEXTS.intro)}</p>
       <ul class="rules">${TEXTS.introRules.map((r) => '<li>' + esc(r) + '</li>').join('')}</ul>
       <div class="row">
-        <button class="btn primary" data-act="start">开始（从第 1 天）</button>
+        <button class="btn primary" data-act="start">入学 · 从第 1 天开始</button>
         ${hasSave ? '<button class="btn" data-act="resume">继续上次</button>' : ''}
       </div>
     </div>`;

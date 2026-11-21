@@ -7,6 +7,7 @@ import {
 import * as rules from './rules.js';
 import * as battle from './battle.js';
 import * as ui from './ui.js';
+import { showTitleScreen } from './intro.js';
 import { createWorld } from './world.js';
 import { buildingOf, floorByLevel } from './interiors.js';
 import { eventSpots } from './calendar.js';
@@ -69,13 +70,17 @@ function boot() {
     requestAnimationFrame(frame);
     return;
   }
-  ui.introPanel(hasSave);
-  ui.bindModal({
-    start: () => startNew(),
-    resume: () => resume(),
-  });
-
   requestAnimationFrame(frame);
+
+  // 开场：标题屏 → 3D 翻转。底下的校园一直在渲染，所以翻转落地时看到的
+  // 就是主页面本身，翻转接完再弹欢迎卡（introPanel）。
+  showTitleScreen().then(() => {
+    ui.introPanel(hasSave);
+    ui.bindModal({
+      start: () => startNew(),
+      resume: () => resume(),
+    });
+  });
 }
 
 // 只给演示 / 验收用：按一张固定的日程表跑完六天，然后停在结局页。
