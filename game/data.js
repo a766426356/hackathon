@@ -76,6 +76,9 @@ export const CAMPUS = {
   w: 1024,
   h: 1024,
   label: '张江学园 · 集电校区',
+  zoom: 1.7,        // 镜头放大倍数：越大越贴近人物，越小看得越远
+  playerScale: 0.8, // 小人在图上的大小（1 = 原始像素尺寸）
+  speed: 240,       // 走动速度（画布像素/秒）
 };
 
 export const MAP_W = 768;

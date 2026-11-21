@@ -426,6 +426,7 @@ function frame(ts) {
   } else {
     indoor.draw();
   }
+  if (scene === 'campus') ui.updateMarkers(world.project);
   if (active) ui.setNear(eng.near);
   else ui.setNear(null);
   requestAnimationFrame(frame);

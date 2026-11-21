@@ -46,8 +46,27 @@ export function setSceneChip(text) {
   if (els.hudScene) els.hudScene.textContent = text;
 }
 
+// id → 标签元素，镜头移动时只改这几个的位置
+let labelById = new Map();
+
+// 有镜头的场景（校园）：每帧把标签挪到新的位置，标签才对得上放大后的图
+export function updateMarkers(project) {
+  for (const item of spots) {
+    const el = labelById.get(item.id);
+    if (!el) continue;
+    const p = project(item);
+    const left = Math.round(p.left * 100) / 100;
+    const top = Math.round(p.top * 100) / 100;
+    if (el.dataset.l !== String(left)) { el.style.left = left + '%'; el.dataset.l = String(left); }
+    if (el.dataset.t !== String(top)) { el.style.top = top + '%'; el.dataset.t = String(top); }
+    const vis = p.visible === false ? 'hidden' : '';
+    if (el.style.visibility !== vis) el.style.visibility = vis;
+  }
+}
+
 function buildLabels() {
   els.labels.innerHTML = '';
+  labelById = new Map();
   for (const item of spots) {
     const el = document.createElement('button');
     el.className = 'marker' + (item.labelBelow ? ' below' : '');
@@ -55,6 +74,7 @@ function buildLabels() {
     el.style.left = ((item.x + frame.half) / frame.w) * 100 + '%';
     el.style.top = ((item.y + frame.half) / frame.h) * 100 + '%';
     el.innerHTML = '<span class="micon">' + item.icon + '</span><span class="mname">' + item.name + '</span>';
+    labelById.set(item.id, el);
     els.labels.appendChild(el);
   }
 }

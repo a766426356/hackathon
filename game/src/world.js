@@ -3,8 +3,14 @@
 import { CAMPUS, WALKABLE, INTERACTABLES, SPAWN, MAP_W, MAP_H } from '../data.js';
 
 const INTERACT_RANGE = 46;
-const SPEED = 195; // 图比原来的格子地图大，走快点才不烦
 const S = MAP_W / CAMPUS.w; // 图片坐标 → 画布坐标（1024 → 768）
+
+// 镜头：只看见玩家周围一小块，人跟着镜头走（数值在 data.js 的 CAMPUS 里）
+const SPEED = CAMPUS.speed;
+const ZOOM = CAMPUS.zoom;
+const VIEW_W = MAP_W / ZOOM;
+const VIEW_H = MAP_H / ZOOM;
+const PLAYER_SCALE = CAMPUS.playerScale;
 
 // 把行走矩形换到画布坐标系，只算一次
 const WALK = WALKABLE.map((r) => ({
@@ -38,6 +44,14 @@ export function createWorld(canvas) {
   const keys = new Set();
   let near = null;
   let t = 0;
+  // 镜头中心：平滑跟到玩家身上，并夹在图的边界内
+  const cam = { x: player.x, y: player.y };
+
+  function clampCam() {
+    cam.x = Math.max(VIEW_W / 2, Math.min(MAP_W - VIEW_W / 2, cam.x));
+    cam.y = Math.max(VIEW_H / 2, Math.min(MAP_H - VIEW_H / 2, cam.y));
+  }
+  clampCam();
 
   // 只要身体的四角都踩在可行走区域里，就算站得住
   function blockedAt(cx, cy) {
@@ -78,6 +92,12 @@ export function createWorld(canvas) {
     player.x = Math.max(8, Math.min(MAP_W - 8, player.x));
     player.y = Math.max(8, Math.min(MAP_H - 8, player.y));
 
+    // 镜头缓缓跟过去，急停急转时不会晕
+    const follow = Math.min(1, dt * 10);
+    cam.x += (player.x - cam.x) * follow;
+    cam.y += (player.y - cam.y) * follow;
+    clampCam();
+
     near = null;
     let best = INTERACT_RANGE;
     for (const item of INTERACTABLES) {
@@ -95,14 +115,15 @@ export function createWorld(canvas) {
       const cy = item.y * S;
       const active = near && near.id === item.id;
       const pulse = 0.5 + 0.5 * Math.sin(t * 3 + item.x);
+      const k = 1 / ZOOM; // 已经乘过 ZOOM 的坐标系，这里除回去，光圈在屏幕上才不会跟着变大
       ctx.beginPath();
-      ctx.arc(cx, cy, 13 + pulse * (active ? 3 : 1.5), 0, Math.PI * 2);
+      ctx.arc(cx, cy, (13 + pulse * (active ? 3 : 1.5)) * k, 0, Math.PI * 2);
       ctx.strokeStyle = active ? 'rgba(255,236,150,0.95)' : 'rgba(255,255,255,0.38)';
-      ctx.lineWidth = active ? 3 : 2;
+      ctx.lineWidth = (active ? 3 : 2) * k;
       ctx.stroke();
       if (active) {
         ctx.beginPath();
-        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 4 * k, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255,236,150,0.9)';
         ctx.fill();
       }
@@ -111,6 +132,12 @@ export function createWorld(canvas) {
 
   function draw(night) {
     ctx.clearRect(0, 0, MAP_W, MAP_H);
+
+    // 镜头：以玩家为中心放大 ZOOM 倍，图上只有他周围这一块被画出来
+    ctx.save();
+    ctx.scale(ZOOM, ZOOM);
+    ctx.translate(-(cam.x - VIEW_W / 2), -(cam.y - VIEW_H / 2));
+
     if (bgReady) {
       ctx.drawImage(bg, 0, 0, MAP_W, MAP_H);
     } else {
@@ -121,12 +148,21 @@ export function createWorld(canvas) {
       ctx.fillText('校园图载入中…', 24, 40);
     }
     drawMarkers();
-    drawPlayerSprite(ctx, player, 1.35); // 图比格子地图大，小人放大一点才看得清
+    drawPlayerSprite(ctx, player, PLAYER_SCALE);
+
+    ctx.restore();
 
     if (night) {
       ctx.fillStyle = 'rgba(24,32,64,0.42)';
       ctx.fillRect(0, 0, MAP_W, MAP_H);
     }
+  }
+
+  // 把某个交互点换算成「占画面百分之几」，DOM 标签跟着镜头走
+  function project(item) {
+    const sx = (item.x * S - (cam.x - VIEW_W / 2)) * ZOOM;
+    const sy = (item.y * S - (cam.y - VIEW_H / 2)) * ZOOM;
+    return { left: (sx / MAP_W) * 100, top: (sy / MAP_H) * 100, visible: sx > -60 && sx < MAP_W + 60 && sy > -60 && sy < MAP_H + 60 };
   }
 
   return {
@@ -137,6 +173,7 @@ export function createWorld(canvas) {
     get near() { return near; },
     interactRange: INTERACT_RANGE,
     get size() { return { w: MAP_W, h: MAP_H }; },
+    project,
   };
 }
 
