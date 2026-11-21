@@ -514,7 +514,14 @@ function examNow() {
 
 function showEnding() {
   ui.endingPanel(state);
-  ui.bindModal({ restart: startNew });
+  ui.bindModal({ restart: startNew, report: showPersona });
+  ui.renderAll(state);
+}
+
+// 结局看完再点「生成我的 HKUTI 报告」：面板半透明，背后还是刚才那张校园
+function showPersona() {
+  ui.personaPanel(state);
+  ui.bindModal({ back: showEnding, restart: startNew });
   ui.renderAll(state);
 }
 

@@ -299,21 +299,46 @@ export function battlePanel(s, b, prev) {
   return openModal(html, { cls: 'battle-panel' });
 }
 
-// 结局页 = 成绩 + HKUTI 报告。报告整段是英文（评审和最终交付都用英文），
-// 上面的成绩卡仍然中文 —— 需要的话整页可以一次性翻成英文。
+// 结局页 = 只有成绩和结局，外加一个「生成报告」的按钮。
+// 报告单独一页（personaPanel），点开时带一段入场动画，背景仍是游戏里的校园。
 export function endingPanel(s) {
   const e = TEXTS.endings[s.ending];
   const total = s.deck.reduce((n, c) => n + c.power, 0);
+
+  const html = `
+    <div class="ending ${s.ending}">
+      <div class="tag">结局</div>
+      <h2>${esc(e.name)}</h2>
+      <p class="body">${esc(e.text)}</p>
+      <table class="stats">
+        <tr><th>GPA</th><td class="big">${s.gpa.toFixed(2)}</td></tr>
+        <tr><th>知识 / 心境 / 体质</th><td>${s.knowledge} / ${s.mood} / ${s.physique}</td></tr>
+        <tr><th>牌组</th><td>${s.deck.length} 张 · 总威力 ${total}</td></tr>
+        <tr><th>友谊</th><td>${Object.keys(NPCS).map((id) => NPCS[id].name + ' ' + s.friend[id]).join(' · ')}</td></tr>
+      </table>
+
+      <div class="row">
+        <button class="btn primary" data-act="report">生成我的 HKUTI 报告</button>
+        <button class="btn" data-act="restart">再来一局</button>
+      </div>
+    </div>`;
+  return openModal(html, { cls: 'ending-panel' });
+}
+
+// ---------------------------------------------------------------- HKUTI 报告
+// 独立一页：面板半透明，背后就是游戏里的校园（#modal-backdrop 本来就在压暗它）。
+// 入场分三段：标题先落，卡片再弹，四根轴依次长出来。
+export function personaPanel(s) {
   const p = buildPersona(s);
 
-  const axisRows = p.axes.map((a) => {
+  const axisRows = p.axes.map((a, i) => {
     const share = a.share === null ? 50 : a.share;
     const negShare = 100 - share;
     const neutral = a.share === null;
-    return '<div class="paxis">' +
+    return '<div class="paxis" style="animation-delay:' + (0.30 + i * 0.13).toFixed(2) + 's">' +
       '<span class="pal pos' + (a.letter === a.pos && !neutral ? ' on' : '') + '">' + esc(a.posLabel) + '</span>' +
       '<span class="pbar' + (neutral ? ' neutral' : '') + '">' +
-        '<i class="l" style="width:' + share + '%"></i>' +
+        '<i class="l" style="width:' + share + '%;animation-delay:' + (0.34 + i * 0.13).toFixed(2) + 's"></i>' +
         '<i class="r" style="width:' + negShare + '%"></i>' +
       '</span>' +
       '<span class="pal neg' + (a.letter === a.neg || neutral ? ' on' : '') + '">' + esc(a.negLabel) + '</span>' +
@@ -335,45 +360,34 @@ export function endingPanel(s) {
   if (p.eventsMissed) bits.push('Missed ' + p.eventsMissed + ' event' + (p.eventsMissed > 1 ? 's' : ''));
 
   const html = `
-    <div class="ending ${s.ending}">
-      <div class="tag">结局</div>
-      <h2>${esc(e.name)}</h2>
-      <p class="body">${esc(e.text)}</p>
-      <table class="stats">
-        <tr><th>GPA</th><td class="big">${s.gpa.toFixed(2)}</td></tr>
-        <tr><th>知识 / 心境 / 体质</th><td>${s.knowledge} / ${s.mood} / ${s.physique}</td></tr>
-        <tr><th>牌组</th><td>${s.deck.length} 张 · 总威力 ${total}</td></tr>
-        <tr><th>友谊</th><td>${Object.keys(NPCS).map((id) => NPCS[id].name + ' ' + s.friend[id]).join(' · ')}</td></tr>
-      </table>
-
-      <div class="psec">
-        <div class="phead">
-          <b>HKUTI</b><span>HKU Type Indicator · seven days, four axes, one thoroughly unofficial verdict</span>
+    <div class="rpt">
+      <div class="phead rpt-head">
+        <b>HKUTI</b><span>HKU Type Indicator · seven days, four axes, one thoroughly unofficial verdict</span>
+      </div>
+      <div class="pcard rpt-card">
+        <div class="pcode">${esc(p.code)}</div>
+        <div class="ptitle">
+          <b>${esc(p.name)}</b>
+          <span>${esc(p.line)}</span>
         </div>
-        <div class="pcard">
-          <div class="pcode">${esc(p.code)}</div>
-          <div class="ptitle">
-            <b>${esc(p.name)}</b>
-            <span>${esc(p.line)}</span>
-          </div>
-        </div>
-        <div class="paxes">${axisRows}</div>
-        <p class="pverdict">${esc(p.verdict)}</p>
-        <ul class="plist">${bits.map((b) => '<li>' + esc(b) + '</li>').join('')}</ul>
-        <div class="pmeta">
-          ${p.topFriend ? '<span>Closest to <b>' + esc(p.topFriend.name) + '</b> ' + p.topFriend.value + '</span>' : ''}
-          ${p.bestCard ? '<span>Best card <b>' + esc(p.bestCard.label) + '</b> ' + p.bestCard.power + '</span>' : ''}
-          ${p.lootCount ? '<span>Loot <b>' + p.lootCount + '</b>' +
-            (p.bestLoot ? ', best &ldquo;' + esc(p.bestLoot.label) + '&rdquo;' : '') + '</span>' : ''}
-          ${p.collapsed ? '<span class="warn">Collapsed once</span>' : ''}
-        </div>
+      </div>
+      <div class="paxes">${axisRows}</div>
+      <p class="pverdict">${esc(p.verdict)}</p>
+      <ul class="plist">${bits.map((b) => '<li>' + esc(b) + '</li>').join('')}</ul>
+      <div class="pmeta">
+        ${p.topFriend ? '<span>Closest to <b>' + esc(p.topFriend.name) + '</b> ' + p.topFriend.value + '</span>' : ''}
+        ${p.bestCard ? '<span>Best card <b>' + esc(p.bestCard.label) + '</b> ' + p.bestCard.power + '</span>' : ''}
+        ${p.lootCount ? '<span>Loot <b>' + p.lootCount + '</b>' +
+          (p.bestLoot ? ', best &ldquo;' + esc(p.bestLoot.label) + '&rdquo;' : '') + '</span>' : ''}
+        ${p.collapsed ? '<span class="warn">Collapsed once</span>' : ''}
       </div>
 
       <div class="row">
+        <button class="btn" data-act="back">回到结局</button>
         <button class="btn primary" data-act="restart">再来一局</button>
       </div>
     </div>`;
-  return openModal(html, { cls: 'ending-panel' });
+  return openModal(html, { cls: 'ending-panel rpt-panel' });
 }
 
 // ---------------------------------------------------------------- 角色面板

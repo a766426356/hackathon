@@ -1224,12 +1224,50 @@ table.stats td.muted { font-size: 12px; color: var(--muted); font-variant-numeri
   .ctimeline .cnote { justify-content: flex-start; }
 }
 
-/* ---------------------------------------------------------------- 结局的人格报告 */
-.psec {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px dashed #3a4358;
+/* ---------------------------------------------------------------- HKUTI 报告（独立一页） */
+/* 半透明 + 背景模糊：背后的校园还在，报告浮在上面 */
+.panel.rpt-panel {
+  background: rgba(22, 28, 40, .87);
+  backdrop-filter: blur(4px);
+  width: min(560px, 94vw);
 }
+
+.rpt { animation: rptFade .3s ease-out both; }
+
+@keyframes rptFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* 入场：标题先落，卡片再弹，四根轴依次长出来，最后是评语和统计 */
+@keyframes rptDrop {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rptPop {
+  0% { opacity: 0; transform: scale(.88); }
+  62% { opacity: 1; transform: scale(1.035); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes rptRow {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes growBar {
+  from { width: 0; }
+}
+@keyframes rptUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.rpt .rpt-head { animation: rptDrop .38s ease-out both; }
+.rpt .rpt-card { animation: rptPop .52s cubic-bezier(.2, 1.3, .4, 1) both; animation-delay: .10s; }
+.rpt .paxis { animation: rptRow .42s ease-out both; }
+.rpt .pbar i.l { animation: growBar .55s cubic-bezier(.2, .9, .3, 1) both; }
+.rpt .pverdict { animation: rptUp .42s ease-out both; animation-delay: .88s; }
+.rpt .plist { animation: rptUp .42s ease-out both; animation-delay: .96s; }
+.rpt .pmeta { animation: rptUp .42s ease-out both; animation-delay: 1.04s; }
+.rpt .row { animation: rptUp .42s ease-out both; animation-delay: 1.12s; }
 
 .phead {
   display: flex;
