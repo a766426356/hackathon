@@ -56,27 +56,62 @@ for (const [id, sc] of Object.entries(SCENES)) {
   }
 }
 
-// 校园门口：能不能走到两栋楼的门
+// 校园：可行走矩形必须连成一片，而且每个交互点附近都得有能站人的地方
 const campus = await import('../data.js');
-const { MAP, INTERACTABLES, SPAWN } = campus;
+const { WALKABLE, INTERACTABLES, SPAWN, MAP_W, MAP_H, CAMPUS } = campus;
+const S = MAP_W / CAMPUS.w;
+const RECTS = WALKABLE.map((r) => ({
+  x0: r.x * S, y0: r.y * S, x1: (r.x + r.w) * S, y1: (r.y + r.h) * S,
+}));
+const walk = (x, y) => RECTS.some((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1);
+
+// 8px 网格 BFS，够细，又能跑得很快
+const STEP = 8;
+const key = (x, y) => Math.round(x / STEP) + ',' + Math.round(y / STEP);
 const seenCampus = new Set();
-const qc = [[SPAWN.x, SPAWN.y]];
-seenCampus.add(SPAWN.x + ',' + SPAWN.y);
+const startKey = key(SPAWN.x * S, SPAWN.y * S);
+if (!walk(SPAWN.x * S, SPAWN.y * S)) fail('校园：出生点不在可行走区域');
+
+const qc = [[SPAWN.x * S, SPAWN.y * S]];
+seenCampus.add(startKey);
 while (qc.length) {
   const [x, y] = qc.pop();
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-    const nx = x + dx; const ny = y + dy;
-    const k = nx + ',' + ny;
-    if (seenCampus.has(k)) continue;
-    const row = MAP[ny];
-    if (!row || 'TBW'.includes(row[nx])) continue;
+  for (const [dx, dy] of [[STEP, 0], [-STEP, 0], [0, STEP], [0, -STEP]]) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || ny < 0 || nx > MAP_W || ny > MAP_H) continue;
+    const k = key(nx, ny);
+    if (seenCampus.has(k) || !walk(nx, ny)) continue;
     seenCampus.add(k);
     qc.push([nx, ny]);
   }
 }
+
+const REACH = 46; // 和 world.js 的交互距离一致
 for (const it of INTERACTABLES) {
-  if (!seenCampus.has(it.x + ',' + it.y)) fail('校园：交互点 ' + it.id + ' 走不到');
+  const cx = it.x * S;
+  const cy = it.y * S;
+  const r = Math.ceil(REACH / STEP);
+  let okSpot = false;
+  for (let dy = -r; dy <= r && !okSpot; dy++) {
+    for (let dx = -r; dx <= r && !okSpot; dx++) {
+      if (dx * dx + dy * dy > REACH * REACH) continue;
+      const px = cx + dx * STEP;
+      const py = cy + dy * STEP;
+      if (seenCampus.has(key(px, py))) okSpot = true;
+    }
+  }
+  if (!okSpot) fail('校园：交互点 ' + it.id + ' 附近 ' + REACH + 'px 内没有能站的地方');
 }
 
-console.log(bad ? '\n地图检查失败：' + bad + ' 处' : '室内 ' + Object.keys(SCENES).length + ' 张图 + 校园门口：全部可达 ✓');
+// 每一块可行走区域都必须能从出生点走到（不能有孤岛）
+for (const r of WALKABLE) {
+  const cx = (r.x + r.w / 2) * S;
+  const cy = (r.y + r.h / 2) * S;
+  if (!seenCampus.has(key(cx, cy))) fail('校园：区域 ' + r.id + ' 从出生点走不到（孤岛）');
+}
+
+console.log(bad ? '' : '校园 ' + WALKABLE.length + ' 块区域连成一片、' + INTERACTABLES.length + ' 个交互点都够得着 ✓');
+if (bad) console.log('校园检查失败');
+console.log(bad ? '\n地图检查失败：' + bad + ' 处' : '室内 ' + Object.keys(SCENES).length + ' 张图 + 校园：全部可达 ✓');
 process.exit(bad ? 1 : 0);

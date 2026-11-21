@@ -1,6 +1,6 @@
 // main.js — 启动、输入、场景与阶段状态机。游戏规则都在 rules.js / battle.js 里。
 
-import { INTERACTABLES, CONFIG } from '../data.js';
+import { INTERACTABLES, CONFIG, CAMPUS, MAP_W, MAP_H } from '../data.js';
 import {
   createState, loadGame, saveGame, clearSave,
 } from './state.js';
@@ -29,6 +29,7 @@ function boot() {
   ui.initUI();
   world = createWorld(canvas);
   indoor = createIndoor(canvas);
+  fitCanvas(true); // 开场就是校园方图，别让 canvas 先用 4:3 画一帧
   ui.onMarkerClick(onMarkerClick);
   document.getElementById('btn-endday').addEventListener('click', () => {
     if (!started || !state || state.phase !== 'day') return;
@@ -104,14 +105,33 @@ function engine() {
   return scene === 'campus' ? world : indoor;
 }
 
+// 校园是方图（768×768），室内是 24×15 的横图（768×480）：换场景时连画布尺寸一起换
+function fitCanvas(square) {
+  if (square) {
+    if (canvas.width !== MAP_W || canvas.height !== MAP_H) {
+      canvas.width = MAP_W;
+      canvas.height = MAP_H;
+    }
+    ui.els.scene.classList.add('square');
+  } else {
+    if (canvas.width !== 768 || canvas.height !== 480) {
+      canvas.width = 768;
+      canvas.height = 480;
+    }
+    ui.els.scene.classList.remove('square');
+  }
+}
+
 function enterScene(id, pos) {
   if (id === 'campus') {
     scene = 'campus';
-    ui.setSpots(INTERACTABLES);
+    fitCanvas(true);
+    ui.setSpots(INTERACTABLES, { w: CAMPUS.w, h: CAMPUS.h, half: 0 });
     ui.setSceneChip('校园');
   } else {
     if (!indoor.load(id, pos)) return false;
     scene = id;
+    fitCanvas(false);
     ui.setSpots(indoor.spots);
     ui.setSceneChip(indoor.scene.tag);
   }

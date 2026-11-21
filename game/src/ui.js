@@ -21,17 +21,22 @@ export function initUI() {
   els.modalRoot = document.getElementById('modal-root');
   els.modal = document.getElementById('modal');
   els.backdrop = document.getElementById('modal-backdrop');
+  els.modalBg = document.getElementById('modal-bg');
+  els.bgLayers = els.modalBg ? Array.from(els.modalBg.querySelectorAll('.bg-layer')) : [];
   els.endDay = document.getElementById('btn-endday');
   els.scene = document.getElementById('scene');
   els.hudScene = document.getElementById('hud-scene');
   buildLabels();
 }
 
-// 当前场景的交互点：校园用 INTERACTABLES，进楼后换成这一层的 spots
+// 当前场景的交互点：校园用 INTERACTABLES（像素坐标），进楼后换成这一层的 spots（格子坐标）
 let spots = INTERACTABLES;
+// 标签定位用的坐标系：half 是「格子中心」的偏移，像素坐标不需要
+let frame = { w: 768, h: 768, half: 0 };
 
-export function setSpots(list) {
+export function setSpots(list, nextFrame) {
   spots = list && list.length ? list : INTERACTABLES;
+  frame = nextFrame || { w: 24, h: 15, half: 0.5 };
   nearId = null;
   buildLabels();
   els.prompt.classList.add('hidden');
@@ -47,8 +52,8 @@ function buildLabels() {
     const el = document.createElement('button');
     el.className = 'marker' + (item.labelBelow ? ' below' : '');
     el.dataset.id = item.id;
-    el.style.left = ((item.x + 0.5) / 24) * 100 + '%';
-    el.style.top = ((item.y + 0.5) / 15) * 100 + '%';
+    el.style.left = ((item.x + frame.half) / frame.w) * 100 + '%';
+    el.style.top = ((item.y + frame.half) / frame.h) * 100 + '%';
     el.innerHTML = '<span class="micon">' + item.icon + '</span><span class="mname">' + item.name + '</span>';
     els.labels.appendChild(el);
   }
@@ -140,6 +145,8 @@ export function openModal(html, opts = {}) {
 
 export function closeModal() {
   els.modalRoot.classList.add('hidden');
+  els.modalRoot.classList.remove('has-bg');
+  if (els.modalBg) els.modalBg.classList.add('hidden');
   els.modal.innerHTML = '';
 }
 
@@ -260,12 +267,52 @@ export function bindModal(actionMap) {
 }
 
 // ---------------------------------------------------------------- 室内：电梯 / 房间 / 选人 / 钢琴
+
+// 电梯厅背景：鼠标停到某层上时，把底部背景换成这一层的设定图（CSS 里再加模糊和遮罩）。
+let bgIndex = 0;
+
+function showElevatorBg(url) {
+  if (!els.modalBg || !els.bgLayers.length) return;
+  if (!url) {
+    els.modalRoot.classList.remove('has-bg');
+    els.modalBg.classList.add('hidden');
+    return;
+  }
+  els.modalRoot.classList.add('has-bg');
+  els.modalBg.classList.remove('hidden');
+  const next = els.bgLayers[bgIndex ^ 1];
+  const cur = els.bgLayers[bgIndex];
+  next.style.backgroundImage = 'url("' + url + '")';
+  next.style.zIndex = '2';
+  cur.style.zIndex = '1';
+  next.classList.add('on');
+  cur.classList.remove('on');
+  bgIndex ^= 1;
+}
+
+// 用 mouseover 代理整列楼层：在楼层之间移动不会闪回默认背景
+function bindElevatorBg(panel, defaultUrl) {
+  const list = panel.querySelector('.floors');
+  if (!list) return;
+  const hover = (ev) => {
+    const flo = ev.target instanceof Element && ev.target.closest('.flo[data-bg]');
+    if (flo) showElevatorBg(flo.dataset.bg);
+  };
+  list.addEventListener('mouseover', hover);
+  list.addEventListener('mouseleave', () => showElevatorBg(defaultUrl));
+  list.addEventListener('focusin', hover);
+  list.addEventListener('focusout', (ev) => {
+    if (!list.contains(ev.relatedTarget)) showElevatorBg(defaultUrl);
+  });
+}
+
 export function elevatorPanel(building, currentId) {
   const rows = building.floors.map((f) => {
     const here = f.id === currentId;
     const locked = !!f.locked;
     const attr = here || locked ? 'disabled' : 'data-act="floor" data-to="' + f.id + '"';
-    return '<button class="flo' + (here ? ' here' : '') + (locked ? ' locked' : '') + '" ' + attr + '>' +
+    const bgAttr = f.bg ? ' data-bg="' + esc(f.bg) + '"' : '';
+    return '<button class="flo' + (here ? ' here' : '') + (locked ? ' locked' : '') + '" ' + attr + bgAttr + '>' +
       '<span class="flab">' + esc(f.label) + '</span>' +
       '<span class="fname">' + esc(f.name) + '</span>' +
       '<span class="frooms">' + esc(f.rooms) + '</span>' +
@@ -275,11 +322,20 @@ export function elevatorPanel(building, currentId) {
   const html = `
     <div class="elev">
       <h2>${esc(building.full)} · 电梯</h2>
-      <p class="sub">楼层之间走动不花行动点。选一层，走到那间房间门口再决定做不做。</p>
+      <p class="sub">楼层之间走动不花行动点。把鼠标停在某一层上，先看看那边。</p>
       <div class="floors">${rows}</div>
       <div class="row"><button class="btn" data-act="cancel">再逛逛</button></div>
     </div>`;
-  return openModal(html, { cls: 'elev-panel' });
+  const panel = openModal(html, { cls: 'elev-panel' });
+  // 先把各层背景图拉下来，鼠标移上去不用等加载
+  for (const f of building.floors) {
+    if (f.bg) new Image().src = f.bg;
+  }
+  const here = building.floors.find((f) => f.id === currentId);
+  const defaultBg = (here && here.bg) || '';
+  bindElevatorBg(panel, defaultBg);
+  showElevatorBg(defaultBg);
+  return panel;
 }
 
 export function roomPanel(spot, s) {

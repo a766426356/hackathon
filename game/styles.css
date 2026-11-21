@@ -295,9 +295,34 @@ html, body {
 #modal-backdrop {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: rgba(6, 8, 12, .74);
   backdrop-filter: blur(2px);
 }
+
+/* 电梯厅背景：悬停楼层时铺上这一层的设定图，模糊 + 暗色遮罩，双图层交叉淡入 */
+#modal-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+#modal-bg.hidden { display: none; }
+#modal-bg .bg-layer {
+  position: absolute;
+  inset: -30px;
+  opacity: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  filter: blur(9px) saturate(.95) brightness(.95);
+  transform: scale(1.05);
+  transition: opacity .34s ease;
+  will-change: opacity;
+}
+#modal-bg .bg-layer.on { opacity: 1; }
+#modal-bg .bg-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: radial-gradient(120% 90% at 50% 38%, rgba(8, 11, 16, .08), rgba(8, 11, 16, .5) 74%);
+}
+#modal-root.has-bg #modal-backdrop { background: rgba(6, 8, 12, .22); }
 
 .panel {
   position: relative;
@@ -488,7 +513,13 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
 /* ---------------------------------------------------------------- 室内 UI */
 .chip.where { color: #9fb4d6; border-color: #33405a; background: #222a38; }
 
+#modal { z-index: 2; }
 #modal.elev-panel { width: min(560px, 94vw); }
+/* 有背景图时电梯面板半透明，让底图透出来 */
+#modal-root.has-bg #modal.elev-panel {
+  background: rgba(20, 26, 38, .8);
+  backdrop-filter: blur(3px);
+}
 .elev h2, .room h2 { margin: 0 0 2px; font-size: 17px; }
 .elev .sub, .room .sub { color: #97a3b8; font-size: 12px; line-height: 1.55; margin: 0; }
 
@@ -557,3 +588,6 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
 .pdots { display: flex; gap: 6px; margin-bottom: 8px; }
 .pdots i { width: 8px; height: 8px; border-radius: 50%; background: #3a4458; display: inline-block; }
 .pdots i.on { background: var(--gold); box-shadow: 0 0 6px rgba(224, 182, 74, .6); }
+
+/* 校园是一张方图：场景框在校园场景里改成 1:1 */
+#scene.square { width: min(100%, calc(100vh - 168px)); }

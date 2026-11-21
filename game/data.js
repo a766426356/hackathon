@@ -67,71 +67,50 @@ export const CONFIG = {
   },
 };
 
-// ---------------------------------------------------------------- 地图
-export const COLS = 24;
-export const ROWS = 15;
-export const TILE = 32;
-export const MAP_W = COLS * TILE;
-export const MAP_H = ROWS * TILE;
+// ---------------------------------------------------------------- 校园（一张画好的大图）
+// 图片是 1024×1024，画布按 768×768 等比显示（S = 768/1024 = 0.75）。
+// 碰撞不再是格子，而是一组「可以走的矩形」：道路、广场、走廊、场馆前的台阶。
+// 这样只要改这几个矩形就能改可行走范围，不用跟着图重新描一遍地砖。
+export const CAMPUS = {
+  src: 'assets/campus.jpg',
+  w: 1024,
+  h: 1024,
+  label: '张江学园 · 集电校区',
+};
 
-export const BUILDINGS = [
-  { id: 'cds1',  name: 'CDS-1', x: 2,  y: 2,  w: 5, h: 3, roof: '#c1666b', wall: '#e8ddc8' },
-  { id: 'wenyu', name: '文娱楼', x: 17, y: 2,  w: 5, h: 3, roof: '#c98b3b', wall: '#f0e6d2' },
-  { id: 'club',  name: '社团楼', x: 2,  y: 10, w: 4, h: 3, roof: '#7f6bb0', wall: '#e8ddc8' },
-  { id: 'dorm',  name: '宿舍',   x: 9,  y: 10, w: 6, h: 3, roof: '#5b8bb0', wall: '#f0e6d2' },
+export const MAP_W = 768;
+export const MAP_H = 768;
+
+// 图片坐标系下的可行走矩形（x, y, w, h）
+export const WALKABLE = [
+  { id: 'top', x: 0, y: 30, w: 1024, h: 75 },          // 北侧主路
+  { id: 'west', x: 0, y: 30, w: 75, h: 520 },          // 集创路
+  { id: 'mid', x: 40, y: 405, w: 905, h: 75 },         // 中间那条横路
+  { id: 'east', x: 920, y: 285, w: 95, h: 640 },       // 芳春路
+  { id: 'bottom', x: 0, y: 845, w: 1024, h: 90 },      // 集电路
+  { id: 'curve', x: 0, y: 440, w: 130, h: 440 },       // 西南那条弯道
+  { id: 'eaststrip', x: 855, y: 395, w: 90, h: 470 },  // CDS 楼东侧的铺装
+  { id: 'corrW', x: 405, y: 70, w: 60, h: 465 },       // 6# 西侧走廊
+  { id: 'corrE', x: 575, y: 70, w: 50, h: 465 },       // 6# 东侧走廊（体育场边）
+  { id: 'plaza', x: 410, y: 505, w: 225, h: 365 },     // 中央圆形广场
+  { id: 'cdsgap', x: 555, y: 650, w: 325, h: 55 },     // CDS-1 / CDS-2 之间
+  { id: 'courtApron', x: 85, y: 70, w: 330, h: 75 },   // 球场前的步道
 ];
 
-const TREE_SPOTS = [
-  [13, 2], [14, 2], [13, 3], [22, 5], [1, 9], [16, 6], [17, 6],
-  [6, 12], [7, 12], [16, 12], [17, 12], [21, 9], [2, 6], [22, 11],
-];
 
-const POND_SPOTS = [[7, 8], [8, 8], [7, 9], [8, 9]];
-
-function buildGrid() {
-  const g = [];
-  for (let y = 0; y < ROWS; y++) {
-    const row = [];
-    for (let x = 0; x < COLS; x++) {
-      const edge = x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1;
-      row.push(edge ? 'T' : '.');
-    }
-    g.push(row);
-  }
-  const put = (x, y, c) => { if (g[y] && g[y][x] !== undefined) g[y][x] = c; };
-
-  // 主干道
-  for (let x = 1; x < COLS - 1; x++) if (g[6][x] !== 'T') put(x, 6, '=');
-  for (let y = 5; y < ROWS - 1; y++) put(11, y, '=');
-  for (let y = 6; y <= 9; y++) put(20, y, '=');
-  for (let x = 4; x <= 11; x++) put(x, 5, '=');
-  for (let x = 11; x <= 19; x++) put(x, 5, '=');
-
-  for (const [x, y] of POND_SPOTS) put(x, y, 'W');
-  for (const [x, y] of TREE_SPOTS) put(x, y, 'T');
-
-  for (const b of BUILDINGS) {
-    for (let y = b.y; y < b.y + b.h; y++) {
-      for (let x = b.x; x < b.x + b.w; x++) put(x, y, 'B');
-    }
-  }
-  put(11, 6, 'B'); // 公告板
-  return g.map((r) => r.join(''));
-}
-
-export const MAP = buildGrid();
-export const SPAWN = { x: 11, y: 9 };
+export const SPAWN = { x: 520, y: 520 };
 
 // ---------------------------------------------------------------- 交互点
+// 坐标同样是图片坐标；只做三处「能进去/能用」：体育场、文娱楼（5#）、CDS-1。
 export const INTERACTABLES = [
-  { id: 'cds1',  name: 'CDS-1', icon: '🏫', kind: 'enter', building: 'cds1', x: 4, y: 5, hint: '进楼：电梯厅 → 3F 教学楼层（大课教室 / 答疑角）' },
-  { id: 'wenyu', name: '文娱楼', icon: '🎱', kind: 'enter', building: 'wenyu', x: 19, y: 5, hint: '进楼：乒乓球 / 斯诺克 / 钢琴 / 自习室 / 祷告室' },
-  { id: 'board', name: '公告板', icon: '📋', kind: 'board', x: 11, y: 7, labelBelow: true, hint: '当日日程：小量知识 + 一段友谊' },
-  { id: 'lin',   name: '林 · 文娱楼', icon: '☕', kind: 'social', npc: 'lin', x: 16, y: 5, hint: '聊天：友谊 +、心情 +' },
-  { id: 'chen',  name: '陈 · 社团楼', icon: '🎭', kind: 'social', npc: 'chen', x: 2, y: 13, hint: '聊天：友谊 +、心情 +' },
-  { id: 'zhou',  name: '周 · 社团楼', icon: '🎧', kind: 'social', npc: 'zhou', x: 5, y: 13, hint: '聊天：友谊 +、心情 +' },
-  { id: 'field', name: '操场', icon: '🏃', kind: 'field', x: 20, y: 9, hint: '跑步：心情 +，获得「专注」' },
-  { id: 'dorm',  name: '宿舍', icon: '🛏️', kind: 'rest', x: 11, y: 13, hint: '休息：心情 +，直接结束白天' },
+  { id: 'field', name: '体育场', icon: '🏃', kind: 'field', x: 612, y: 250, hint: '跑两圈：心情 +，获得「专注」' },
+  { id: 'wenyu', name: '文娱楼', icon: '🎱', kind: 'enter', building: 'wenyu', x: 745, y: 405, labelBelow: true, hint: '5#：乒乓球 / 斯诺克 / 钢琴 / 自习室 / 祷告室' },
+  { id: 'cds1', name: 'CDS-1', icon: '🏫', kind: 'enter', building: 'cds1', x: 745, y: 668, labelBelow: true, hint: '教学楼层 3F：大课教室 / 答疑角' },
+  { id: 'board', name: '公告板', icon: '📋', kind: 'board', x: 520, y: 640, hint: '当日日程：小量知识 + 一段友谊' },
+  { id: 'lin', name: '林', icon: '☕', kind: 'social', npc: 'lin', x: 592, y: 548, hint: '聊天：友谊 +、心情 +' },
+  { id: 'chen', name: '陈', icon: '🎭', kind: 'social', npc: 'chen', x: 445, y: 700, hint: '聊天：友谊 +、心情 +' },
+  { id: 'zhou', name: '周', icon: '🎧', kind: 'social', npc: 'zhou', x: 505, y: 790, hint: '聊天：友谊 +、心情 +' },
+  { id: 'dorm', name: '宿舍', icon: '🛏️', kind: 'rest', x: 300, y: 840, labelBelow: true, hint: '2#：休息，直接结束白天' },
 ];
 
 // ---------------------------------------------------------------- NPC / 卡 / 敌人

@@ -226,6 +226,7 @@ export const SCENES = {
 };
 
 // 楼 → 电梯菜单。「未开放」的楼层也列出来，让人看见这栋楼的结构。
+// bg 是鼠标悬停某层时铺到电梯厅背景上的图；现在放的是 assets/elevator-test/ 里的测试样片。
 export const BUILDING_FLOORS = {
   cds1: {
     id: 'cds1',
@@ -233,10 +234,10 @@ export const BUILDING_FLOORS = {
     full: 'CDS-1 主教学楼',
     lobby: 'cds1.lobby',
     floors: [
-      { id: 'cds1.lobby', label: '大堂', name: '电梯厅', rooms: '电梯 · 出口' },
-      { id: 'cds1.f3', label: '3F', name: '教学楼层', rooms: '大课教室 · 答疑角' },
-      { id: null, label: '5F', name: 'lab 层', rooms: '实验台 · 组会 · 机房', locked: true },
-      { id: null, label: 'B1', name: 'gym 层', rooms: '健身房 · 泳池 · 更衣室', locked: true },
+      { id: 'cds1.lobby', label: '大堂', name: '电梯厅', rooms: '电梯 · 出口', bg: 'assets/elevator-test/cds1-lobby.jpg' },
+      { id: 'cds1.f3', label: '3F', name: '教学楼层', rooms: '大课教室 · 答疑角', bg: 'assets/elevator-test/cds1-f3.jpg' },
+      { id: null, label: '5F', name: 'lab 层', rooms: '实验台 · 组会 · 机房', locked: true, bg: 'assets/elevator-test/cds1-f5.jpg' },
+      { id: null, label: 'B1', name: 'gym 层', rooms: '健身房 · 泳池 · 更衣室', locked: true, bg: 'assets/elevator-test/cds1-b1.jpg' },
     ],
   },
   wenyu: {
@@ -245,10 +246,10 @@ export const BUILDING_FLOORS = {
     full: '文娱楼',
     lobby: 'wenyu.lobby',
     floors: [
-      { id: 'wenyu.lobby', label: '大堂', name: '电梯厅', rooms: '电梯 · 出口' },
-      { id: 'wenyu.f1', label: '1F', name: '活动层', rooms: '乒乓球 · 斯诺克 · 钢琴' },
-      { id: 'wenyu.f2', label: '2F', name: '自习层', rooms: '自习室' },
-      { id: 'wenyu.f3', label: '3F', name: '静室层', rooms: '祷告室' },
+      { id: 'wenyu.lobby', label: '大堂', name: '电梯厅', rooms: '电梯 · 出口', bg: 'assets/elevator-test/wenyu-lobby.jpg' },
+      { id: 'wenyu.f1', label: '1F', name: '活动层', rooms: '乒乓球 · 斯诺克 · 钢琴', bg: 'assets/elevator-test/wenyu-f1.jpg' },
+      { id: 'wenyu.f2', label: '2F', name: '自习层', rooms: '自习室', bg: 'assets/elevator-test/wenyu-f2.jpg' },
+      { id: 'wenyu.f3', label: '3F', name: '静室层', rooms: '祷告室', bg: 'assets/elevator-test/wenyu-f3.jpg' },
     ],
   },
 };

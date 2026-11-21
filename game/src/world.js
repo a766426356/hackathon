@@ -1,37 +1,36 @@
-// world.js — canvas 地图：渲染、移动、碰撞、邻近交互。
+// world.js — 校园：一张画好的大图当背景，走位靠「可行走矩形」，不再是地砖格子。
 
-import { MAP, BUILDINGS, INTERACTABLES, TILE, MAP_W, MAP_H, SPAWN } from '../data.js';
+import { CAMPUS, WALKABLE, INTERACTABLES, SPAWN, MAP_W, MAP_H } from '../data.js';
 
-const SOLID = new Set(['T', 'B', 'W']);
 const INTERACT_RANGE = 46;
+const SPEED = 195; // 图比原来的格子地图大，走快点才不烦
+const S = MAP_W / CAMPUS.w; // 图片坐标 → 画布坐标（1024 → 768）
 
-const COLORS = {
-  grassA: '#6faa55',
-  grassB: '#78b35c',
-  pathA: '#d8c8a2',
-  pathB: '#cfbe97',
-  water: '#3f7fb5',
-  waterLight: '#67a4cf',
-  tree: '#2f6b3a',
-  treeLight: '#3d8248',
-  trunk: '#5a3d26',
-  ink: '#20301f',
-};
+// 把行走矩形换到画布坐标系，只算一次
+const WALK = WALKABLE.map((r) => ({
+  x0: r.x * S,
+  y0: r.y * S,
+  x1: (r.x + r.w) * S,
+  y1: (r.y + r.h) * S,
+}));
 
-function hash(x, y) {
-  let h = (x * 374761393 + y * 668265263) >>> 0;
-  h = (h ^ (h >>> 13)) * 1274126177;
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+function onWalkable(x, y) {
+  for (const r of WALK) {
+    if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) return true;
+  }
+  return false;
 }
 
 export function createWorld(canvas) {
   const ctx = canvas.getContext('2d');
-  const board = INTERACTABLES.find((i) => i.id === 'board');
-  const field = INTERACTABLES.find((i) => i.id === 'field');
-  const grid = MAP.map((row) => row.split(''));
+  // 画好的图缩放后当背景；加载失败就退成一块底色，不让游戏卡住
+  const bg = new Image();
+  let bgReady = false;
+  bg.onload = () => { bgReady = true; };
+  bg.src = CAMPUS.src;
   const player = {
-    x: SPAWN.x * TILE + TILE / 2,
-    y: SPAWN.y * TILE + TILE / 2,
+    x: SPAWN.x * S,
+    y: SPAWN.y * S,
     dir: 'down',
     walk: 0,
     moving: false,
@@ -40,26 +39,13 @@ export function createWorld(canvas) {
   let near = null;
   let t = 0;
 
-  function tileAt(px, py) {
-    const tx = Math.floor(px / TILE);
-    const ty = Math.floor(py / TILE);
-    if (ty < 0 || ty >= grid.length || tx < 0 || tx >= grid[0].length) return 'T';
-    return grid[ty][tx];
-  }
-
+  // 只要身体的四角都踩在可行走区域里，就算站得住
   function blockedAt(cx, cy) {
-    const box = { l: cx - 8, r: cx + 8, t: cy - 7, b: cy + 3 };
-    const x0 = Math.floor(box.l / TILE);
-    const x1 = Math.floor(box.r / TILE);
-    const y0 = Math.floor(box.t / TILE);
-    const y1 = Math.floor(box.b / TILE);
-    for (let ty = y0; ty <= y1; ty++) {
-      for (let tx = x0; tx <= x1; tx++) {
-        const c = (grid[ty] && grid[ty][tx]) || 'T';
-        if (SOLID.has(c)) return true;
-      }
-    }
-    return false;
+    const l = cx - 7;
+    const r = cx + 7;
+    const top = cy - 6;
+    const bot = cy + 2;
+    return !(onWalkable(l, top) && onWalkable(r, top) && onWalkable(l, bot) && onWalkable(r, bot));
   }
 
   function update(dt, canMove = true) {
@@ -81,9 +67,9 @@ export function createWorld(canvas) {
       else player.dir = 'down';
 
       const len = Math.hypot(dx, dy) || 1;
-      const speed = 122 * dt;
-      const stepX = (dx / len) * speed;
-      const stepY = (dy / len) * speed;
+      const step = SPEED * dt;
+      const stepX = (dx / len) * step;
+      const stepY = (dy / len) * step;
       if (!blockedAt(player.x + stepX, player.y)) player.x += stepX;
       if (!blockedAt(player.x, player.y + stepY)) player.y += stepY;
       player.walk += dt * 9;
@@ -95,159 +81,47 @@ export function createWorld(canvas) {
     near = null;
     let best = INTERACT_RANGE;
     for (const item of INTERACTABLES) {
-      const cx = item.x * TILE + TILE / 2;
-      const cy = item.y * TILE + TILE / 2;
+      const cx = item.x * S;
+      const cy = item.y * S;
       const d = Math.hypot(cx - player.x, cy - player.y);
       if (d < best) { best = d; near = item; }
     }
   }
 
   // ------------------------------------------------------------ 绘制
-  function drawGround() {
-    for (let y = 0; y < grid.length; y++) {
-      for (let x = 0; x < grid[0].length; x++) {
-        const c = grid[y][x];
-        const px = x * TILE;
-        const py = y * TILE;
-        if (c === 'W') continue;
-        if (c === '=') {
-          ctx.fillStyle = (x + y) % 2 === 0 ? COLORS.pathA : COLORS.pathB;
-        } else {
-          ctx.fillStyle = (x + y) % 2 === 0 ? COLORS.grassA : COLORS.grassB;
-        }
-        ctx.fillRect(px, py, TILE, TILE);
-        if (c !== '=' && hash(x, y) > 0.72) {
-          ctx.fillStyle = 'rgba(255,255,255,0.09)';
-          ctx.fillRect(px + 8 + Math.floor(hash(y, x) * 14), py + 10, 4, 3);
-        }
-      }
-    }
-    // 水面
-    for (let y = 0; y < grid.length; y++) {
-      for (let x = 0; x < grid[0].length; x++) {
-        if (grid[y][x] !== 'W') continue;
-        const px = x * TILE;
-        const py = y * TILE;
-        ctx.fillStyle = COLORS.water;
-        ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = COLORS.waterLight;
-        const bob = Math.sin(t * 1.6 + x * 0.7 + y) * 3;
-        ctx.fillRect(px + 6, py + 12 + bob, 10, 2);
-        ctx.fillRect(px + 18, py + 20 + bob, 8, 2);
-      }
-    }
-  }
-
-  function drawField() {
-    if (!field) return;
-    const cx = field.x * TILE + TILE / 2;
-    const cy = field.y * TILE + TILE / 2;
-    ctx.save();
-    ctx.strokeStyle = '#d98f6b';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, 62, 30, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, 50, 22, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawSign() {
-    if (!board) return;
-    const px = board.x * TILE;
-    const py = (board.y - 1) * TILE; // 牌子立在交互点上方那一格
-    ctx.fillStyle = '#6b4a2c';
-    ctx.fillRect(px + 14, py + 14, 4, 18);
-    ctx.fillStyle = '#c8a26a';
-    ctx.fillRect(px + 4, py + 2, 24, 16);
-    ctx.strokeStyle = '#4a3520';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(px + 4, py + 2, 24, 16);
-    ctx.fillStyle = 'rgba(60,44,24,0.65)';
-    ctx.fillRect(px + 8, py + 7, 16, 2);
-    ctx.fillRect(px + 8, py + 12, 10, 2);
-  }
-
-  function drawBuilding(b) {
-    const px = b.x * TILE;
-    const py = b.y * TILE;
-    const w = b.w * TILE;
-    const h = b.h * TILE;
-    ctx.fillStyle = b.wall;
-    ctx.fillRect(px, py, w, h);
-    // 屋顶
-    ctx.fillStyle = b.roof;
-    ctx.beginPath();
-    ctx.moveTo(px - 3, py + 20);
-    ctx.lineTo(px + w + 3, py + 20);
-    ctx.lineTo(px + w - 6, py);
-    ctx.lineTo(px + 6, py);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.16)';
-    ctx.fillRect(px, py + 20, w, 3);
-    // 门窗
-    const doorW = 16;
-    ctx.fillStyle = '#7a4b2a';
-    ctx.fillRect(px + w / 2 - doorW / 2, py + h - 20, doorW, 20);
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillRect(px + 10, py + 34, 14, 12);
-    ctx.fillRect(px + w - 24, py + 34, 14, 12);
-    ctx.strokeStyle = 'rgba(32,48,31,0.8)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(px + 1, py + 1, w - 2, h - 2);
-  }
-
-  function drawTree(x, y) {
-    const px = x * TILE;
-    const py = y * TILE;
-    ctx.fillStyle = COLORS.trunk;
-    ctx.fillRect(px + 13, py + 20, 6, 10);
-    ctx.fillStyle = COLORS.tree;
-    ctx.beginPath();
-    ctx.arc(px + 16, py + 15, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = COLORS.treeLight;
-    ctx.beginPath();
-    ctx.arc(px + 12, py + 11, 5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
   function drawMarkers() {
     for (const item of INTERACTABLES) {
-      const cx = item.x * TILE + TILE / 2;
-      const cy = item.y * TILE + TILE / 2;
+      const cx = item.x * S;
+      const cy = item.y * S;
       const active = near && near.id === item.id;
       const pulse = 0.5 + 0.5 * Math.sin(t * 3 + item.x);
       ctx.beginPath();
       ctx.arc(cx, cy, 13 + pulse * (active ? 3 : 1.5), 0, Math.PI * 2);
-      ctx.strokeStyle = active ? 'rgba(255,236,150,0.95)' : 'rgba(255,255,255,0.32)';
+      ctx.strokeStyle = active ? 'rgba(255,236,150,0.95)' : 'rgba(255,255,255,0.38)';
       ctx.lineWidth = active ? 3 : 2;
       ctx.stroke();
+      if (active) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,236,150,0.9)';
+        ctx.fill();
+      }
     }
-  }
-
-  function drawPlayer() {
-    drawPlayerSprite(ctx, player);
   }
 
   function draw(night) {
     ctx.clearRect(0, 0, MAP_W, MAP_H);
-    drawGround();
-    drawField();
-    drawSign();
-    for (const b of BUILDINGS) drawBuilding(b);
-    for (let y = 0; y < grid.length; y++) {
-      for (let x = 0; x < grid[0].length; x++) {
-        if (grid[y][x] === 'T') drawTree(x, y);
-      }
+    if (bgReady) {
+      ctx.drawImage(bg, 0, 0, MAP_W, MAP_H);
+    } else {
+      ctx.fillStyle = '#2a3330';
+      ctx.fillRect(0, 0, MAP_W, MAP_H);
+      ctx.fillStyle = 'rgba(230,240,235,0.7)';
+      ctx.font = '14px system-ui, sans-serif';
+      ctx.fillText('校园图载入中…', 24, 40);
     }
     drawMarkers();
-    drawPlayer();
+    drawPlayerSprite(ctx, player, 1.35); // 图比格子地图大，小人放大一点才看得清
 
     if (night) {
       ctx.fillStyle = 'rgba(24,32,64,0.42)';
@@ -262,13 +136,20 @@ export function createWorld(canvas) {
     draw,
     get near() { return near; },
     interactRange: INTERACT_RANGE,
+    get size() { return { w: MAP_W, h: MAP_H }; },
   };
 }
 
 // 室内和室外共用同一个小人：换场景时不换画风，玩家不会觉得自己换了个人。
-export function drawPlayerSprite(ctx, player) {
+export function drawPlayerSprite(ctx, player, scale = 1) {
   const px = Math.round(player.x);
   const py = Math.round(player.y);
+  if (scale !== 1) {
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(scale, scale);
+    ctx.translate(-px, -py);
+  }
   const bob = player.moving ? Math.sin(player.walk) * 1.5 : 0;
 
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
@@ -299,4 +180,5 @@ export function drawPlayerSprite(ctx, player) {
   }
   ctx.fillStyle = '#1b1b1b';
   ctx.fillRect(px - 7, py - 20 + bob, 14, 1);
+  if (scale !== 1) ctx.restore();
 }

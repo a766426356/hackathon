@@ -309,7 +309,7 @@ export function createIndoor(canvas) {
     drawMarkers();
     drawPlayerSprite(ctx, player);
 
-    // 室内偏暗一点点，和操场的日光分开
+    // 室内偏暗一点点，和室外的日光分开
     const g = ctx.createLinearGradient(0, 0, 0, MAP_H);
     g.addColorStop(0, 'rgba(8,10,16,0.14)');
     g.addColorStop(0.55, 'rgba(8,10,16,0.02)');

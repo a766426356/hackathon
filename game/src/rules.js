@@ -96,7 +96,7 @@ export function field(s) {
   spendAp(s);
   s.mood = clampMood(s.mood + CONFIG.fieldMood);
   s.focus = true;
-  const msg = '在操场跑了两圈：心情 +' + CONFIG.fieldMood + '，获得「专注」（下次自习 ×' +
+  const msg = '在体育场跑了两圈：心情 +' + CONFIG.fieldMood + '，获得「专注」（下次自习 ×' +
     CONFIG.studyFocusMult + '）。';
   hhLog(s, msg, 'field');
   return ok(msg);
