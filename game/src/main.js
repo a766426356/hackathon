@@ -16,6 +16,7 @@ let state = null;
 let world = null;
 let indoor = null;
 let battleState = null;
+let battlePct = null; // 上一帧的血条百分比，给血条动画用
 let started = false;
 let lastTs = 0;
 
@@ -68,6 +69,7 @@ function startNew() {
   clearSave();
   state = createState(seedFromUrl());
   battleState = null;
+  battlePct = null;
   pianoState = null;
   started = true;
   ui.closeModal();
@@ -84,6 +86,7 @@ function resume() {
   if (!s) { startNew(); return; }
   state = s;
   battleState = null;
+  battlePct = null;
   pianoState = null;
   started = true;
   ui.closeModal();
@@ -406,19 +409,30 @@ function nightStudy() {
 
 function nightFight() {
   battleState = battle.startBattle(state);
+  battlePct = null;
   renderBattle();
 }
 
 function renderBattle() {
-  ui.battlePanel(state, battleState);
+  const cur = {
+    enemy: Math.max(0, (battleState.enemy.hp / battleState.enemy.maxHp) * 100),
+    hp: Math.max(0, (battleState.playerHp / battleState.playerMaxHp) * 100),
+  };
+  ui.battlePanel(state, battleState, battlePct); // 传上一帧，血条才会「掉」而不是「跳」
+  battlePct = cur;
   ui.bindModal({ card: onPlayCard, done: onBattleDone });
   ui.renderHUD(state);
 }
 
 function onPlayCard(idx) {
   if (!battleState || battleState.over) return;
-  battle.playCard(state, battleState, idx);
-  renderBattle();
+  const fx = battle.playCard(state, battleState, idx);
+  renderBattle(); // 先重建面板，抖动才作用在新节点上
+  ui.hitFx(fx.dealt, fx.taken);
+  if (battleState.over) {
+    const win = battleState.result === 'win';
+    setTimeout(() => ui.outcomeFx(win), 260); // 等这一下的抖动播完再给结算反馈
+  }
 }
 
 function onBattleDone() {
@@ -426,6 +440,7 @@ function onBattleDone() {
   const res = rules.settleBattle(state, battleState);
   ui.toast(res.msg, battleState.result === 'win' ? 'win' : 'warn');
   battleState = null;
+  battlePct = null;
   ui.renderAll(state);
   finishNight();
 }

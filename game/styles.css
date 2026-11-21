@@ -396,7 +396,12 @@ html, body {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #c85a5a, #e8895a);
-  transition: width .25s ease-out;
+  animation: barDrop .30s ease-out;
+}
+
+/* 只写 from，to 取元素自身的 width —— 血条从上一帧的位置掉下来，而不是直接跳到新值 */
+@keyframes barDrop {
+  from { width: var(--from, 0%); }
 }
 
 .ehp { margin-top: 4px; font-size: 11px; color: var(--muted); }
@@ -453,11 +458,35 @@ html, body {
   background: #0f131a;
   border: 1px solid var(--line-2);
 }
-.mini i { display: block; height: 100%; background: #6fbf7a; }
+.mini i {
+  display: block;
+  height: 100%;
+  background: #6fbf7a;
+  animation: barDrop .30s ease-out;
+}
 
 .result { margin: 12px 0 14px; padding: 10px; font-size: 15px; font-weight: 700; border-radius: 5px; }
 .result.win { color: #9ee3a1; background: rgba(80, 160, 90, .12); border: 1px solid #3f6b45; }
 .result.lose { color: #f0a0a0; background: rgba(160, 80, 80, .12); border: 1px solid #6b3f3f; }
+
+/* ---------------------------------------------------------------- 打击感 */
+/* 闪红层：常驻，只在受击时用 Web Animations 推一下 opacity。
+   径向渐变让中心保持透明、边缘发红，看起来像被砸了一下而不是整屏变红。 */
+#flash {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+  background: radial-gradient(circle at 50% 52%,
+    rgba(198, 44, 44, 0) 32%,
+    rgba(198, 44, 44, .30) 68%,
+    rgba(214, 40, 40, .62) 100%);
+}
+
+/* 抖动由 JS 的 element.animate 驱动，这里只保证战斗内容能独立位移 */
+.battle { will-change: transform; }
 
 /* ---------------------------------------------------------------- 结局 */
 .ending .tag {

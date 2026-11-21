@@ -25,6 +25,7 @@ export function initUI() {
   els.endDay = document.getElementById('btn-endday');
   els.scene = document.getElementById('scene');
   els.hudScene = document.getElementById('hud-scene');
+  els.flash = document.getElementById('flash');
   buildLabels();
 }
 
@@ -194,7 +195,9 @@ export function nightPanel(s) {
   return openModal(html, { cls: 'night-panel' });
 }
 
-export function battlePanel(s, b) {
+// prev 是上一帧的血条百分比：面板每次都整块重建，靠它把新血条从旧位置动画推下来，
+// 不然血量是「跳」下去的，看不出掉了多少。
+export function battlePanel(s, b, prev) {
   const hand = b.hand.map((c, i) => {
     const dmg = cardDamage(s, c);
     return `<button class="card ${c.kind === 'support' ? 'support' : ''}" data-idx="${i}">
@@ -207,13 +210,15 @@ export function battlePanel(s, b) {
   const notes = shownNotes.map((n) => '<li>' + esc(n) + '</li>').join('');
   const pct = Math.max(0, (b.enemy.hp / b.enemy.maxHp) * 100);
   const hpPct = Math.max(0, (b.playerHp / b.playerMaxHp) * 100);
+  const epFrom = prev ? prev.enemy : pct;
+  const hpFrom = prev ? prev.hp : hpPct;
 
   const html = `
     <div class="battle">
       <div class="btop">
         <div class="enemy">
           <div class="ename">${esc(b.enemy.name)}</div>
-          <div class="ebar"><i style="width:${pct}%"></i></div>
+          <div class="ebar"><i style="width:${pct}%;--from:${epFrom}%"></i></div>
           <div class="ehp">${b.enemy.hp} / ${b.enemy.maxHp}</div>
         </div>
         <div class="round">第 ${b.round} / ${b.rounds} 回合</div>
@@ -226,7 +231,7 @@ export function battlePanel(s, b) {
         <div class="hand">${hand}</div>
         <div class="bhud">
           <span>你的 HP ${b.playerHp} / ${b.playerMaxHp}</span>
-          <span class="mini"><i style="width:${hpPct}%"></i></span>
+          <span class="mini"><i style="width:${hpPct}%;--from:${hpFrom}%"></i></span>
           <span>${b.enemy.desc}</span>
         </div>
       `}
@@ -562,23 +567,111 @@ export function pianoPanel(spot, played, s, doneMsg) {
 let actx = null;
 const TONES = [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25];
 
-export function playTone(i) {
+// 只用一个 AudioContext：钢琴和战斗音共用，省得每声都新建一个。
+// 浏览器拦掉音频时一律静音返回 null，不影响任何结算。
+function audio() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
+    if (!AC) return null;
     if (!actx) actx = new AC();
     if (actx.state === 'suspended') actx.resume();
-    const t0 = actx.currentTime;
-    const osc = actx.createOscillator();
-    const gain = actx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = TONES[i % TONES.length];
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.linearRampToValueAtTime(0.16, t0 + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.0);
-    osc.connect(gain);
-    gain.connect(actx.destination);
-    osc.start(t0);
-    osc.stop(t0 + 1.05);
-  } catch (e) { /* 音频被拦就静音，照样能弹 */ }
+    return actx;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 一个短音：从 f0 滑到 f1，指数衰减。战斗音全部用它拼出来，不引任何音频文件。
+function blip(ctx, { type = 'square', f0 = 200, f1 = 90, dur = 0.12, vol = 0.18, delay = 0 }) {
+  const t0 = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(f0, t0);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.linearRampToValueAtTime(vol, t0 + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+export function playTone(i) {
+  const ctx = audio();
+  if (!ctx) return;
+  try {
+    blip(ctx, { type: 'sine', f0: TONES[i % TONES.length], f1: TONES[i % TONES.length], dur: 1.0, vol: 0.16 });
+  } catch (e) { /* 拦掉就静音 */ }
+}
+
+// 出牌：先一记短促的下滑（打在怪身上），挨打时再补一声闷响。
+export function playHit(taken) {
+  const ctx = audio();
+  if (!ctx) return;
+  try {
+    blip(ctx, { type: 'square', f0: 240, f1: 70, dur: 0.11, vol: 0.15 });
+    blip(ctx, { type: 'triangle', f0: 120, f1: 60, dur: 0.16, vol: 0.10, delay: 0.03 });
+    if (taken) blip(ctx, { type: 'sawtooth', f0: 90, f1: 40, dur: 0.24, vol: 0.13, delay: 0.07 });
+  } catch (e) { /* 拦掉就静音 */ }
+}
+
+export function playOutcome(win) {
+  const ctx = audio();
+  if (!ctx) return;
+  try {
+    if (win) {
+      blip(ctx, { type: 'triangle', f0: 330, f1: 660, dur: 0.22, vol: 0.12 });
+      blip(ctx, { type: 'sine', f0: 440, f1: 880, dur: 0.30, vol: 0.10, delay: 0.10 });
+    } else {
+      blip(ctx, { type: 'sawtooth', f0: 140, f1: 40, dur: 0.55, vol: 0.14 });
+    }
+  } catch (e) { /* 拦掉就静音 */ }
+}
+
+// ---------------------------------------------------------------- 打击感
+// 抖动作用在战斗面板内容上：幅度 2–4px，打中抖小、挨打抖大。
+// 闪红用一层固定覆盖层改 opacity，不用重建 DOM，所以不会打断正在播的动画。
+let lastShake = null;
+
+function shake(amp, dur) {
+  const box = els.modal && els.modal.querySelector('.battle');
+  if (!box || typeof box.animate !== 'function') return;
+  try {
+    if (lastShake) lastShake.cancel();
+    lastShake = box.animate([
+      { transform: 'translate(0, 0)' },
+      { transform: `translate(${-amp}px, ${amp * 0.4}px)` },
+      { transform: `translate(${amp}px, ${-amp * 0.4}px)` },
+      { transform: `translate(${-amp * 0.5}px, 0)` },
+      { transform: 'translate(0, 0)' },
+    ], { duration: dur, easing: 'ease-out' });
+  } catch (e) { /* 不支持 Web Animations 就跳过 */ }
+}
+
+function flash(strength) {
+  const el = els.flash;
+  if (!el || typeof el.animate !== 'function') return;
+  try {
+    el.animate(
+      [{ opacity: 0 }, { opacity: strength }, { opacity: 0 }],
+      { duration: 90 + strength * 260, easing: 'ease-out' }
+    );
+  } catch (e) { /* 同上 */ }
+}
+
+// 一次出牌之后的全部反馈：dealt 打出去多少，taken 挨了多少
+export function hitFx(dealt, taken) {
+  if (dealt > 0) {
+    shake(taken > 0 ? 4 : 2, taken > 0 ? 240 : 160);
+    playHit(taken > 0);
+  }
+  if (taken > 0) flash(0.85);
+}
+
+export function outcomeFx(win) {
+  shake(win ? 3 : 5, win ? 200 : 380);
+  flash(win ? 0.35 : 1);
+  playOutcome(win);
 }

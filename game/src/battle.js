@@ -65,10 +65,13 @@ export function cardDamage(s, card) {
   return Math.floor(card.power * (0.8 + s.knowledge / 100));
 }
 
+// 返回 { dealt, taken }：ui 层拿它决定抖多大幅度、闪不闪红、放什么音。
+// 只给表现用，不参与任何结算，sim.mjs 忽略返回值也没关系。
 export function playCard(s, b, index) {
-  if (b.over) return;
+  const none = { dealt: 0, taken: 0 };
+  if (b.over) return none;
   const card = b.hand[index];
-  if (!card) return;
+  if (!card) return none;
 
   const dmg = cardDamage(s, card);
   b.enemy.hp = Math.max(0, b.enemy.hp - dmg);
@@ -86,7 +89,7 @@ export function playCard(s, b, index) {
     b.over = true;
     b.result = 'win';
     b.notes.push(b.enemy.name + '散成了灰。');
-    return;
+    return { dealt: dmg, taken: 0 };
   }
 
   let atk = b.enemy.atk;
@@ -101,16 +104,17 @@ export function playCard(s, b, index) {
     b.over = true;
     b.result = 'lose';
     b.notes.push('你被拖垮了。');
-    return;
+    return { dealt: dmg, taken: atk };
   }
 
   if (b.round >= b.rounds) {
     b.over = true;
     b.result = 'lose';
     b.notes.push('天亮了，' + b.enemy.name + '还站着。');
-    return;
+    return { dealt: dmg, taken: atk };
   }
 
   b.round += 1;
   drawHand(s, b);
+  return { dealt: dmg, taken: atk };
 }

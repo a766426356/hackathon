@@ -48,6 +48,9 @@
     <div id="modal-backdrop"></div>
     <div id="modal" class="panel"></div>
   </div>
+
+  <!-- 受击闪红：常驻一层覆盖层，只改 opacity，不重建 DOM，所以不会打断动画 -->
+  <div id="flash"></div>
 </div>
 <script type="module" src="src/main.js"></script>
 </body>
