@@ -16,6 +16,24 @@ Open <http://localhost:8000>.
 
 > It has to be served over http — double-clicking `index.html` will not work: ES modules get blocked by CORS on `file://`.
 
+## Shipping it as one file
+
+`tools/build-single-file.py` flattens the whole game — modules, CSS, map, room backdrops,
+the title photo and the 13 piano samples — into a single self-contained HTML file:
+
+```bash
+python tools/build-single-file.py        # -> dist/hku-seven-days.html (~3.1 MB)
+```
+
+That file has no external requests at all, so it can be mailed, dropped on a USB stick, or
+opened with a double click. (`dist/` is gitignored: the HTML is a build artifact, regenerate
+it whenever the game changes.)
+
+Images get recompressed on the way in (map 1536→1152, photos →1000px q74) — without that the
+single file lands around 6 MB instead of 3.1 MB. The piano samples ride along as data URLs on
+`window.__PIANO_SAMPLES__`; `audio.js` prefers them and falls back to the relative path when
+they're absent, so the normal served build behaves exactly as before.
+
 ## How to play
 
 - **Daytime**: **3 Action Points** a day. Walk around the campus (WASD / arrow keys), stand in the ring and press `E` or space to interact, or just click a label.

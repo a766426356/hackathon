@@ -89,6 +89,13 @@ export function pianoLoadProgress() {
   return { loaded: loadedCount, total: Object.keys(SAMPLE_MIDI).length };
 }
 
+// Single-file builds embed the samples as data URLs on window.__PIANO_SAMPLES__;
+// the normal file-based build falls through to the relative path.
+function sampleUrl(name) {
+  const inline = typeof window !== 'undefined' ? window.__PIANO_SAMPLES__ : null;
+  return inline && inline[name] ? inline[name] : SAMPLE_ROOT + name + '.mp3';
+}
+
 export function loadPianoSamples() {
   if (loadPromise) return loadPromise;
   const c = initAudio();
@@ -96,7 +103,7 @@ export function loadPianoSamples() {
   const entries = Object.entries(SAMPLE_MIDI);
   loadPromise = Promise.all(entries.map(async ([name, midi]) => {
     try {
-      const res = await fetch(SAMPLE_ROOT + name + '.mp3');
+      const res = await fetch(sampleUrl(name));
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const raw = await res.arrayBuffer();
       const buf = await c.decodeAudioData(raw);
