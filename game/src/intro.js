@@ -28,7 +28,7 @@ export function showTitleScreen() {
   const root = document.createElement('div');
   root.id = 'title-screen';
   root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-label', '张江学院 · 开场');
+  root.setAttribute('aria-label', '香港大学张江校区 · 开场');
   root.innerHTML = `
     <div class="ts-bg"></div>
     <div class="ts-grid"></div>
@@ -40,7 +40,7 @@ export function showTitleScreen() {
             <span class="ts-en">THE HKU</span>
             <span class="ts-en2">ZHANGJIANG CAMP</span>
           </h1>
-          <div class="ts-seal"><i></i><span>张江学院 · 七天</span><i></i></div>
+          <div class="ts-seal"><i></i><span>香港大学张江校区 · 七天</span><i></i></div>
           <button class="ts-start" type="button">START</button>
           <div class="ts-hint">ENTER / 空格</div>
         </div>

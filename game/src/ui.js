@@ -205,7 +205,7 @@ export function closeModal() {
 export function introPanel(hasSave) {
   const html = `
     <div class="intro">
-      <div class="tag">张江校区 · 七天体验</div>
+      <div class="tag">七天新生体验</div>
       <h1>欢迎来到${esc(CONFIG.schoolName)}</h1>
       <p class="sub">给访客的一次校园生活模拟</p>
       <p class="body">接下来七天，你以一名新生的身份在这里生活：上课、自习、交朋友，

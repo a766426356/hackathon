@@ -1,7 +1,7 @@
 // data.js — 全部数值 / 地图 / 文案。改平衡性只需要动这个文件。
 
 export const CONFIG = {
-  schoolName: '张江学院',
+  schoolName: '香港大学张江校区',
   maxDay: 7, // 第 7 天考试
 
   // 每天 5 个行动点 = 2 节必修大课（每天开头自动结算，不占自由点）+ 3 点自由支配
@@ -99,7 +99,7 @@ export const CAMPUS = {
   src: 'assets/campus.jpg',
   w: 1024,
   h: 1024,
-  label: '张江学园 · 集电校区',
+  label: '香港大学张江校区',
   zoom: 1.7,        // 镜头放大倍数：越大越贴近人物，越小看得越远
   playerScale: 0.8, // 小人在图上的大小（1 = 原始像素尺寸）
   speed: 240,       // 走动速度（画布像素/秒）
