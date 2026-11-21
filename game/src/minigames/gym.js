@@ -313,9 +313,13 @@ export function openGym(opts = {}) {
 
   function render(dt) {
     ctx.clearRect(0, 0, W, H);
-    drawRoom();
-    drawRack();
-    drawBench();
+    // 墙面和器材交给底下的实景图（CSS 里虚化过的 B1 照片），这里只画人和光
+    const ground = ctx.createLinearGradient(0, FLOOR - 40, 0, H);
+    ground.addColorStop(0, 'rgba(12,18,26,0)');
+    ground.addColorStop(1, 'rgba(12,18,26,0.72)');
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, FLOOR - 40, W, H - FLOOR + 40);
+
     drawLifter(poseAmount());
     drawDust(dt || 0);
   }

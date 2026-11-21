@@ -957,13 +957,28 @@ table.stats td.big { font-size: 22px; font-weight: 700; color: var(--gold-2); }
 /* ---------------------------------------------------------------- B1：健身房 */
 .gym-panel { width: min(560px, 95vw); }
 .gym-stage {
+  position: relative;
   margin-top: 14px;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #2c3648;
   background: #121821;
 }
-#gym-canvas { display: block; width: 100%; height: auto; }
+/* B1 的实景照片虚化后当底：人还是画出来的像素小人，站在真场地里 */
+.gym-stage::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  background: url("assets/elevator-test/cds1-b1.jpg") center / cover no-repeat;
+  filter: blur(3px) saturate(.8) brightness(.5);
+}
+.gym-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 14, 20, .35), rgba(10, 14, 20, .08) 40%, rgba(10, 14, 20, .5));
+}
+#gym-canvas { position: relative; z-index: 1; display: block; width: 100%; height: auto; }
 
 .gym-keys {
   display: flex;

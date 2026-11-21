@@ -1,29 +1,33 @@
 // run.js — 操场：跨栏比赛。
-// 流程：准备（加载条）→ 按「开始」→ 3-2-1 发令 → 跑 → 结算。
-// 两条对手都在相邻跑道：一个强一点（不失误才追得上），一个弱一点（掉两次也还在你后面）。
+// 流程：准备（加载条）→ 按「开始」→ 3·2·1 → 各就各位（等枪）→ 枪响后自己按一下起跑 → 跑 → 结算。
+// 起跑那一下拼反应：枪响到按下之间的时间直接变成起跑延迟；抢跑罚 0.6 秒。
+// 两条对手分在不同跑道，画得小一点、抬高一点做纵深，它们也会自己跨栏。
 
 import * as ui from '../ui.js';
 import { unlockAudio, sfx } from '../audio.js';
 
 const W = 640;
 const H = 240;
-const GROUND = H - 58;
-const PLAYER_X = 132;
+const GROUND = H - 62;
+const PLAYER_X = 138;
 const PX_PER_M = 9;
 const TOTAL_M = 60;
 const HURDLE_GAP = 7;
 const JUMP_V = -560;
 const GRAVITY = 1700;
 const MAX_SPEED = 6.4;
-const COUNT_STEP = 0.72;
+const COUNT_STEP = 0.66;
+const FALSE_START_PENALTY = 0.6;
+const MAX_REACT = 1.2;
 
 const PREP_LINES = ['准备场地…', '检查栏架…', '对手就位…', '各就各位…'];
 const PREP_TIME = 1.9;
 
-// 对手：强的那位按 10.05s 跑完，玩家全程不撞大约 9.8s；撞一次大约多花 0.5s
+// 对手：强的那位按 10.05s 跑完（含 0.22s 反应），玩家全程不撞约 9.8s；
+// 起跑慢 0.4 秒以上或者撞一次，就追不上陈了。
 const RIVALS = [
-  { id: 'chen', name: '陈', speed: TOTAL_M / 10.05, color: '#7fa8d9', lane: -1 },
-  { id: 'zhou', name: '周', speed: TOTAL_M / 11.20, color: '#9ad98b', lane: 1 },
+  { id: 'chen', name: '陈', speed: TOTAL_M / 9.83, react: 0.22, color: '#7fa8d9', dy: 24, scale: 0.86 },
+  { id: 'zhou', name: '周', speed: TOTAL_M / 10.75, react: 0.38, color: '#9ad98b', dy: 13, scale: 0.92 },
 ];
 
 let active = null;
@@ -41,11 +45,18 @@ export function openRun(opts = {}) {
   for (let m = 8; m <= TOTAL_M - 4; m += HURDLE_GAP) hurdles.push({ at: m, checked: false, hit: false });
 
   const g = {
-    phase: 'prep', // prep | ready | count | race | over
+    phase: 'prep', // prep | ready | count | set | race | over
     prep: 0,
     line: 0,
     countT: 0,
     countN: 4,
+    setWait: 0,
+    fired: false,
+    raceT: 0,
+    reaction: null,
+    falseStart: false,
+    started: false,
+    startAt: 0,
     dist: 0,
     speed: 0,
     py: 0,
@@ -54,7 +65,6 @@ export function openRun(opts = {}) {
     misses: 0,
     jumps: 0,
     shake: 0,
-    time: 0,
     over: false,
     settled: false,
     rivals: RIVALS.map((r) => ({ ...r, dist: 0 })),
@@ -67,7 +77,7 @@ export function openRun(opts = {}) {
           <span class="mg-icon">🏃</span>
           <div>
             <h2>跨栏</h2>
-            <p class="sub">${TOTAL_M} 米 · 撞两次就落后 · 不失误才追得上陈</p>
+            <p class="sub">${TOTAL_M} 米 · 枪响再起跑 · 不失误才追得上陈</p>
           </div>
         </div>
         <div class="run-meters"><b id="run-m">0</b> / ${TOTAL_M} m</div>
@@ -96,7 +106,7 @@ export function openRun(opts = {}) {
         </div>
       </div>
       <div class="mg-hint">
-        <span><kbd>空格</kbd> / <kbd>E</kbd> / <kbd>↑</kbd> 起跳 · 落地就能再跳</span>
+        <span id="run-start-hint">按「开始」发令</span>
         <span id="run-status" class="mg-status">还没开始。</span>
       </div>
       <div class="mg-row">
@@ -116,6 +126,7 @@ export function openRun(opts = {}) {
   const countEl = root.querySelector('#run-count');
   const overlay = root.querySelector('#run-overlay');
   const statusEl = root.querySelector('#run-status');
+  const hintEl = root.querySelector('#run-start-hint');
   const mEl = root.querySelector('#run-m');
   const tagEl = root.querySelector('#run-tag');
   const titleEl = root.querySelector('#run-title');
@@ -127,11 +138,12 @@ export function openRun(opts = {}) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   function setStatus(t) { statusEl.textContent = t; }
+  function setHint(t) { hintEl.textContent = t; }
   function setCount(txt) {
-    countEl.querySelector('span').textContent = txt;
+    const span = countEl.querySelector('span');
+    if (span) span.textContent = txt;
     countEl.classList.remove('pop');
-    // 强制回流，动画才会重播
-    void countEl.offsetWidth;
+    void countEl.offsetWidth; // 强制回流，动画才会重播
     countEl.classList.add('pop');
   }
 
@@ -141,6 +153,13 @@ export function openRun(opts = {}) {
     g.line = 0;
     g.countT = 0;
     g.countN = 4;
+    g.setWait = 0;
+    g.fired = false;
+    g.raceT = 0;
+    g.reaction = null;
+    g.falseStart = false;
+    g.started = false;
+    g.startAt = 0;
     g.dist = 0;
     g.speed = 0;
     g.py = 0;
@@ -149,7 +168,6 @@ export function openRun(opts = {}) {
     g.misses = 0;
     g.jumps = 0;
     g.shake = 0;
-    g.time = 0;
     g.over = false;
     g.settled = false;
     for (const r of g.rivals) r.dist = 0;
@@ -161,6 +179,7 @@ export function openRun(opts = {}) {
     prepTitle.textContent = PREP_LINES[0];
     prepBar.style.transform = 'scaleX(0)';
     mEl.textContent = '0';
+    setHint('按「开始」发令');
     setStatus('还没开始。');
   }
 
@@ -185,17 +204,50 @@ export function openRun(opts = {}) {
     setStatus('三…');
   }
 
-  function startRace() {
-    g.phase = 'race';
+  // 倒计时结束 → 各就各位，枪什么时候响是随机的（1.0–1.8 秒），不能预判
+  function toSet() {
+    g.phase = 'set';
+    g.setWait = 1.0 + Math.random() * 0.8;
     countEl.classList.add('hidden');
+    setHint('等枪响再按 · 空格 / E / ↑ / W');
+    setStatus('各就各位……');
+  }
+
+  function fire() {
+    g.phase = 'race';
+    g.fired = true;
+    g.raceT = 0;
     sfx('gun');
-    setStatus('跑起来！');
+    g.shake = 6;
+    setCount('跑');
+    countEl.classList.remove('hidden');
+    setTimeout(() => { if (!destroyed) countEl.classList.add('hidden'); }, 420);
+    setHint('空格 / E / ↑ / W 起跳');
+    setStatus('枪响了，起跑！');
+  }
+
+  function pressStart() {
+    if (!g.fired || g.started) return false;
+    g.started = true;
+    g.reaction = g.raceT;
+    g.startAt = g.raceT + (g.falseStart ? FALSE_START_PENALTY : 0);
+    setStatus(g.falseStart
+      ? '抢跑了，罚 0.6 秒。'
+      : '反应 ' + g.reaction.toFixed(2) + ' 秒。');
+    return true;
   }
 
   function jump() {
-    if (g.phase === 'prep' || g.phase === 'ready') { if (g.phase === 'ready') beginCountdown(); return; }
+    if (g.phase === 'over') return;
+    if (g.phase === 'prep') return;
+    if (g.phase === 'ready') { beginCountdown(); return; }
     if (g.phase === 'count') return;
-    if (g.phase !== 'race' || !g.onGround) return;
+    if (g.phase === 'set') { // 枪还没响就按 = 抢跑
+      if (!g.falseStart) { g.falseStart = true; sfx('foul'); setStatus('抢跑了！等枪响再按。'); }
+      return;
+    }
+    if (!g.started) { pressStart(); return; }
+    if (!g.onGround) return;
     g.vy = JUMP_V;
     g.onGround = false;
     g.jumps++;
@@ -212,26 +264,43 @@ export function openRun(opts = {}) {
     if (g.over) return;
     g.over = true;
     g.phase = 'over';
-    // 谁先冲线就算赢：对手还没到 60 米才算被我们超过。
-    // （不能把对手距离截断到 60 —— 那样「同时到达」会被算成玩家赢。）
+    // 谁先冲线谁赢：对手还没到 60 米才算被超过（不能截断对手距离，否则同时到达会被算成赢）
     const beaten = g.rivals.filter((r) => r.dist < TOTAL_M).length;
     const place = 3 - beaten;
     const outcome = place === 1 ? 'win' : place === 2 ? 'draw' : 'lose';
     let reward = '';
     if (!g.settled) {
       g.settled = true;
-      const res = opts.onFinish ? opts.onFinish(outcome, { misses: g.misses, jumps: g.jumps, place }) : null;
+      const res = opts.onFinish
+        ? opts.onFinish(outcome, { misses: g.misses, jumps: g.jumps, place, reaction: g.reaction })
+        : null;
       reward = res && res.msg ? res.msg : '';
     }
     sfx(outcome === 'win' ? 'win' : 'lose');
     tagEl.textContent = place === 1 ? '第一名' : place === 2 ? '第二名' : '第三名';
-    titleEl.textContent = '第 ' + place + ' 名 · 撞了 ' + g.misses + ' 次';
+    titleEl.textContent = '第 ' + place + ' 名 · 撞了 ' + g.misses + ' 次' +
+      (g.reaction !== null ? ' · 反应 ' + g.reaction.toFixed(2) + 's' : '');
     msgEl.textContent = (reward || '跑完了。') + ' · 可以再来一次，但今天的结算已经记下了。';
     overlay.classList.remove('hidden');
     setStatus('第 ' + place + ' 名。');
   }
 
   // ------------------------------------------------------------ 绘制
+  function drawStands() {
+    for (let i = 0; i < 4; i++) {
+      const y = GROUND - 112 + i * 18;
+      ctx.fillStyle = 'rgba(90,104,128,' + (0.10 + i * 0.05) + ')';
+      ctx.fillRect(0, y, W, 13);
+      // 观众：一排小点，走动的时候轻轻晃
+      ctx.fillStyle = 'rgba(20,26,36,' + (0.10 + i * 0.05) + ')';
+      const off = (g.dist * (1.2 + i * 0.5)) % 26;
+      for (let x = -26 + off; x < W + 26; x += 26) {
+        const bob = Math.sin(g.raceT * 3 + x * 0.3 + i) * 1.2;
+        ctx.fillRect(x + i * 7, y + 4 + bob, 7, 7);
+      }
+    }
+  }
+
   function drawBackdrop() {
     const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
     sky.addColorStop(0, '#7fa8d9');
@@ -240,53 +309,73 @@ export function openRun(opts = {}) {
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, W, GROUND);
 
-    // 看台：一条条渐变的座位，越远越淡
-    for (let i = 0; i < 4; i++) {
-      const y = GROUND - 108 + i * 17;
-      ctx.fillStyle = 'rgba(90,104,128,' + (0.10 + i * 0.05) + ')';
-      ctx.fillRect(0, y, W, 12);
-    }
-    // 远处楼
+    drawStands();
+
+    // 远处楼群：视差 1.2 倍
     ctx.fillStyle = 'rgba(70,86,112,0.20)';
     for (let i = 0; i < 6; i++) {
       const bw = 74 + (i % 3) * 26;
       const bh = 40 + ((i * 37) % 48);
       const bx = ((i * 150 - g.dist * 1.2) % (W + 200) + W + 200) % (W + 200) - 100;
-      ctx.fillRect(bx, GROUND - 112 - bh, bw, bh);
+      ctx.fillRect(bx, GROUND - 116 - bh, bw, bh);
     }
 
-    // 跑道
-    ctx.fillStyle = '#c98b6b';
-    ctx.fillRect(0, GROUND, W, H - GROUND);
-    ctx.fillStyle = 'rgba(255,255,255,0.42)';
-    ctx.fillRect(0, GROUND + 26, W, 1);
-    ctx.fillRect(0, GROUND + 52, W, 1);
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    // 跑道：三条道，越靠上越暗（远）
+    const bands = [
+      { y: GROUND - 30, h: 30, c: '#b87f61' },
+      { y: GROUND - 8, h: 22, c: '#c1866a' },
+      { y: GROUND, h: 30, c: '#c98b6b' },
+    ];
+    for (const b of bands) {
+      ctx.fillStyle = b.c;
+      ctx.fillRect(0, b.y, W, b.h);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(0, GROUND - 30, W, 1.5);
+    ctx.fillRect(0, GROUND - 8, W, 1.5);
+
+    // 分道虚线跟着速度滚
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
     ctx.lineWidth = 2;
     ctx.setLineDash([18, 22]);
     ctx.lineDashOffset = -(g.dist * PX_PER_M) % 40;
     ctx.beginPath();
-    ctx.moveTo(0, GROUND + 6);
-    ctx.lineTo(W, GROUND + 6);
+    ctx.moveTo(0, GROUND + 7);
+    ctx.lineTo(W, GROUND + 7);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // 前景：跑道靠近镜头的边，滚得比别处快，速度感靠它
+    ctx.fillStyle = '#8f5f47';
+    ctx.fillRect(0, H - 16, W, 16);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(0, H - 16, W, 3);
   }
 
   function drawHurdle(h) {
     const x = PLAYER_X + (h.at - g.dist) * PX_PER_M;
     if (x < -30 || x > W + 30) return;
-    ctx.fillStyle = h.hit ? '#8a5a5a' : '#3a4358';
-    ctx.fillRect(x - 2, GROUND - 36, 4, 36);
-    ctx.fillRect(x + 14, GROUND - 36, 4, 36);
-    ctx.fillStyle = h.hit ? '#c98080' : '#f0e2bb';
-    ctx.fillRect(x - 4, GROUND - 34, 24, 4);
-    ctx.fillRect(x - 4, GROUND - 24, 24, 4);
+    // 栏横跨三条道，远处那条画得矮一点，纵深就出来了
+    const tops = [
+      { y0: GROUND - 30, y1: GROUND - 52, w: 3 },
+      { y0: GROUND - 8, y1: GROUND - 38, w: 3.5 },
+      { y0: GROUND, y1: GROUND - 38, w: 4 },
+    ];
+    for (const t of tops) {
+      const dark = h.hit ? '#8a5a5a' : '#3a4358';
+      const light = h.hit ? '#c98080' : '#f0e2bb';
+      ctx.fillStyle = dark;
+      ctx.fillRect(x - 2, t.y1, t.w, t.y0 - t.y1);
+      ctx.fillRect(x + 16, t.y1, t.w, t.y0 - t.y1);
+      ctx.fillStyle = light;
+      ctx.fillRect(x - 4, t.y1, 26, 3);
+      ctx.fillRect(x - 4, t.y1 + 8, 26, 3);
+    }
   }
 
-  // 小人：近的跑道画大一点，相邻跑道上的人画小一点、抬高一点，看起来有纵深
-  function drawRunner(px, baseY, stride, scale, body, skin, isMe) {
+  function drawRunner(px, baseY, stride, scale, body, skin, isMe, lift) {
     ctx.save();
-    ctx.translate(px, baseY);
+    ctx.translate(px, baseY + (lift || 0));
     ctx.scale(scale, scale);
     ctx.fillStyle = 'rgba(0,0,0,0.18)';
     ctx.beginPath();
@@ -305,7 +394,6 @@ export function openRun(opts = {}) {
     ctx.fillRect(-10, -26 - stride, 4, 10);
     ctx.fillRect(6, -26 + stride, 4, 10);
     if (isMe) {
-      // 自己头顶一个小箭头，人多了也找得到
       ctx.fillStyle = '#ffe38a';
       ctx.beginPath();
       ctx.moveTo(0, -48);
@@ -317,18 +405,39 @@ export function openRun(opts = {}) {
     ctx.restore();
   }
 
-  function drawField() {
-    // 相邻跑道的对手先画（在后面），再画自己
-    const order = g.rivals.slice().sort((a, b) => Math.abs(b.lane) - Math.abs(a.lane));
-    for (const r of order) {
-      const x = PLAYER_X + (r.dist - g.dist) * PX_PER_M * 0.96;
-      if (x < -60 || x > W + 60) continue;
-      const y = GROUND - 14 * Math.abs(r.lane) - 8;
-      ctx.globalAlpha = 0.92;
-      drawRunner(x, y, Math.sin(r.dist * 5.6) * 4, 0.86, r.color, '#f3c9a3', false);
-      ctx.globalAlpha = 1;
+  // 对手自己也会跨栏：离栏 0.5 米内就走一段正弦弧
+  function rivalLift(r) {
+    let lift = 0;
+    for (const h of hurdles) {
+      const d = r.dist - h.at;
+      if (d > -0.5 && d < 0.5) {
+        const t = (d + 0.5) / 1.0;
+        lift = Math.min(lift, -Math.sin(t * Math.PI) * 26);
+      }
     }
-    drawRunner(PLAYER_X, GROUND + g.py, g.onGround ? Math.sin(g.dist * 6) * 4 : 0, 1, '#33456b', '#f3c9a3', true);
+    return lift;
+  }
+
+  function drawField() {
+    // 远的先画
+    const order = g.rivals.slice().sort((a, b) => b.dy - a.dy);
+    for (const r of order) {
+      const x = PLAYER_X + (r.dist - g.dist) * PX_PER_M;
+      if (x < -70 || x > W + 70) continue;
+      const stride = Math.sin(r.dist * 5.6) * 4;
+      ctx.globalAlpha = 0.9;
+      drawRunner(x, GROUND - r.dy, stride, r.scale, r.color, '#f3c9a3', false, rivalLift(r));
+      ctx.globalAlpha = 1;
+      // 名字挂在头顶
+      ctx.fillStyle = 'rgba(10,14,20,0.5)';
+      ctx.fillRect(x - 15, GROUND - r.dy - 62 * r.scale, 30, 13);
+      ctx.fillStyle = r.color;
+      ctx.font = '10px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(r.name, x, GROUND - r.dy - 52 * r.scale);
+    }
+    drawRunner(PLAYER_X, GROUND + g.py, g.onGround ? Math.sin(g.dist * 6) * 4 : 0,
+      1, '#33456b', '#f3c9a3', true, 0);
   }
 
   function drawFinish() {
@@ -336,19 +445,26 @@ export function openRun(opts = {}) {
     if (x > W + 20) return;
     for (let i = 0; i < 8; i++) {
       ctx.fillStyle = i % 2 ? '#2b3446' : '#f0e2bb';
-      ctx.fillRect(x + i * 6, GROUND - 54, 6, 54);
+      ctx.fillRect(x + i * 6, GROUND - 56, 6, 56);
     }
   }
 
-  function drawRibbon() {
+  function drawHud() {
     if (g.phase !== 'race' && g.phase !== 'over') return;
     const place = rank();
     ctx.fillStyle = 'rgba(10,14,20,0.55)';
-    ctx.fillRect(W - 104, 10, 92, 24);
+    ctx.fillRect(W - 108, 10, 96, 24);
     ctx.fillStyle = place === 1 ? '#ffe38a' : '#c9d2e2';
     ctx.font = '13px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(place === 1 ? '第 1 名' : '第 ' + place + ' 名', W - 58, 27);
+    ctx.fillText('第 ' + place + ' 名', W - 60, 27);
+    if (g.reaction !== null) {
+      ctx.fillStyle = 'rgba(10,14,20,0.5)';
+      ctx.fillRect(W - 108, 38, 96, 20);
+      ctx.fillStyle = g.falseStart ? '#f0a0a0' : '#9fd0f0';
+      ctx.font = '11px system-ui, sans-serif';
+      ctx.fillText((g.falseStart ? '抢跑 ' : '反应 ') + g.reaction.toFixed(2) + 's', W - 60, 52);
+    }
   }
 
   function render() {
@@ -359,7 +475,7 @@ export function openRun(opts = {}) {
     drawFinish();
     for (const h of hurdles) drawHurdle(h);
     drawField();
-    drawRibbon();
+    drawHud();
     ctx.restore();
     mEl.textContent = String(Math.min(TOTAL_M, Math.floor(g.dist)));
   }
@@ -380,23 +496,39 @@ export function openRun(opts = {}) {
 
     if (g.phase === 'count') {
       g.countT += dt;
-      const elapsed = g.countT;
-      const n = 3 - Math.floor(elapsed / COUNT_STEP);
+      const n = 3 - Math.floor(g.countT / COUNT_STEP);
       if (n !== g.countN) {
         g.countN = n;
         if (n > 0) { setCount(String(n)); sfx('tick'); }
-        else startRace();
+        else toSet();
       }
+      return;
+    }
+
+    if (g.phase === 'set') {
+      g.setWait -= dt;
+      if (g.setWait <= 0) fire();
       return;
     }
 
     if (g.phase !== 'race') return;
 
-    g.time += dt;
-    g.speed = Math.min(MAX_SPEED, g.speed + dt * 7);
-    g.dist += g.speed * dt;
+    g.raceT += dt;
+
+    // 对手按各自的反应时间起跑
     for (const r of g.rivals) {
-      r.dist += r.speed * dt;
+      if (g.raceT > r.react) r.dist += r.speed * dt;
+    }
+
+    // 玩家：枪响后按了键才开始跑
+    if (!g.started && g.raceT >= MAX_REACT) {
+      g.falseStart = true;
+      pressStart();
+    }
+    const running = g.started && g.raceT > g.startAt;
+    if (running) {
+      g.speed = Math.min(MAX_SPEED, g.speed + dt * 7);
+      g.dist += g.speed * dt;
     }
 
     if (!g.onGround) {
@@ -405,19 +537,21 @@ export function openRun(opts = {}) {
       if (g.py >= 0) { g.py = 0; g.vy = 0; g.onGround = true; sfx('wall'); }
     }
 
-    for (const h of hurdles) {
-      if (h.checked || g.dist < h.at) continue;
-      h.checked = true;
-      if (g.py > -20) {
-        h.hit = true;
-        g.misses++;
-        g.shake = 9;
-        g.speed = Math.min(g.speed, 2.2); // 踉跄一下，速度掉回起跑水平
-        sfx('foul');
-        setStatus('撞了第 ' + g.misses + ' 个栏。');
-      } else {
-        sfx('paddle', 0.8);
-        setStatus('过栏。');
+    // 没起跑之前不算撞栏
+    if (running) {
+      for (const h of hurdles) {
+        if (h.checked || g.dist < h.at) continue;
+        h.checked = true;
+        if (g.py > -20) {
+          h.hit = true;
+          g.misses++;
+          g.shake = 9;
+          g.speed = Math.min(g.speed, 2.2);
+          sfx('foul');
+          setStatus('撞了第 ' + g.misses + ' 个栏。');
+        } else {
+          sfx('paddle', 0.8);
+        }
       }
     }
 
@@ -437,7 +571,7 @@ export function openRun(opts = {}) {
     const k = e.key.toLowerCase();
     if (k === ' ' || k === 'e' || k === 'enter' || k === 'arrowup' || k === 'w') {
       e.preventDefault();
-      if (g.phase === 'over') return;
+      if (e.repeat) return;
       jump();
     }
   }
