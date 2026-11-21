@@ -60,9 +60,12 @@ for (const r of WALKABLE) {
 }
 
 // ---------------------------------------------------------------- 楼层 / 房间
+// 房间动作分两类：走 rules 的，和直接开面板的（char/calendar/leave）
 const ACTION_FN = {
   course: 1, doubt: 1, pingpong: 1, snooker: 1, piano: 1, studyroom: 1, pray: 1,
+  rest: 1, roomieTalk: 1, char: 1, calendar: 1, leave: 1,
 };
+const UI_ACTIONS = new Set(['char', 'calendar', 'leave']);
 let roomCount = 0;
 
 for (const [id, b] of Object.entries(BUILDING_FLOORS)) {
@@ -79,10 +82,13 @@ for (const [id, b] of Object.entries(BUILDING_FLOORS)) {
     if (!f.rooms.length) fail(id + ' ' + f.label + '：开放楼层却没有房间');
     for (const r of f.rooms) {
       roomCount++;
-      if (!ACTION_FN[r.action]) fail(id + ' ' + f.label + ' / ' + r.name + '：action「' + r.action + '」没有对应规则');
-      else if (typeof rules[r.action] !== 'function') fail('rules.' + r.action + ' 不是函数');
+      if (!ACTION_FN[r.action]) {
+        fail(id + ' ' + f.label + ' / ' + r.name + '：action「' + r.action + '」没有对应规则');
+      } else if (!UI_ACTIONS.has(r.action) && typeof rules[r.action] !== 'function') {
+        fail('rules.' + r.action + ' 不是函数');
+      }
       if (!r.effect) fail(id + ' / ' + r.name + '：没有写清收益');
-      if (!(r.ap > 0)) fail(id + ' / ' + r.name + '：AP 成本异常');
+      if (!(r.ap >= 0)) fail(id + ' / ' + r.name + '：AP 成本异常（' + r.ap + '）');
     }
   }
   // 竖排电梯靠 level 排序，至少要有一层在地上

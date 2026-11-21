@@ -9,6 +9,7 @@ import * as battle from './battle.js';
 import * as ui from './ui.js';
 import { createWorld } from './world.js';
 import { buildingOf, floorByLevel } from './interiors.js';
+import { eventSpots } from './calendar.js';
 import { openPiano as openPianoGame } from './minigames/piano.js';
 import { openPong } from './minigames/pong.js';
 import { openSnooker } from './minigames/snooker.js';
@@ -18,8 +19,7 @@ let world = null;
 let battleState = null;
 let started = false;
 let lastTs = 0;
-
-// 现在没有室内场景了：一直在校园，进楼只弹面板
+let battlePct = null; // 上一帧血条百分比，给血条动画用
 
 const canvas = document.getElementById('game');
 
@@ -28,9 +28,12 @@ function boot() {
   ui.initUI();
   fitCanvas();
   world = createWorld(canvas);
-  ui.setSpots(INTERACTABLES, { w: CAMPUS.w, h: CAMPUS.h, half: 0 });
-  ui.setSceneChip('校园');
+  enterCampus();
   ui.onMarkerClick(onMarkerClick);
+  document.getElementById('btn-char').addEventListener('click', () => {
+    if (!started || !state) return;
+    openCharacter();
+  });
   document.getElementById('btn-endday').addEventListener('click', () => {
     if (!started || !state || state.phase !== 'day') return;
     openNight();
@@ -61,9 +64,13 @@ function startNew() {
   clearSave();
   state = createState(seedFromUrl());
   battleState = null;
+  battlePct = null;
   started = true;
   ui.closeModal();
+  rules.requiredCourses(state); // 第 1 天的两节必修课
+  enterCampus();
   renderAll();
+  ui.toast('第 1 天的两节必修课上完了，剩下 ' + CONFIG.freeAp + ' 个自由行动点。寝室在 2# 门口。');
   save();
 }
 
@@ -97,6 +104,31 @@ function fitCanvas() {
   ui.els.scene.classList.add('square');
 }
 
+// 校园交互点 = 固定点 + 当天日历活动的出发点（一天最多一个）
+function campusSpots() {
+  return state ? INTERACTABLES.concat(eventSpots(state)) : INTERACTABLES;
+}
+
+function refreshCampusSpots() {
+  if (!state) return;
+  const list = campusSpots();
+  world.setSpots(list);
+  ui.setSpots(list, { w: CAMPUS.w, h: CAMPUS.h, half: 0 });
+}
+
+// 回到校园：换回「固定点 + 今天的活动出发点」
+function enterCampus() {
+  const list = campusSpots();
+  world.setSpots(list);
+  ui.setSpots(list, { w: CAMPUS.w, h: CAMPUS.h, half: 0 });
+  ui.setSceneChip('校园');
+  if (state) {
+    state.scene = 'campus';
+    state.scenePos = null;
+    if (started) save();
+  }
+}
+
 function enterBuilding(buildingId) {
   const b = buildingOf(buildingId);
   if (!b) return;
@@ -125,8 +157,13 @@ function openFloor(building, level) {
       if (!room) return;
       const why = roomBlocked(room);
       if (why) { ui.toast(why, 'warn'); return; }
-      if (room.action === 'piano') openPiano(room, building, floor);
-      else openRoom(room, building, floor);
+      if (room.action === 'char') return openCharacter();
+      if (room.action === 'calendar') return openCalendar();
+      if (room.action === 'leave') { ui.closeModal(); return; }
+      if (room.action === 'piano') return openPiano(room, building, floor);
+      if (room.action === 'roomieTalk') return afterAction(rules.roomieTalk(state), building, floor);
+      if (room.action === 'rest') return afterAction(rules.rest(state), building, floor);
+      openRoom(room, building, floor);
     },
     back: () => openElevator(building, level),
     cancel: () => ui.closeModal(),
@@ -177,6 +214,7 @@ function tryInteract() {
 
 function interact(item) {
   if (item.kind === 'enter') { enterBuilding(item.building); return; }
+  if (item.kind === 'event') { openEvent(item.entry); return; }
 
   let res;
   if (item.kind === 'study') res = rules.study(state);
@@ -236,6 +274,7 @@ function openRoom(room, building, floor) {
 function afterAction(res, building, floor) {
   if (!res.ok) { ui.toast(res.msg, 'warn'); return; }
   ui.toast(res.msg);
+  refreshCampusSpots();
   renderAll();
   save();
   if (state.ap <= 0) {
@@ -299,6 +338,33 @@ function openVersus(room, npcId, building, floor) {
   });
 }
 
+// ---------------------------------------------------------------- 面板
+function openCharacter() {
+  if (!state || modalOpen()) return;
+  world.keys.clear();
+  ui.characterPanel(state);
+  ui.bindModal({ close: () => ui.closeModal() });
+}
+
+function openCalendar() {
+  if (!state || modalOpen()) return;
+  world.keys.clear();
+  ui.calendarPanel(state);
+  ui.bindModal({ close: () => ui.closeModal() });
+}
+
+// 日历活动：先看清三条属性给多少，再决定去不去
+function openEvent(entry) {
+  if (!entry) return;
+  if (entry.done) { ui.toast('「' + entry.title + '」今天已经去过了。', 'warn'); return; }
+  world.keys.clear();
+  ui.eventPanel(entry, state);
+  ui.bindModal({
+    go: () => afterAction(rules.doEvent(state, entry)),
+    cancel: () => ui.closeModal(),
+  });
+}
+
 // ---------------------------------------------------------------- 夜晚
 function openNight() {
   if (state.phase !== 'day') return;
@@ -322,14 +388,16 @@ function nightFight() {
 }
 
 function renderBattle() {
-  ui.battlePanel(state, battleState);
+  ui.battlePanel(state, battleState, battlePct);
   ui.bindModal({ card: onPlayCard, done: onBattleDone });
   ui.renderHUD(state);
 }
 
 function onPlayCard(idx) {
   if (!battleState || battleState.over) return;
+  const before = battleState.playerHp / battleState.playerMaxHp;
   battle.playCard(state, battleState, idx);
+  battlePct = before;
   renderBattle();
 }
 
